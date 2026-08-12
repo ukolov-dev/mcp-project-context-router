@@ -1,0 +1,28 @@
+name: Feature request
+description: Propose a focused improvement to the project context workflow.
+title: "[Feature]: "
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What workflow is difficult or impossible today?
+    validations:
+      required: true
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Desired outcome
+      description: Describe the observable result, not only a proposed implementation.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+  - type: textarea
+    id: contract
+    attributes:
+      label: Contract and compatibility impact
+      description: Note expected CLI, MCP, storage, security, or migration implications.

@@ -1,0 +1,58 @@
+#!/usr/bin/env node
+import { spawnSync } from 'node:child_process';
+import { dirname, resolve } from 'node:path';
+import { existsSync } from 'node:fs';
+import { createRequire } from 'node:module';
+import { fileURLToPath } from 'node:url';
+import { systemCaNodeArgs } from './system-ca.js';
+
+const here = dirname(fileURLToPath(import.meta.url));
+const root = resolve(here, '..');
+const built = resolve(root, 'dist', 'cli.js');
+const source = resolve(root, 'src', 'cli.ts');
+const useDist = process.env.PPM_CONTEXT_USE_DIST === '1'
+  || process.env.PROJECT_CONTEXT_USE_DIST === '1'
+  || !existsSync(source);
+const requireFromRoot = createRequire(resolve(root, 'package.json'));
+
+let command = process.execPath;
+let args = [];
+
+if (useDist && existsSync(built)) {
+  args = [built, ...process.argv.slice(2)];
+} else if (useDist) {
+  fail(`The compiled project-context CLI is missing at ${built}.
+
+Run:
+  npm run build`);
+} else {
+  const tsxLoader = resolveTsxLoader();
+  if (!tsxLoader) {
+    fail(`Cannot start project-context because the tsx TypeScript runner is unavailable.
+
+Run:
+  npm install
+
+Then retry the same command.`);
+  }
+  args = ['--import', tsxLoader, source, ...process.argv.slice(2)];
+}
+
+const result = spawnSync(command, systemCaNodeArgs(args), { stdio: 'inherit', cwd: process.cwd() });
+if (result.error) {
+  fail(result.error.message);
+}
+process.exit(result.status ?? 1);
+
+function resolveTsxLoader() {
+  try {
+    return requireFromRoot.resolve('tsx');
+  } catch {
+    return null;
+  }
+}
+
+function fail(message) {
+  console.error(`[project-context] ${message}`);
+  process.exit(1);
+}

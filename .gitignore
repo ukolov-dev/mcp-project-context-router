@@ -1,0 +1,15 @@
+node_modules/
+dist/
+artifacts/
+coverage/
+*.tgz
+*.log
+.DS_Store
+.env
+.env.*
+!.env.example
+
+# Project context router caches and reviewable drafts
+.project-context/indexes/
+.project-context/drafts/
+.project-context/trash/

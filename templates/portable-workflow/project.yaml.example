@@ -1,0 +1,111 @@
+project:
+  name: CHANGE_ME
+  repository: CHANGE_ME
+  context_version: 1
+  timezone: UTC
+  purpose: CHANGE_ME
+  roles:
+    - CHANGE_ME
+  flows:
+    - Validate or derive a task contract before implementation.
+    - Build a context pack and inspect existing capabilities.
+    - Run applicable verification and finalize the work.
+
+routing:
+  default_modules: [web]
+  documentation_modules: [docs]
+
+context_router:
+  cli_command: project-context
+  mcp_server_name: project_context
+  resource_scheme: project-context
+  codex_config_path: .codex/config.toml
+  codex_hooks_path: false
+  required_hook_events: []
+  git_hooks_path: false
+  cache_dependency_files: []
+  brand:
+    name: Project Context Router
+    short_name: Project Context
+    marker: PROJECT_CONTEXT
+    logo_text: "[Project Context]"
+    description: local-first project memory, backlog, and verification router
+
+modules:
+  api:
+    path: services/api
+    stack: CHANGE_ME
+    aliases: [api, backend, server]
+    source_globs:
+      - "services/api/src/**/*.{ts,js,java,kt,py,go,rs}"
+    playbooks:
+      - AGENTS.md
+      - playbooks/api.md
+      - playbooks/testing.md
+  web:
+    path: apps/web
+    stack: CHANGE_ME
+    aliases: [web, frontend, react, ui]
+    source_globs:
+      - "apps/web/src/**/*.{ts,tsx,js,jsx}"
+    playbooks:
+      - AGENTS.md
+      - playbooks/web.md
+      - playbooks/testing.md
+  docs:
+    path: .project-context
+    stack: Markdown/YAML project context
+    aliases: [docs, documentation, context, playbook]
+    source_globs:
+      - "docs/**/*.md"
+      - "playbooks/*.md"
+    playbooks:
+      - AGENTS.md
+      - .project-context/README.md
+
+commands:
+  api_tests:
+    run: cd services/api && npm test
+    required_for: [api]
+    timeout_seconds: 120
+    network: false
+    writes_to: [coverage]
+    ci_equivalent: api-test
+    context_pack: true
+  web_build:
+    run: cd apps/web && npm run build
+    required_for: [web]
+    timeout_seconds: 120
+    network: false
+    writes_to: [apps/web/dist]
+    ci_equivalent: web-build
+    context_pack: true
+  context_lint:
+    run: project-context lint
+    required_for: [docs]
+    timeout_seconds: 60
+    network: false
+    writes_to: []
+    ci_equivalent: context-lint
+    context_pack: true
+
+clarification_policy:
+  max_questions: 5
+  ask_only_if:
+    - affects_api_contract
+    - affects_data_model
+    - affects_auth_or_security
+    - affects_user_workflow
+    - affects_acceptance_criteria
+    - affects_test_strategy
+  infer_if_low_risk: true
+
+secrets:
+  never_store:
+    - API keys
+    - private keys
+    - .env values
+    - passwords
+    - Authorization headers
+    - refresh tokens
+    - full personal data dumps

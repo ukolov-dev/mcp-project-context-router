@@ -1,0 +1,80 @@
+project:
+  name: "__PROJECT_NAME__"
+  repository: "__REPOSITORY__"
+  context_version: 1
+  timezone: Europe/Moscow
+  purpose: Develop and distribute a reusable config-driven project context router.
+  roles: [Maintainer, Contributor, Consumer]
+  flows:
+    - Validate and confirm a Task Contract before implementation.
+    - Build a context pack and inspect existing capabilities.
+    - Run build, tests, package checks, and finalization before handoff.
+routing:
+  default_modules: [router]
+  documentation_modules: [docs]
+context_router:
+  package_path: .
+  cli_command: node bin/project-context
+  install_command: npm install
+  mcp_server_name: project_context
+  resource_scheme: project-context
+  codex_config_path: .codex/config.toml
+  codex_hooks_path: false
+  git_hooks_path: false
+  cache_dependency_files:
+    - src/context-pack/pack.ts
+    - src/storage/config.ts
+    - src/storage/inference.ts
+  brand:
+    name: Project Context Router
+    short_name: Project Context
+    marker: PROJECT_CONTEXT
+    logo_text: "[Project Context]"
+    description: local-first project memory, backlog, and verification router
+modules:
+  router:
+    path: src
+    stack: TypeScript, Node.js, MCP SDK, SQLite
+    aliases: [router, context, mcp, cli, server, typescript]
+    source_globs: ["src/**/*.ts", "bin/*", "hooks/*.js"]
+    playbooks: [AGENTS.md, playbooks/testing.md]
+  tests:
+    path: test
+    stack: Vitest
+    aliases: [test, tests, vitest, verification]
+    source_globs: ["test/**/*.ts"]
+    playbooks: [AGENTS.md, playbooks/testing.md]
+  docs:
+    path: templates
+    stack: Markdown, YAML, TOML
+    aliases: [docs, documentation, template, workflow]
+    source_globs: ["README.md", "templates/**/*.{md,yaml,toml}"]
+    playbooks: [AGENTS.md]
+commands:
+  context_lint:
+    run: node bin/project-context lint
+    required_for: [router, tests, docs]
+    context_pack: true
+  context_index:
+    run: node bin/project-context index
+    required_for: [router]
+  context_doctor:
+    run: node bin/project-context doctor
+    required_for: [router]
+  package_build:
+    run: npm run build
+    required_for: [router]
+    context_pack: true
+  package_tests:
+    run: npm test
+    required_for: [router, tests]
+    context_pack: true
+  package_check:
+    run: npm run package:check
+    required_for: [router]
+    context_pack: true
+retention:
+  context_packs:
+    delete_after_days: 30
+  drafts:
+    warn_after_days: 14

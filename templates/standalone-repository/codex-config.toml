@@ -1,0 +1,22 @@
+# Project-scoped Codex configuration for the standalone router repository.
+[mcp_servers.project_context]
+command = "node"
+args = ["bin/project-context-mcp"]
+cwd = ".."
+startup_timeout_sec = 20
+tool_timeout_sec = 60
+
+[mcp_servers.project_context.tools.validate_task]
+approval_mode = "approve"
+
+[mcp_servers.project_context.tools.build_context_pack]
+approval_mode = "approve"
+
+[mcp_servers.project_context.tools.find_existing_capability]
+approval_mode = "approve"
+
+[mcp_servers.project_context.tools.review_diff_for_refactor]
+approval_mode = "approve"
+
+[mcp_servers.project_context.tools.finalize_work]
+approval_mode = "approve"

@@ -1,0 +1,74 @@
+{
+  "name": "vincenzo-mcp-context",
+  "version": "0.4.0",
+  "description": "Local-first project memory, context packs, backlog, and verification workflows for coding agents",
+  "license": "UNLICENSED",
+  "private": false,
+  "author": "ukolov-dev",
+  "homepage": "https://github.com/ukolov-dev/mcp-context#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ukolov-dev/mcp-context.git"
+  },
+  "bugs": {
+    "url": "https://github.com/ukolov-dev/mcp-context/issues"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "coding-agents",
+    "project-memory",
+    "context-management",
+    "developer-tools"
+  ],
+  "type": "module",
+  "engines": {
+    "node": ">=22.5.0"
+  },
+  "files": [
+    "bin",
+    "dist",
+    "hooks",
+    "scripts/macos-portal-credential.js",
+    "scripts/windows-confluence-credential.ps1",
+    "scripts/windows-portal-credential.ps1",
+    "templates",
+    "CONTRIBUTING.md",
+    "SECURITY.md",
+    "README.md"
+  ],
+  "bin": {
+    "project-context": "./bin/project-context",
+    "project-context-mcp": "./bin/project-context-mcp",
+    "ppm-context": "./bin/ppm-context"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "cli": "node --import tsx src/cli.ts",
+    "mcp": "node --import tsx src/mcp/server.ts",
+    "prepare": "npm run build",
+    "prepack": "npm run build",
+    "package:check": "node scripts/package-smoke.mjs",
+    "export:standalone": "node scripts/export-standalone.mjs"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.29.0",
+    "commander": "14.0.3",
+    "fast-glob": "3.3.3",
+    "gray-matter": "4.0.3",
+    "js-yaml": "4.3.1",
+    "simple-git": "3.36.0",
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "@types/js-yaml": "4.0.9",
+    "@types/node": "24.12.4",
+    "tsx": "4.23.12",
+    "typescript": "5.9.3",
+    "vitest": "4.1.10"
+  },
+  "publishConfig": {
+    "tag": "dev"
+  }
+}

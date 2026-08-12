@@ -1,0 +1,15 @@
+#!/usr/bin/env node
+import { existsSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { runEntrypointWithSystemCa } from './system-ca.js';
+
+const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const entrypoint = resolve(packageRoot, 'dist', 'cli.js');
+
+if (!existsSync(entrypoint)) {
+  console.error('[project-context] Compiled CLI is missing. Run `npm run build` in the router package.');
+  process.exit(1);
+}
+
+await runEntrypointWithSystemCa(entrypoint);
