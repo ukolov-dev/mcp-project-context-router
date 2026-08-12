@@ -55,20 +55,22 @@ npx project-context verify-task "CSV export"
 
 Run `npx project-context --help` for the complete CLI surface.
 
-## Connect the MCP server
+## Connect your coding agent
 
-Add a project-scoped Codex configuration at `.codex/config.toml` in the consumer
-repository:
+The package includes client-specific setup guides and copy-ready configuration
+templates:
 
-```toml
-[mcp_servers.project_context]
-command = "node"
-args = ["node_modules/vincenzo-mcp-context/bin/project-context-mcp"]
-cwd = ".."
-startup_timeout_sec = 20
-tool_timeout_sec = 60
-env = { PROJECT_CONTEXT_TOOL_PROFILE = "core" }
-```
+| Client | Setup guide | Configuration template |
+| --- | --- | --- |
+| Codex desktop, CLI, and IDE | [Install for Codex](docs/install/codex.md) | [`templates/client-configs/codex.toml`](templates/client-configs/codex.toml) |
+| OpenCode stable | [Install for OpenCode](docs/install/opencode.md) | [`templates/client-configs/opencode.json`](templates/client-configs/opencode.json) |
+| OpenCode V2 preview | [OpenCode V2 notes](docs/install/opencode.md#opencode-v2-preview) | [`templates/client-configs/opencode-v2.json`](templates/client-configs/opencode-v2.json) |
+
+All three configurations start the same local stdio MCP server from the consumer
+repository. They contain no credentials or workstation-specific absolute paths.
+Codex uses `.codex/config.toml`; OpenCode uses `opencode.json` at the repository
+root. The two OpenCode schemas are intentionally separate because stable and V2
+currently use different MCP nesting and enablement fields.
 
 The server supports scoped tool profiles:
 
@@ -133,8 +135,9 @@ npm pack --pack-destination ./artifacts
 ```
 
 The tarball contains compiled runtime code, launchers, hooks, credential helper
-scripts, consumer templates, and this README. It excludes `.project-context`,
-`.codex`, tests, source TypeScript, generated indexes, and `node_modules`.
+scripts, installation guides, consumer templates, and this README. It excludes
+`.project-context`, `.codex`, tests, source TypeScript, generated indexes, and
+`node_modules`.
 
 ## Contributing
 

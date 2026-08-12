@@ -20,6 +20,7 @@ for (const entry of [
   'bin',
   'hooks',
   'templates',
+  'docs',
   'standalone',
   '.github',
   'CONTRIBUTING.md',

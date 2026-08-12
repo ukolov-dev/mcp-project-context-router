@@ -48,7 +48,7 @@ modules:
     path: templates
     stack: Markdown, YAML, TOML
     aliases: [docs, documentation, template, workflow]
-    source_globs: ["README.md", "templates/**/*.{md,yaml,toml}"]
+    source_globs: ["README.md", "docs/**/*.md", "templates/**/*.{md,yaml,toml,json}"]
     playbooks: [AGENTS.md]
 commands:
   context_lint:

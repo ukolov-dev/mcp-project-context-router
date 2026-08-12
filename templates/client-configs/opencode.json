@@ -1,0 +1,18 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "project_context": {
+      "type": "local",
+      "command": [
+        "node",
+        "node_modules/vincenzo-mcp-context/bin/project-context-mcp"
+      ],
+      "cwd": ".",
+      "enabled": true,
+      "environment": {
+        "PROJECT_CONTEXT_TOOL_PROFILE": "core"
+      },
+      "timeout": 20000
+    }
+  }
+}

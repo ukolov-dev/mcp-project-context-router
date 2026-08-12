@@ -41,6 +41,8 @@ describe('standalone repository export', () => {
     expect(existsSync(resolve(destination, 'test/release.test.ts'))).toBe(false);
     expect(existsSync(resolve(destination, 'README.ru.md'))).toBe(false);
     expect(existsSync(resolve(destination, 'standalone/README.md'))).toBe(true);
+    expect(existsSync(resolve(destination, 'docs/install/codex.md'))).toBe(true);
+    expect(existsSync(resolve(destination, 'docs/install/opencode.md'))).toBe(true);
     expect(existsSync(resolve(destination, 'CONTRIBUTING.md'))).toBe(true);
     expect(existsSync(resolve(destination, 'SECURITY.md'))).toBe(true);
     expect(existsSync(resolve(destination, '.github/workflows/ci.yml'))).toBe(true);
