@@ -1,6 +1,6 @@
 project:
   name: "MCP Context"
-  repository: "ukolov-dev/mcp-context"
+  repository: "ukolov-dev/mcp-project-context-router"
   context_version: 1
   timezone: Europe/Moscow
   purpose: Develop and distribute a reusable config-driven project context router.

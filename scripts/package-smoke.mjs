@@ -79,9 +79,9 @@ if (floatingRuntimeDependencies.length > 0) {
   result.status = 'FAILED';
   result.floatingRuntimeDependencies = floatingRuntimeDependencies;
 }
-if (packageJson.engines?.node !== '>=22.5.0') {
+if (packageJson.engines?.node !== '>=22.13.0') {
   result.status = 'FAILED';
-  result.nodeEngine = `Expected >=22.5.0, got ${packageJson.engines?.node ?? '<missing>'}`;
+  result.nodeEngine = `Expected >=22.13.0, got ${packageJson.engines?.node ?? '<missing>'}`;
 }
 if (packageJson.dependencies?.['better-sqlite3'] || packageJson.devDependencies?.['@types/better-sqlite3']) {
   result.status = 'FAILED';

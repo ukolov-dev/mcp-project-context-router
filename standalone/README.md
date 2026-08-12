@@ -1,7 +1,7 @@
 # Project Context Router
 
-[![CI](https://github.com/ukolov-dev/mcp-context/actions/workflows/ci.yml/badge.svg)](https://github.com/ukolov-dev/mcp-context/actions/workflows/ci.yml)
-[![Node.js 22.5+](https://img.shields.io/badge/Node.js-22.5%2B-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
+[![CI](https://github.com/ukolov-dev/mcp-project-context-router/actions/workflows/ci.yml/badge.svg)](https://github.com/ukolov-dev/mcp-project-context-router/actions/workflows/ci.yml)
+[![Node.js 22.13+](https://img.shields.io/badge/Node.js-22.13%2B-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
 [![MCP](https://img.shields.io/badge/Model_Context_Protocol-server-5A67D8)](https://modelcontextprotocol.io/)
 
 A local-first CLI and [Model Context Protocol](https://modelcontextprotocol.io/)
@@ -13,7 +13,7 @@ consumer repository. A disposable SQLite index makes retrieval fast without
 turning an external service into the source of truth.
 
 > Status: active development. The current package is
-> `vincenzo-mcp-context@__PACKAGE_VERSION__`, requires Node.js 22.5 or newer, and is
+> `vincenzo-mcp-context@__PACKAGE_VERSION__`, requires Node.js 22.13 or newer, and is
 > distributed from source or a versioned tarball. It is not currently published
 > to an npm registry.
 
@@ -33,7 +33,7 @@ Install directly from GitHub in the repository that should own the project
 context:
 
 ```bash
-npm install --save-dev --save-exact github:ukolov-dev/mcp-context
+npm install --save-dev --save-exact github:ukolov-dev/mcp-project-context-router
 npx project-context init --name "Example Project" --module app:src
 npx project-context index
 npx project-context doctor --json
@@ -116,8 +116,8 @@ See [SECURITY.md](SECURITY.md) for vulnerability reporting.
 ## Develop locally
 
 ```bash
-git clone https://github.com/ukolov-dev/mcp-context.git
-cd mcp-context
+git clone https://github.com/ukolov-dev/mcp-project-context-router.git
+cd mcp-project-context-router
 npm ci
 npm run build
 npm test

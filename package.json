@@ -5,13 +5,13 @@
   "license": "UNLICENSED",
   "private": false,
   "author": "ukolov-dev",
-  "homepage": "https://github.com/ukolov-dev/mcp-context#readme",
+  "homepage": "https://github.com/ukolov-dev/mcp-project-context-router#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/ukolov-dev/mcp-context.git"
+    "url": "git+https://github.com/ukolov-dev/mcp-project-context-router.git"
   },
   "bugs": {
-    "url": "https://github.com/ukolov-dev/mcp-context/issues"
+    "url": "https://github.com/ukolov-dev/mcp-project-context-router/issues"
   },
   "keywords": [
     "mcp",
@@ -23,7 +23,7 @@
   ],
   "type": "module",
   "engines": {
-    "node": ">=22.5.0"
+    "node": ">=22.13.0"
   },
   "files": [
     "bin",

@@ -13,7 +13,7 @@ records, or other sensitive information.
 
 Use GitHub's private vulnerability reporting flow:
 
-<https://github.com/ukolov-dev/mcp-context/security/advisories/new>
+<https://github.com/ukolov-dev/mcp-project-context-router/security/advisories/new>
 
 Include the affected version or commit, impact, reproduction steps, and any
 suggested mitigation. If private reporting is unavailable, contact the repository

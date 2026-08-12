@@ -18,7 +18,7 @@ body:
     id: node
     attributes:
       label: Node.js version
-      placeholder: v22.5.0
+      placeholder: v22.13.0
     validations:
       required: true
   - type: dropdown

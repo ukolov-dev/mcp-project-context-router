@@ -6,11 +6,11 @@ contract and avoid duplicated work.
 
 ## Set up the repository
 
-Project Context Router requires Node.js 22.5 or newer.
+Project Context Router requires Node.js 22.13 or newer.
 
 ```bash
-git clone https://github.com/ukolov-dev/mcp-context.git
-cd mcp-context
+git clone https://github.com/ukolov-dev/mcp-project-context-router.git
+cd mcp-project-context-router
 npm ci
 ```
 
