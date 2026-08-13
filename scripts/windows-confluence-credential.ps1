@@ -5,7 +5,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$Resource = 'vincenzo-confluence'
+$Resource = 'project-context-confluence'
 $UserName = 'CONFLUENCE_PERSONAL_TOKEN'
 
 [void][Windows.Security.Credentials.PasswordVault, Windows.Security.Credentials, ContentType = WindowsRuntime]

@@ -15,7 +15,7 @@ afterEach(() => {
 
 describe('standalone repository export', () => {
   it('copies only reusable source and creates clean repository context', () => {
-    destination = mkdtempSync(resolve(tmpdir(), 'vincenzo-export-test-'));
+    destination = mkdtempSync(resolve(tmpdir(), 'project-context-export-test-'));
     const result = spawnSync(process.execPath, [
       resolve(packageRoot, 'scripts/export-standalone.mjs'),
       '--destination', destination,
@@ -51,7 +51,7 @@ describe('standalone repository export', () => {
     expect(existsSync(resolve(destination, 'node_modules'))).toBe(false);
 
     const packageJson = JSON.parse(readFileSync(resolve(destination, 'package.json'), 'utf8'));
-    expect(packageJson.name).toBe('vincenzo-mcp-context');
+    expect(packageJson.name).toBe('mcp-project-context-router');
     expect(packageJson.version).toBe('0.4.0');
     expect(packageJson.scripts['quality:smoke']).toBeUndefined();
     expect(packageJson.scripts['perf:smoke']).toBeUndefined();
@@ -60,13 +60,13 @@ describe('standalone repository export', () => {
     expect(packageJson.scripts['release:prepare']).toBeUndefined();
     expect(readFileSync(resolve(destination, 'README.md'), 'utf8')).not.toMatch(/Artifactory|corporate registry/i);
     expect(readFileSync(resolve(destination, 'src/version.ts'), 'utf8')).toContain("'0.4.0'");
-    expect(readFileSync(resolve(destination, 'scripts/package-smoke.mjs'), 'utf8')).toContain('vincenzo-mcp-context@0.4.0');
+    expect(readFileSync(resolve(destination, 'scripts/package-smoke.mjs'), 'utf8')).toContain('mcp-project-context-router@0.4.0');
     const packageLock = JSON.parse(readFileSync(resolve(destination, 'package-lock.json'), 'utf8'));
     expect(packageLock.version).toBe('0.4.0');
     expect(packageLock.packages[''].version).toBe('0.4.0');
     const projectYaml = readFileSync(resolve(destination, '.project-context/project.yaml'), 'utf8');
     expect(projectYaml).toContain('name: "Standalone Context Router"');
-    expect(projectYaml).toContain('repository: "vincenzo-export-test-');
+    expect(projectYaml).toContain('repository: "project-context-export-test-');
     expect(projectYaml).not.toContain('__PROJECT_NAME__');
   });
 });

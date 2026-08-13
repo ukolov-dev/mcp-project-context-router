@@ -11,7 +11,7 @@
         "type": "local",
         "command": [
           "node",
-          "node_modules/vincenzo-mcp-context/bin/project-context-mcp"
+          "node_modules/mcp-project-context-router/bin/project-context-mcp"
         ],
         "cwd": ".",
         "environment": {

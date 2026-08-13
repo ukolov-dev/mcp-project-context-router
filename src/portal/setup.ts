@@ -21,7 +21,7 @@ import {
   syncPortalSnapshot,
 } from './bridge.js';
 
-export const portalCredentialRef = 'native:vincenzo-context-hub/VINCENZO_CONTEXT_HUB_TOKEN';
+export const portalCredentialRef = 'native:project-context-hub/PROJECT_CONTEXT_HUB_TOKEN';
 
 type SetupDependencies = {
   client?: PortalClient;
@@ -54,7 +54,7 @@ export async function authenticatePortal(
   if (source === 'missing') {
     if (options.nonInteractive) {
       throw new Error(
-        'Non-interactive Portal auth requires VINCENZO_CONTEXT_HUB_TOKEN or an existing native credential.',
+        'Non-interactive Portal auth requires PROJECT_CONTEXT_HUB_TOKEN or an existing native credential.',
       );
     }
     if (options.issuerUrl || options.clientId) {
@@ -64,8 +64,8 @@ export async function authenticatePortal(
       browserCredential = await (dependencies.authorizeDevice ?? authorizePortalDevice)({
         issuerUrl: options.issuerUrl,
         clientId: options.clientId,
-        allowInsecureDevelopment: options.environment?.VINCENZO_ALLOW_INSECURE_LOCAL_PORTAL === 'true'
-          || (options.environment === undefined && process.env.VINCENZO_ALLOW_INSECURE_LOCAL_PORTAL === 'true'),
+        allowInsecureDevelopment: options.environment?.PROJECT_CONTEXT_ALLOW_INSECURE_LOCAL_PORTAL === 'true'
+          || (options.environment === undefined && process.env.PROJECT_CONTEXT_ALLOW_INSECURE_LOCAL_PORTAL === 'true'),
       });
       (dependencies.storeOAuthCredential ?? storePortalOAuthCredential)(
         browserCredential,
@@ -80,8 +80,8 @@ export async function authenticatePortal(
     : await (dependencies.resolveCredential ?? resolvePortalAccessToken)({
       environment: options.environment,
     });
-  const allowInsecureDevelopment = options.environment?.VINCENZO_ALLOW_INSECURE_LOCAL_PORTAL === 'true'
-    || (options.environment === undefined && process.env.VINCENZO_ALLOW_INSECURE_LOCAL_PORTAL === 'true');
+  const allowInsecureDevelopment = options.environment?.PROJECT_CONTEXT_ALLOW_INSECURE_LOCAL_PORTAL === 'true'
+    || (options.environment === undefined && process.env.PROJECT_CONTEXT_ALLOW_INSECURE_LOCAL_PORTAL === 'true');
   const baseUrl = normalizePortalBaseUrl(options.baseUrl, allowInsecureDevelopment);
   const client = dependencies.client ?? new PortalClient(baseUrl, credential.token, { allowInsecureDevelopment });
   const project = await client.getProject(options.projectId);
@@ -202,7 +202,7 @@ export async function portalDoctor(
     checks.push({
       name: 'project-binding',
       status: 'fail',
-      detail: 'Portal binding lacks verified project key/name. Run `vincenzo portal setup` again.',
+      detail: 'Portal binding lacks verified project key/name. Run `project-context portal setup` again.',
     });
   } else {
     checks.push({

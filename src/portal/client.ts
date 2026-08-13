@@ -160,7 +160,7 @@ export class PortalClient {
     this.baseUrl = normalizePortalBaseUrl(
       baseUrl,
       options.allowInsecureDevelopment
-        ?? process.env.VINCENZO_ALLOW_INSECURE_LOCAL_PORTAL === 'true',
+        ?? process.env.PROJECT_CONTEXT_ALLOW_INSECURE_LOCAL_PORTAL === 'true',
     );
     if (!token.trim()) throw new Error('Portal access token is empty.');
   }

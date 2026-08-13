@@ -1,5 +1,5 @@
 {
-  "name": "vincenzo-mcp-context",
+  "name": "mcp-project-context-router",
   "version": "0.4.0",
   "description": "Local-first project memory, context packs, backlog, and verification workflows for coding agents",
   "license": "UNLICENSED",

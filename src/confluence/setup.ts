@@ -16,7 +16,7 @@ import {
   type ConfluenceIntegrationConfig,
 } from '../storage/config.js';
 
-export const confluenceCredentialRef = 'native:vincenzo-confluence/CONFLUENCE_PERSONAL_TOKEN';
+export const confluenceCredentialRef = 'native:project-context-confluence/CONFLUENCE_PERSONAL_TOKEN';
 
 type ClientFactory = (baseUrl: string, token: string) => ConfluenceClient;
 

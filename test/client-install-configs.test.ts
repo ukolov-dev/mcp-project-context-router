@@ -36,7 +36,7 @@ type OpenCodeLocalServer = {
 
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const templatesDir = resolve(packageRoot, 'templates/client-configs');
-const packageName = 'vincenzo-mcp-context';
+const packageName = 'mcp-project-context-router';
 let consumerRoot: string | undefined;
 
 afterEach(() => {

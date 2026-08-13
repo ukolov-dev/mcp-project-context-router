@@ -16,7 +16,7 @@ let tempDir: string;
 
 beforeEach(() => {
   originalCwd = process.cwd();
-  tempDir = mkdtempSync(resolve(tmpdir(), 'vincenzo-confluence-setup-'));
+  tempDir = mkdtempSync(resolve(tmpdir(), 'project-context-confluence-setup-'));
   mkdirSync(resolve(tempDir, '.git'));
   mkdirSync(resolve(tempDir, '.project-context'), { recursive: true });
   writeFileSync(resolve(tempDir, '.project-context/project.yaml'), 'project:\n  name: Test\nmodules: {}\ncommands: {}\n');

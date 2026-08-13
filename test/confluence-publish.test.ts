@@ -15,7 +15,7 @@ let tempDir: string;
 
 beforeEach(() => {
   originalCwd = process.cwd();
-  tempDir = mkdtempSync(resolve(tmpdir(), 'vincenzo-confluence-publish-'));
+  tempDir = mkdtempSync(resolve(tmpdir(), 'project-context-confluence-publish-'));
   mkdirSync(resolve(tempDir, '.git'));
   mkdirSync(resolve(tempDir, '.project-context/active/requirements'), { recursive: true });
   mkdirSync(resolve(tempDir, '.project-context/drafts'), { recursive: true });
@@ -32,7 +32,7 @@ beforeEach(() => {
     rootPageUrl: 'https://help.severstal.com/pages/viewpage.action?pageId=123',
     writeScope: 'root-and-descendants',
     includeRoot: true,
-    credentialRef: 'native:vincenzo-confluence/CONFLUENCE_PERSONAL_TOKEN',
+    credentialRef: 'native:project-context-confluence/CONFLUENCE_PERSONAL_TOKEN',
   });
 });
 
@@ -223,7 +223,7 @@ describe('scoped Confluence publication', () => {
       rootPageUrl: 'https://help.severstal.com/pages/viewpage.action?pageId=123',
       writeScope: 'root-and-descendants',
       includeRoot: false,
-      credentialRef: 'native:vincenzo-confluence/CONFLUENCE_PERSONAL_TOKEN',
+      credentialRef: 'native:project-context-confluence/CONFLUENCE_PERSONAL_TOKEN',
     });
     const remote = fakeConfluence();
     const planned = await planConfluencePublish({

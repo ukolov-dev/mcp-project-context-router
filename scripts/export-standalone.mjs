@@ -144,7 +144,7 @@ function rewriteStandalonePackageCheck() {
   const sourceVersion = sourcePackage().version;
   const content = readFileSync(target, 'utf8')
     .replaceAll(`report.version !== '${sourceVersion}'`, `report.version !== '${standaloneVersion}'`)
-    .replaceAll(`Expected vincenzo-mcp-context@${sourceVersion}`, `Expected vincenzo-mcp-context@${standaloneVersion}`);
+    .replaceAll(`Expected mcp-project-context-router@${sourceVersion}`, `Expected mcp-project-context-router@${standaloneVersion}`);
   writeFileSync(target, content, 'utf8');
 }
 

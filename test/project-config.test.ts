@@ -83,7 +83,7 @@ integrations:
     project_key: TEST-PORTAL
     project_name: Test Portal Project
     cache_path: .project-context/indexes/portal
-    credential_ref: native:vincenzo-context-hub/VINCENZO_CONTEXT_HUB_TOKEN
+    credential_ref: native:project-context-hub/PROJECT_CONTEXT_HUB_TOKEN
   confluence:
     schema_version: 1
     base_url: https://help.severstal.com
@@ -91,7 +91,7 @@ integrations:
     root_page_url: https://help.severstal.com/pages/viewpage.action?pageId=123456
     write_scope: root-and-descendants
     include_root: true
-    credential_ref: native:vincenzo-confluence/CONFLUENCE_PERSONAL_TOKEN
+    credential_ref: native:project-context-confluence/CONFLUENCE_PERSONAL_TOKEN
 `,
       'utf8',
     );
@@ -165,7 +165,7 @@ integrations:
       rootPageUrl: 'https://help.severstal.com/pages/viewpage.action?pageId=123456',
       writeScope: 'root-and-descendants',
       includeRoot: true,
-      credentialRef: 'native:vincenzo-confluence/CONFLUENCE_PERSONAL_TOKEN',
+      credentialRef: 'native:project-context-confluence/CONFLUENCE_PERSONAL_TOKEN',
     });
     expect(config.integrations.portal).toEqual({
       schemaVersion: 2,
@@ -174,7 +174,7 @@ integrations:
       projectKey: 'TEST-PORTAL',
       projectName: 'Test Portal Project',
       cachePath: '.project-context/indexes/portal',
-      credentialRef: 'native:vincenzo-context-hub/VINCENZO_CONTEXT_HUB_TOKEN',
+      credentialRef: 'native:project-context-hub/PROJECT_CONTEXT_HUB_TOKEN',
     });
   });
 
@@ -226,7 +226,7 @@ commands: {}
       rootPageUrl: 'https://help.severstal.com/pages/viewpage.action?pageId=123456',
       writeScope: 'root-and-descendants',
       includeRoot: true,
-      credentialRef: 'native:vincenzo-confluence/CONFLUENCE_PERSONAL_TOKEN',
+      credentialRef: 'native:project-context-confluence/CONFLUENCE_PERSONAL_TOKEN',
     });
 
     const raw = readFileSync(resolve(tempDir, '.project-context/project.yaml'), 'utf8');
@@ -254,7 +254,7 @@ commands: {}
       projectKey: 'PORTAL-BINDING',
       projectName: 'Portal binding test',
       cachePath: '.project-context/indexes/portal',
-      credentialRef: 'native:vincenzo-context-hub/VINCENZO_CONTEXT_HUB_TOKEN',
+      credentialRef: 'native:project-context-hub/PROJECT_CONTEXT_HUB_TOKEN',
     });
 
     const raw = readFileSync(resolve(tempDir, '.project-context/project.yaml'), 'utf8');

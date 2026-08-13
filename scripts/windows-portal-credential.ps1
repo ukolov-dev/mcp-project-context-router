@@ -5,8 +5,8 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$Resource = 'vincenzo-context-hub'
-$UserName = 'VINCENZO_CONTEXT_HUB_TOKEN'
+$Resource = 'project-context-hub'
+$UserName = 'PROJECT_CONTEXT_HUB_TOKEN'
 
 [void][Windows.Security.Credentials.PasswordVault, Windows.Security.Credentials, ContentType = WindowsRuntime]
 [void][Windows.Security.Credentials.PasswordCredential, Windows.Security.Credentials, ContentType = WindowsRuntime]

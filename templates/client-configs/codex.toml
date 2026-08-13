@@ -1,7 +1,7 @@
 # Copy this file to .codex/config.toml in the consumer repository.
 [mcp_servers.project_context]
 command = "node"
-args = ["node_modules/vincenzo-mcp-context/bin/project-context-mcp"]
+args = ["node_modules/mcp-project-context-router/bin/project-context-mcp"]
 # Project-scoped Codex config lives one directory below the repository root.
 cwd = ".."
 startup_timeout_sec = 20

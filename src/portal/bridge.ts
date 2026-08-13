@@ -220,10 +220,10 @@ export function portalSyncStatus(): {
 function requirePortalBinding(): PortalIntegrationConfig {
   const binding = loadProjectConfig().integrations.portal;
   if (!binding) {
-    throw new Error('Portal project is not bound. Run `vincenzo portal setup`.');
+    throw new Error('Portal project is not bound. Run `project-context portal setup`.');
   }
   if (!binding.projectKey || !binding.projectName) {
-    throw new Error('Portal project binding is incomplete. Run `vincenzo portal setup` again.');
+    throw new Error('Portal project binding is incomplete. Run `project-context portal setup` again.');
   }
   return binding;
 }

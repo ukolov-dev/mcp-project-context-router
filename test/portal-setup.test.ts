@@ -14,7 +14,7 @@ let tempDir: string;
 
 beforeEach(() => {
   originalCwd = process.cwd();
-  tempDir = mkdtempSync(resolve(tmpdir(), 'vincenzo-portal-setup-'));
+  tempDir = mkdtempSync(resolve(tmpdir(), 'project-context-portal-setup-'));
   mkdirSync(resolve(tempDir, '.git'));
   mkdirSync(resolve(tempDir, '.project-context'), { recursive: true });
   writeFileSync(
@@ -111,8 +111,8 @@ describe('Portal setup', () => {
     const authorizeDevice = vi.fn(async () => ({
       schemaVersion: 1 as const,
       kind: 'oauth-device' as const,
-      issuerUrl: 'https://identity.example.test/realms/vincenzo',
-      clientId: 'vincenzo-cli',
+      issuerUrl: 'https://identity.example.test/realms/project-context',
+      clientId: 'project-context-cli',
       accessToken: 'DUMMY_BROWSER_ACCESS_TOKEN',
       refreshToken: 'DUMMY_BROWSER_REFRESH_TOKEN',
       accessTokenExpiresAt: '2026-07-24T10:00:00.000Z',
@@ -123,8 +123,8 @@ describe('Portal setup', () => {
     const result = await setupPortal({
       baseUrl: 'https://portal.example.test',
       projectId,
-      issuerUrl: 'https://identity.example.test/realms/vincenzo',
-      clientId: 'vincenzo-cli',
+      issuerUrl: 'https://identity.example.test/realms/project-context',
+      clientId: 'project-context-cli',
       yes: true,
     }, {
       client: portalClient,
@@ -135,8 +135,8 @@ describe('Portal setup', () => {
 
     expect(result.auth.credentialSource).toBe('native-store');
     expect(authorizeDevice).toHaveBeenCalledWith(expect.objectContaining({
-      issuerUrl: 'https://identity.example.test/realms/vincenzo',
-      clientId: 'vincenzo-cli',
+      issuerUrl: 'https://identity.example.test/realms/project-context',
+      clientId: 'project-context-cli',
     }));
     expect(storeOAuthCredential).toHaveBeenCalledWith(
       expect.objectContaining({ refreshToken: 'DUMMY_BROWSER_REFRESH_TOKEN' }),

@@ -23,7 +23,7 @@ let tempDir: string;
 
 beforeEach(() => {
   originalCwd = process.cwd();
-  tempDir = mkdtempSync(resolve(tmpdir(), 'vincenzo-portal-bridge-'));
+  tempDir = mkdtempSync(resolve(tmpdir(), 'project-context-portal-bridge-'));
   process.chdir(tempDir);
   mkdirSync(resolve(tempDir, '.project-context'), { recursive: true });
   writeFileSync(resolve(tempDir, '.project-context/project.yaml'), `project:
@@ -38,7 +38,7 @@ integrations:
     project_key: PORTAL-BRIDGE
     project_name: Portal bridge
     cache_path: .project-context/indexes/portal
-    credential_ref: native:vincenzo-context-hub/VINCENZO_CONTEXT_HUB_TOKEN
+    credential_ref: native:project-context-hub/PROJECT_CONTEXT_HUB_TOKEN
 `, 'utf8');
 });
 

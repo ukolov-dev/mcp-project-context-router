@@ -22,8 +22,8 @@ npx project-context doctor --json
 ```
 
 Replace the example project name and module mapping. The installed module is
-named `vincenzo-mcp-context`, even though the GitHub repository is named
-`mcp-project-context-router`. Commit and review the resulting lockfile: it pins
+named `mcp-project-context-router`, matching the GitHub repository. Commit and
+review the resulting lockfile: it pins
 the exact Git commit resolved by npm even though the install command tracks the
 repository's default branch.
 
@@ -37,7 +37,7 @@ Create `.codex/config.toml` in the consumer repository and add:
 ```toml
 [mcp_servers.project_context]
 command = "node"
-args = ["node_modules/vincenzo-mcp-context/bin/project-context-mcp"]
+args = ["node_modules/mcp-project-context-router/bin/project-context-mcp"]
 cwd = ".."
 startup_timeout_sec = 20
 tool_timeout_sec = 60

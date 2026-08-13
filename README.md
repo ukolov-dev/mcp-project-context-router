@@ -13,7 +13,7 @@ consumer repository. A disposable SQLite index makes retrieval fast without
 turning an external service into the source of truth.
 
 > Status: active development. The current package is
-> `vincenzo-mcp-context@0.4.0`, requires Node.js 22.13 or newer, and is distributed
+> `mcp-project-context-router@0.4.0`, requires Node.js 22.13 or newer, and is distributed
 > from source or a versioned tarball. It is not currently published to an npm
 > registry.
 

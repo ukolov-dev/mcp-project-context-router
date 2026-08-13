@@ -25,8 +25,8 @@ describe('Portal device authorization', () => {
     let now = new Date('2026-07-24T09:00:00.000Z');
 
     const credential = await authorizePortalDevice({
-      issuerUrl: 'https://identity.example.test/realms/vincenzo/',
-      clientId: 'vincenzo-cli',
+      issuerUrl: 'https://identity.example.test/realms/project-context/',
+      clientId: 'project-context-cli',
     }, {
       fetch: fetchMock,
       now: () => now,
@@ -42,8 +42,8 @@ describe('Portal device authorization', () => {
     expect(writeStatus.mock.calls.flat().join('\n')).not.toContain('DUMMY_ACCESS_TOKEN');
     expect(credential).toMatchObject({
       kind: 'oauth-device',
-      issuerUrl: 'https://identity.example.test/realms/vincenzo',
-      clientId: 'vincenzo-cli',
+      issuerUrl: 'https://identity.example.test/realms/project-context',
+      clientId: 'project-context-cli',
       accessToken: 'DUMMY_ACCESS_TOKEN',
       refreshToken: 'DUMMY_REFRESH_TOKEN',
     });
@@ -51,9 +51,9 @@ describe('Portal device authorization', () => {
   });
 
   it('permits HTTP only for loopback development', () => {
-    expect(normalizePortalIssuerUrl('http://localhost:28082/realms/vincenzo'))
-      .toBe('http://localhost:28082/realms/vincenzo');
-    expect(() => normalizePortalIssuerUrl('http://identity.example.test/realms/vincenzo'))
+    expect(normalizePortalIssuerUrl('http://localhost:28082/realms/project-context'))
+      .toBe('http://localhost:28082/realms/project-context');
+    expect(() => normalizePortalIssuerUrl('http://identity.example.test/realms/project-context'))
       .toThrow(/must use HTTPS/);
   });
 });

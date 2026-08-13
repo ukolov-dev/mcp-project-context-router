@@ -24,8 +24,8 @@ describe('Portal client', () => {
     const seededProjectId = '11111111-1111-1111-1111-111111111111';
     const fetcher = vi.fn(async () => response({
       id: seededProjectId,
-      key: 'VINCENZO-PILOT',
-      name: 'PILOT. Винченцо Перуджи',
+      key: 'PROJECT-CONTEXT-PILOT',
+      name: 'Project Context Pilot',
     }));
     const client = new PortalClient('https://portal.example.test', 'DUMMY_TOKEN', {
       fetch: fetcher as typeof fetch,
@@ -34,7 +34,7 @@ describe('Portal client', () => {
 
     await expect(client.getProject(seededProjectId)).resolves.toMatchObject({
       id: seededProjectId,
-      key: 'VINCENZO-PILOT',
+      key: 'PROJECT-CONTEXT-PILOT',
     });
   });
 

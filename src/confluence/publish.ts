@@ -268,7 +268,7 @@ export function getConfluencePublishPlan(planDigest: string): Omit<ConfluencePub
 function requireConfluenceConfig(): ConfluenceIntegrationConfig {
   const config = loadProjectConfig().integrations.confluence;
   if (!config) {
-    throw new Error('Confluence root is not bound for this project. Run `vincenzo confluence setup`.');
+    throw new Error('Confluence root is not bound for this project. Run `project-context confluence setup`.');
   }
   return config;
 }
@@ -326,7 +326,7 @@ function renderRecordsForConfluence(records: RecordSnapshot[]): string {
     ].join('\n');
   });
   return [
-    '<p><em>Managed by Vincenzo Project Context. Update through a confirmed publication plan.</em></p>',
+    '<p><em>Managed by Project Context Router. Update through a confirmed publication plan.</em></p>',
     ...sections,
   ].join('\n');
 }

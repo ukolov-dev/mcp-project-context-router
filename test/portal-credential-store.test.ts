@@ -10,8 +10,8 @@ import type { PortalOAuthCredential } from '../src/portal/device-auth.js';
 const credential: PortalOAuthCredential = {
   schemaVersion: 1,
   kind: 'oauth-device',
-  issuerUrl: 'https://identity.example.test/realms/vincenzo',
-  clientId: 'vincenzo-cli',
+  issuerUrl: 'https://identity.example.test/realms/project-context',
+  clientId: 'project-context-cli',
   accessToken: 'DUMMY_ACCESS_TOKEN',
   refreshToken: 'DUMMY_REFRESH_TOKEN',
   accessTokenExpiresAt: '2026-07-24T09:05:00.000Z',

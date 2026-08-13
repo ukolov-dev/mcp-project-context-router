@@ -27,7 +27,7 @@ npx project-context doctor --json
 
 Replace the example project name and module mapping, then review
 `.project-context/project.yaml`. The installed module is named
-`vincenzo-mcp-context`. Commit and review the resulting lockfile: it pins the
+`mcp-project-context-router`. Commit and review the resulting lockfile: it pins the
 resolved Git commit even though the install command tracks the repository's
 default branch.
 
@@ -43,7 +43,7 @@ Create or merge `opencode.json` at the consumer repository root:
       "type": "local",
       "command": [
         "node",
-        "node_modules/vincenzo-mcp-context/bin/project-context-mcp"
+        "node_modules/mcp-project-context-router/bin/project-context-mcp"
       ],
       "cwd": ".",
       "enabled": true,
@@ -93,7 +93,7 @@ Create or merge `opencode.json` at the repository root:
         "type": "local",
         "command": [
           "node",
-          "node_modules/vincenzo-mcp-context/bin/project-context-mcp"
+          "node_modules/mcp-project-context-router/bin/project-context-mcp"
         ],
         "cwd": ".",
         "environment": {

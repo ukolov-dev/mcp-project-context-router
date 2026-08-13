@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const windowsScript = resolve(packageRoot, 'scripts', 'windows-confluence-credential.ps1');
 
-export const confluenceCredentialService = 'vincenzo-confluence';
+export const confluenceCredentialService = 'project-context-confluence';
 export const confluenceCredentialAccount = 'CONFLUENCE_PERSONAL_TOKEN';
 
 type SupportedPlatform = 'darwin' | 'linux' | 'win32';
@@ -41,7 +41,7 @@ function backend(platform: NodeJS.Platform = process.platform, scriptPath = wind
         '-s',
         confluenceCredentialService,
         '-l',
-        'Vincenzo Confluence personal access token',
+        'Project Context Confluence personal access token',
         '-w',
       ],
       lookup: [
@@ -68,7 +68,7 @@ function backend(platform: NodeJS.Platform = process.platform, scriptPath = wind
       command: 'secret-tool',
       store: [
         'store',
-        '--label=Vincenzo Confluence personal access token',
+        '--label=Project Context Confluence personal access token',
         'service',
         confluenceCredentialService,
         'account',
@@ -166,7 +166,7 @@ export function resolveConfluenceCredential(options: CredentialOptions = {}): {
   if (fromEnvironment) return { token: fromEnvironment, source: 'environment' };
   const stored = getStoredConfluenceCredential(options);
   if (stored) return { token: stored, source: 'native-store' };
-  throw new Error('Confluence credential is missing. Run `vincenzo confluence auth` or set CONFLUENCE_PERSONAL_TOKEN for this process.');
+  throw new Error('Confluence credential is missing. Run `project-context confluence auth` or set CONFLUENCE_PERSONAL_TOKEN for this process.');
 }
 
 export function confluenceCredentialSource(options: CredentialOptions = {}): 'environment' | 'native-store' | 'missing' {

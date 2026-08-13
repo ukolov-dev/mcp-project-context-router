@@ -302,7 +302,7 @@ function parseIntegrations(input: Record<string, unknown>): ProjectIntegrationsC
       rootPageUrl,
       writeScope,
       includeRoot: booleanValue(confluence.include_root) ?? true,
-      credentialRef: confluenceCredentialRef || 'native:vincenzo-confluence/CONFLUENCE_PERSONAL_TOKEN',
+      credentialRef: confluenceCredentialRef || 'native:project-context-confluence/CONFLUENCE_PERSONAL_TOKEN',
     };
   }
 
@@ -320,7 +320,7 @@ function parseIntegrations(input: Record<string, unknown>): ProjectIntegrationsC
       ...(projectName ? { projectName } : {}),
       cachePath: stringValue(portal.cache_path) || '.project-context/indexes/portal',
       credentialRef: stringValue(portal.credential_ref)
-        || 'native:vincenzo-context-hub/VINCENZO_CONTEXT_HUB_TOKEN',
+        || 'native:project-context-hub/PROJECT_CONTEXT_HUB_TOKEN',
     };
   }
   return integrations;

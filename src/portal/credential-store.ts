@@ -11,8 +11,8 @@ const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const windowsScript = resolve(packageRoot, 'scripts', 'windows-portal-credential.ps1');
 const macosScript = resolve(packageRoot, 'scripts', 'macos-portal-credential.js');
 
-export const portalCredentialService = 'vincenzo-context-hub';
-export const portalCredentialAccount = 'VINCENZO_CONTEXT_HUB_TOKEN';
+export const portalCredentialService = 'project-context-hub';
+export const portalCredentialAccount = 'PROJECT_CONTEXT_HUB_TOKEN';
 
 type CredentialOperation = 'store' | 'lookup' | 'delete';
 type Spawn = typeof spawnSync;
@@ -49,7 +49,7 @@ function backend(
       store: [...common, 'store',
         portalCredentialService,
         portalCredentialAccount,
-        'Vincenzo Context Hub access token',
+        'Project Context Hub access token',
       ],
       lookup: [...common, 'lookup', portalCredentialService, portalCredentialAccount],
       delete: [...common, 'delete', portalCredentialService, portalCredentialAccount],
@@ -62,7 +62,7 @@ function backend(
       command: 'secret-tool',
       store: [
         'store',
-        '--label=Vincenzo Context Hub access token',
+        '--label=Project Context Hub access token',
         'service',
         portalCredentialService,
         'account',
@@ -94,7 +94,7 @@ function backend(
   }
   throw new Error(
     `Unsupported platform for native Portal credential storage: ${platform}. `
-    + 'Use VINCENZO_CONTEXT_HUB_TOKEN in the process environment.',
+    + 'Use PROJECT_CONTEXT_HUB_TOKEN in the process environment.',
   );
 }
 
@@ -104,7 +104,7 @@ function backendHint(platform: NodeJS.Platform): string {
   }
   if (platform === 'win32') return 'Windows PowerShell and Credential Locker are required.';
   if (platform === 'darwin') return 'JavaScript for Automation and an unlocked macOS login keychain are required.';
-  return 'Use VINCENZO_CONTEXT_HUB_TOKEN in the process environment.';
+  return 'Use PROJECT_CONTEXT_HUB_TOKEN in the process environment.';
 }
 
 const oauthCredentialSchema = z.object({
@@ -177,7 +177,7 @@ export function resolvePortalCredential(options: PortalCredentialOptions = {}): 
   source: 'environment' | 'native-store';
 } {
   const environment = options.environment ?? process.env;
-  const fromEnvironment = environment.VINCENZO_CONTEXT_HUB_TOKEN;
+  const fromEnvironment = environment.PROJECT_CONTEXT_HUB_TOKEN;
   if (fromEnvironment) return { token: fromEnvironment, source: 'environment' };
   const stored = getStoredPortalCredential(options);
   if (stored) {
@@ -186,11 +186,11 @@ export function resolvePortalCredential(options: PortalCredentialOptions = {}): 
     if (new Date(oauthCredential.accessTokenExpiresAt).getTime() > (options.now?.() ?? new Date()).getTime() + 30_000) {
       return { token: oauthCredential.accessToken, source: 'native-store' };
     }
-    throw new Error('Stored Portal access token expired. Run `vincenzo portal auth` to refresh the browser session.');
+    throw new Error('Stored Portal access token expired. Run `project-context portal auth` to refresh the browser session.');
   }
   throw new Error(
-    'Portal credential is missing. Run `vincenzo portal auth` '
-    + 'or set VINCENZO_CONTEXT_HUB_TOKEN for this process.',
+    'Portal credential is missing. Run `project-context portal auth` '
+    + 'or set PROJECT_CONTEXT_HUB_TOKEN for this process.',
   );
 }
 
@@ -199,13 +199,13 @@ export async function resolvePortalAccessToken(options: PortalCredentialOptions 
   source: 'environment' | 'native-store';
 }> {
   const environment = options.environment ?? process.env;
-  const fromEnvironment = environment.VINCENZO_CONTEXT_HUB_TOKEN;
+  const fromEnvironment = environment.PROJECT_CONTEXT_HUB_TOKEN;
   if (fromEnvironment) return { token: fromEnvironment, source: 'environment' };
   const stored = getStoredPortalCredential(options);
   if (!stored) {
     throw new Error(
-      'Portal credential is missing. Run `vincenzo portal auth` '
-      + 'or set VINCENZO_CONTEXT_HUB_TOKEN for this process.',
+      'Portal credential is missing. Run `project-context portal auth` '
+      + 'or set PROJECT_CONTEXT_HUB_TOKEN for this process.',
     );
   }
   const oauthCredential = parseOAuthCredential(stored);
@@ -216,7 +216,7 @@ export async function resolvePortalAccessToken(options: PortalCredentialOptions 
   }
   const issuerUrl = normalizePortalIssuerUrl(
     oauthCredential.issuerUrl,
-    environment.VINCENZO_ALLOW_INSECURE_LOCAL_PORTAL === 'true',
+    environment.PROJECT_CONTEXT_ALLOW_INSECURE_LOCAL_PORTAL === 'true',
   );
   const response = await (options.fetch ?? fetch)(`${issuerUrl}/protocol/openid-connect/token`, {
     method: 'POST',
@@ -242,7 +242,7 @@ export async function resolvePortalAccessToken(options: PortalCredentialOptions 
     throw new Error(
       typeof payload.error_description === 'string'
         ? payload.error_description
-        : 'Portal browser session expired. Run `vincenzo portal auth` again.',
+        : 'Portal browser session expired. Run `project-context portal auth` again.',
     );
   }
   const refreshed: PortalOAuthCredential = {
@@ -261,7 +261,7 @@ export function portalCredentialSource(
   options: PortalCredentialOptions = {},
 ): 'environment' | 'native-store' | 'missing' {
   const environment = options.environment ?? process.env;
-  if (environment.VINCENZO_CONTEXT_HUB_TOKEN) return 'environment';
+  if (environment.PROJECT_CONTEXT_HUB_TOKEN) return 'environment';
   return getStoredPortalCredential(options) ? 'native-store' : 'missing';
 }
 
@@ -270,6 +270,6 @@ function parseOAuthCredential(value: string): PortalOAuthCredential | null {
   try {
     return oauthCredentialSchema.parse(JSON.parse(value));
   } catch {
-    throw new Error('Stored Portal OAuth credential is invalid. Run `vincenzo portal auth` again.');
+    throw new Error('Stored Portal OAuth credential is invalid. Run `project-context portal auth` again.');
   }
 }
