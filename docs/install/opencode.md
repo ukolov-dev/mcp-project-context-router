@@ -1,5 +1,7 @@
 # Install Project Context Router for OpenCode
 
+[Русская версия](opencode.ru.md)
+
 OpenCode starts Project Context Router as a local stdio MCP server. Keep the
 configuration in the consumer repository so the server reads that repository's
 project context and can be shared with the team.

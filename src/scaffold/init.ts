@@ -30,6 +30,8 @@ const contextDirectories = [
   'active/patterns',
   'active/backlog',
   'active/verification',
+  'active/agent-runs',
+  'active/acceptance-reviews',
   'active/projects',
   'active/integrations',
   'active/data-entities',
@@ -61,6 +63,8 @@ const ignoredContextPaths = [
   '.project-context/indexes/',
   '.project-context/drafts/',
   '.project-context/trash/',
+  '.project-context/active/**/.execution.lock',
+  '.project-context/active/**/.*.tmp',
 ];
 
 export function parseModuleSeed(value: string): ProjectModuleSeed {

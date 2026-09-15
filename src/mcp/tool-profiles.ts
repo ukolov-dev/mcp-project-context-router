@@ -21,9 +21,22 @@ export const coreToolNames = [
   'finalize_work',
 ] as const;
 
+export const executionToolNames = [
+  'create_agent_run',
+  'get_agent_run',
+  'list_agent_runs',
+  'get_agent_run_snapshot',
+  'transition_agent_run',
+  'record_run_verification',
+  'build_acceptance_review_bundle',
+  'record_acceptance_review',
+  'get_acceptance_review',
+] as const;
+
 const developerToolNames = [
   'accept_assigned_work',
   'submit_implementation_report',
+  ...executionToolNames,
 ] as const;
 
 const analystToolNames = [
@@ -48,6 +61,7 @@ const analystToolNames = [
 ] as const;
 
 const adminToolNames = [
+  ...executionToolNames,
   'get_backlog',
   'get_backlog_dependency_graph',
   'task_from_backlog',

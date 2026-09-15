@@ -36,6 +36,15 @@ import {
   validateTask,
 } from './task-validation/task.js';
 import { buildContextPack } from './context-pack/pack.js';
+import { createAgentRun, getAgentRun, getRunSnapshot, listAgentRuns, recordRunVerification, transitionAgentRun } from './execution/runs.js';
+import { createAgentRunInputSchema, recordRunVerificationInputSchema, transitionAgentRunInputSchema } from './execution/types.js';
+import {
+  buildAcceptanceReviewBundle,
+  getAcceptanceReview,
+  recordAcceptanceReview,
+  recordAcceptanceReviewInputSchema,
+} from './execution/acceptance.js';
+import { executeTaskRun, planTaskRun, runAdapterSchema } from './execution/runner.js';
 import { getProjectSnapshot } from './project-snapshot/snapshot.js';
 import { changedFilesInCommit, isIndexRelevantPath } from './indexer/changed.js';
 import {
@@ -657,6 +666,67 @@ program
   .description('Build a verification plan for a task, backlog item, record, or query')
   .option('--query <query>', 'free-form task query')
   .action((id, options) => emit(getVerificationPlan(verificationPlanInputSchema.parse({ id, query: options.query }))));
+
+program
+  .command('create-agent-run')
+  .argument('<taskId>')
+  .requiredOption('--executor <identity>', 'implementation session identity')
+  .option('--base-commit <ref>', 'base Git revision; defaults to HEAD')
+  .description('Create an execution manifest from a confirmed Task Contract')
+  .action((taskId, options) => emit(createAgentRun(createAgentRunInputSchema.parse({
+    taskId, executor: options.executor, baseCommit: options.baseCommit,
+  }))));
+
+program.command('agent-run').argument('<runId>')
+  .description('Read an execution manifest')
+  .action((runId) => emit(getAgentRun(runId)));
+
+program.command('agent-run-snapshot').argument('<runId>')
+  .description('Capture code and task digests before running verification checks')
+  .action((runId) => emit(getRunSnapshot(runId)));
+
+program.command('agent-runs').argument('[taskId]')
+  .description('List execution manifests, optionally for one task')
+  .action((taskId) => emit({ runs: listAgentRuns({ taskId }) }));
+
+program.command('transition-agent-run').argument('<runId>').argument('<status>')
+  .option('--input <jsonFile>', 'reason, evidenceIds, reviewId and expectedRevision')
+  .description('Apply an evidence-gated execution transition')
+  .action((runId, status, options) => emit(transitionAgentRun(transitionAgentRunInputSchema.parse({
+    ...readJsonInput(options.input), runId, status,
+  }))));
+
+program.command('record-run-verification')
+  .requiredOption('--input <jsonFile>', 'runId, expectedCodeDigest, checks and summary')
+  .description('Record verification bound to the run and exact code snapshot')
+  .action((options) => emit(recordRunVerification(recordRunVerificationInputSchema.parse(readJsonInput(options.input)))));
+
+program.command('acceptance-review-bundle').argument('<runId>')
+  .description('Build the contract, code diff and verification bundle for an independent reviewer')
+  .action((runId) => emit(buildAcceptanceReviewBundle({ runId })));
+
+program.command('record-acceptance-review')
+  .requiredOption('--input <jsonFile>', 'review verdict, criterion evidence and bundle provenance')
+  .description('Record a separate reviewer verdict for every acceptance criterion')
+  .action((options) => emit(recordAcceptanceReview(recordAcceptanceReviewInputSchema.parse(readJsonInput(options.input)))));
+
+program.command('acceptance-review').argument('<reviewId>')
+  .description('Read a recorded acceptance review')
+  .action((reviewId) => emit(getAcceptanceReview(reviewId)));
+
+program.command('run').argument('<taskId>')
+  .requiredOption('--adapter <jsonFile>', 'repository-relative external execution adapter configuration')
+  .option('--execute', 'execute implementation, task checks and independent review; default is a read-only plan')
+  .description('Plan or execute a task using an optional external CLI adapter')
+  .action(async (taskId, options) => {
+    const input = { taskId, adapter: runAdapterSchema.parse(readJsonInput(options.adapter)) };
+    if (!options.execute) {
+      emit(planTaskRun(input));
+      return;
+    }
+    const result = await executeTaskRun(input);
+    emit(result, result.status === 'FAILED' ? 1 : 0);
+  });
 
 program
   .command('record-verification')

@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { coreToolNames, resolveMcpToolProfile, toolsForProfile } from '../src/mcp/tool-profiles.js';
+import { coreToolNames, executionToolNames, resolveMcpToolProfile, toolsForProfile } from '../src/mcp/tool-profiles.js';
 
 const allTools = [
   ...coreToolNames,
+  ...executionToolNames,
   'search_project_context',
   'find_requirements',
   'plan_confluence_publish',
@@ -38,13 +39,17 @@ describe('MCP tool profiles', () => {
     expect(tools).not.toContain('search_project_context');
   });
 
-  it('adds only typed Portal writeback to the developer surface', () => {
+  it('adds typed Portal writeback and execution records to the developer surface', () => {
     const tools = toolsForProfile('developer', allTools);
 
     expect(tools).toContain('get_shared_project_snapshot');
     expect(tools).toContain('get_assigned_work');
     expect(tools).toContain('accept_assigned_work');
     expect(tools).toContain('submit_implementation_report');
+    expect(tools).toEqual(expect.arrayContaining([...executionToolNames]));
+    expect(toolsForProfile('core', allTools)).not.toContain('create_agent_run');
+    expect(toolsForProfile('admin', allTools)).toEqual(expect.arrayContaining([...executionToolNames]));
+    expect(tools).not.toContain('run_task');
     expect(tools).not.toContain('apply_confluence_publish');
     expect(tools).not.toContain('archive_records');
   });
