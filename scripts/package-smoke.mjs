@@ -27,6 +27,12 @@ const required = [
   'bin/ppm-context',
   'dist/cli.js',
   'dist/mcp/server.js',
+  'dist/execution/runs.js',
+  'dist/execution/acceptance.js',
+  'dist/execution/runner.js',
+  'docs/execution.md',
+  'CHANGELOG.md',
+  'templates/portable-workflow/execution-adapter.example.json',
   'docs/install/codex.md',
   'docs/install/opencode.md',
   'scripts/macos-portal-credential.js',
@@ -68,9 +74,9 @@ const result = {
   forbidden,
 };
 
-if (report.name !== 'mcp-project-context-router' || report.version !== '0.4.0') {
+if (report.name !== 'mcp-project-context-router' || report.version !== '0.5.0') {
   result.status = 'FAILED';
-  result.identity = `Expected mcp-project-context-router@0.4.0, got ${report.name}@${report.version}`;
+  result.identity = `Expected mcp-project-context-router@0.5.0, got ${report.name}@${report.version}`;
 }
 
 const packageJson = JSON.parse(execFileSync('npm', ['pkg', 'get'], {

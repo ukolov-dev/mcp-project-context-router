@@ -17,6 +17,15 @@ import {
   transitionBacklogItemInputSchema,
 } from '../backlog/backlog.js';
 import { buildContextPack } from '../context-pack/pack.js';
+import { createAgentRun, getAgentRun, getRunSnapshot, listAgentRuns, recordRunVerification, transitionAgentRun } from '../execution/runs.js';
+import { createAgentRunInputSchema, recordRunVerificationInputSchema, transitionAgentRunInputSchema } from '../execution/types.js';
+import {
+  buildAcceptanceReviewBundle,
+  buildAcceptanceReviewBundleInputSchema,
+  getAcceptanceReview,
+  recordAcceptanceReview,
+  recordAcceptanceReviewInputSchema,
+} from '../execution/acceptance.js';
 import { buildUnifiedContextPack } from '../context-pack/unified.js';
 import { currentTruthAudit, currentTruthInputSchema } from '../current-truth/current-truth.js';
 import { contextDoctor } from '../doctor/doctor.js';
@@ -1117,6 +1126,65 @@ server.registerTool(
   },
   async (args) => json(recordDecision(decisionInputSchema.parse(args))),
 );
+
+server.registerTool('create_agent_run', {
+  title: 'Create execution manifest',
+  description: 'Create a task-linked execution attempt in the current checkout. Does not launch an agent or shell commands.',
+  inputSchema: createAgentRunInputSchema.shape,
+}, async (args) => json(createAgentRun(args)));
+
+server.registerTool('get_agent_run', {
+  title: 'Read execution manifest',
+  description: 'Read an execution attempt and its contract, code and evidence provenance.',
+  inputSchema: { runId: z.string() },
+  annotations: { readOnlyHint: true, openWorldHint: false },
+}, async ({ runId }) => json(getAgentRun(runId)));
+
+server.registerTool('list_agent_runs', {
+  title: 'List execution attempts',
+  description: 'List locally recorded execution attempts, optionally filtered by task.',
+  inputSchema: { taskId: z.string().optional() },
+  annotations: { readOnlyHint: true, openWorldHint: false },
+}, async (args) => json({ runs: listAgentRuns(args) }));
+
+server.registerTool('get_agent_run_snapshot', {
+  title: 'Capture execution snapshot',
+  description: 'Read exact code and task digests before verification. Supply codeDigest as expectedCodeDigest when recording results.',
+  inputSchema: { runId: z.string() },
+  annotations: { readOnlyHint: true, openWorldHint: false },
+}, async ({ runId }) => json(getRunSnapshot(runId)));
+
+server.registerTool('transition_agent_run', {
+  title: 'Transition execution state',
+  description: 'Apply a lifecycle transition with evidence gates. Ready-to-merge requires successful checks and an independent passing review for the exact snapshot.',
+  inputSchema: transitionAgentRunInputSchema.shape,
+}, async (args) => json(transitionAgentRun(args)));
+
+server.registerTool('record_run_verification', {
+  title: 'Record execution verification',
+  description: 'Record supplied check results bound to the run and code digest. Does not execute checks.',
+  inputSchema: recordRunVerificationInputSchema.shape,
+}, async (args) => json(recordRunVerification(args)));
+
+server.registerTool('build_acceptance_review_bundle', {
+  title: 'Build acceptance review bundle',
+  description: 'Return the contract, acceptance criteria, code diff and run verification for a separate reviewer.',
+  inputSchema: buildAcceptanceReviewBundleInputSchema.shape,
+  annotations: { readOnlyHint: true, openWorldHint: false },
+}, async (args) => json(buildAcceptanceReviewBundle(args)));
+
+server.registerTool('record_acceptance_review', {
+  title: 'Record independent acceptance review',
+  description: 'Validate and store a separately supplied criterion-by-criterion verdict tied to the exact task, code and verification evidence. Does not call a model.',
+  inputSchema: recordAcceptanceReviewInputSchema.shape,
+}, async (args) => json(recordAcceptanceReview(args)));
+
+server.registerTool('get_acceptance_review', {
+  title: 'Read acceptance review',
+  description: 'Read a recorded acceptance review and its provenance.',
+  inputSchema: { reviewId: z.string() },
+  annotations: { readOnlyHint: true, openWorldHint: false },
+}, async ({ reviewId }) => json(getAcceptanceReview(reviewId)));
 
 configureRegisteredTools(server);
 

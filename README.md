@@ -13,9 +13,12 @@ consumer repository. A disposable SQLite index makes retrieval fast without
 turning an external service into the source of truth.
 
 > Status: active development. The current package is
-> `mcp-project-context-router@0.4.0`, requires Node.js 22.13 or newer, and is distributed
+> `mcp-project-context-router@0.5.0`, requires Node.js 22.13 or newer, and is distributed
 > from source or a versioned tarball. It is not currently published to an npm
 > registry.
+
+See the [changelog](CHANGELOG.md) and [GitHub releases](https://github.com/ukolov-dev/mcp-project-context-router/releases)
+for versioned changes and installable tarballs.
 
 ## Why use it?
 
@@ -66,6 +69,11 @@ templates:
 | OpenCode stable | [Install for OpenCode](docs/install/opencode.md) | [`templates/client-configs/opencode.json`](templates/client-configs/opencode.json) |
 | OpenCode V2 preview | [OpenCode V2 notes](docs/install/opencode.md#opencode-v2-preview) | [`templates/client-configs/opencode-v2.json`](templates/client-configs/opencode-v2.json) |
 
+A complete Russian-language OpenCode guide is also available:
+[Использование в OpenCode](docs/install/opencode.ru.md). The Russian
+[workflow and artifact guide](docs/workflow.ru.md) explains what is created at
+each task stage and what an agent receives before implementation.
+
 All three configurations start the same local stdio MCP server from the consumer
 repository. They contain no credentials or workstation-specific absolute paths.
 Codex uses `.codex/config.toml`; OpenCode uses `opencode.json` at the repository
@@ -100,6 +108,15 @@ Project data belongs to the consumer repository, not to this package. The
 configuration routes queries to modules and playbooks; the index adds fast
 retrieval; the CLI and MCP server apply the same workflow and repository-boundary
 checks.
+
+## Task execution
+
+Confirmed tasks can have execution manifests, evidence-gated states, and a
+separate acceptance review. An optional `project-context run TASK-ID --adapter
+execution-adapter.json` command previews external implementation and review
+commands; `--execute` runs the workflow in the current checkout. See the
+[execution guide](docs/execution.md) for the adapter protocol, CLI/MCP tools,
+verification gates, and retry behavior.
 
 ## Safety model
 

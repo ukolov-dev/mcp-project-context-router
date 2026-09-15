@@ -1,0 +1,13 @@
+{
+  "executor": "implementation-agent",
+  "reviewer": "acceptance-review-agent",
+  "implementation": {
+    "command": "node",
+    "args": ["scripts/implementation-adapter.mjs"]
+  },
+  "review": {
+    "command": "node",
+    "args": ["scripts/acceptance-review-adapter.mjs"]
+  },
+  "timeoutMs": 600000
+}

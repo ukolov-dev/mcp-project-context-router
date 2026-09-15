@@ -10,6 +10,7 @@ import { scanSecrets } from './secrets.js';
 import { classifyFileReference } from './file-references.js';
 import { generatedIdPattern } from './record-types.js';
 import { loadProjectConfig } from './config.js';
+import { acceptanceReviewSchema, agentRunSchema } from '../execution/types.js';
 
 export type LintResult = {
   errors: string[];
@@ -28,6 +29,8 @@ const knowledgeRecordBase = {
 };
 
 const typeSchemas: Record<string, z.ZodTypeAny> = {
+  'agent-run': agentRunSchema.loose(),
+  'acceptance-review': acceptanceReviewSchema.loose(),
   task: z.object({
     id: z.string().regex(generatedIdPattern('TASK')),
     type: z.literal('task'),

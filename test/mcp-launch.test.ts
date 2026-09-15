@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { coreToolNames, type McpToolProfile } from '../src/mcp/tool-profiles.js';
+import { coreToolNames, executionToolNames, type McpToolProfile } from '../src/mcp/tool-profiles.js';
 import { loadProjectConfig } from '../src/storage/config.js';
 
 type McpConfig = {
@@ -85,7 +85,8 @@ describe('Codex project-context MCP launch config', () => {
     const tools = responseResult(responses, 2).tools as McpTool[];
     const toolNames = tools.map((tool) => tool.name);
 
-    expect(toolNames).toHaveLength(53);
+    expect(toolNames).toHaveLength(53 + executionToolNames.length);
+    expect(toolNames).toEqual(expect.arrayContaining([...executionToolNames]));
     expect(toolNames).toContain('retrieve_project_context');
     expect(toolNames).toContain('search_project_context');
     expect(toolNames).toContain('promote_drafts_batch');

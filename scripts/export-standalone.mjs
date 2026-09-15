@@ -25,6 +25,7 @@ for (const entry of [
   '.github',
   'CONTRIBUTING.md',
   'SECURITY.md',
+  'CHANGELOG.md',
   'package-lock.json',
   'tsconfig.json',
 ]) {

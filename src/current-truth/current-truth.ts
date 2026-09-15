@@ -269,7 +269,7 @@ function classifyLayer(record: ContextRecord): ContextLayer {
   if (analystTypes.has(record.type)) return 'analyst_workbench';
   if (protectedTypes.has(record.type)) return 'protected_reference';
   if (record.type === 'task' && record.status !== 'done') return 'current_truth';
-  if (record.type === 'verification-evidence' || record.type === 'run-summary' || record.type === 'refactor') return 'workflow_history';
+  if (['verification-evidence', 'run-summary', 'refactor', 'agent-run', 'acceptance-review'].includes(record.type)) return 'workflow_history';
   if (record.type === 'task' && record.status === 'done') return 'workflow_history';
   return 'current_truth';
 }
