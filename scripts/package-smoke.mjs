@@ -30,6 +30,7 @@ const required = [
   'dist/execution/runs.js',
   'dist/execution/acceptance.js',
   'dist/execution/runner.js',
+  'dist/git-hooks/git-hooks.js',
   'docs/execution.md',
   'CHANGELOG.md',
   'templates/portable-workflow/execution-adapter.example.json',

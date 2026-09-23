@@ -3,6 +3,15 @@
 Notable changes to Project Context Router are recorded here. Versions before
 1.0 are under active development. The package requires Node.js 22.13 or newer.
 
+## Unreleased
+
+### Added
+
+- `project-context hooks install` installs a managed, idempotent pre-commit hook
+  and configures the local clone to run `doctor --commit` before commits.
+- Commit validation now rejects unknown module mappings, missing module paths,
+  and context records that reference missing or invalid repository files.
+
 ## [0.5.0] - 2026-09-15
 
 This release adds task execution tracking, evidence-gated acceptance, and an

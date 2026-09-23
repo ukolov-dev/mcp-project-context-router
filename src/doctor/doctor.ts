@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import fg from 'fast-glob';
 import { getBacklog } from '../backlog/backlog.js';
 import { checkIndexHealth, collectDuplicateRecordIssues, openDb } from '../indexer/sqlite.js';
-import { collectFileReferenceIssues } from '../storage/file-references.js';
+import { classifyFileReference, collectFileReferenceIssues } from '../storage/file-references.js';
 import { contextCliCommand, loadProjectConfig, retentionNumber, type ProjectConfig } from '../storage/config.js';
 import { lintContext } from '../storage/lint.js';
 import { repoPaths } from '../storage/repo.js';
@@ -41,6 +41,7 @@ export type ContextDoctorResult = {
 
 export type ContextDoctorOptions = {
   fixDryRun?: boolean;
+  commitValidation?: boolean;
 };
 
 export function contextDoctor(options: ContextDoctorOptions = {}): ContextDoctorResult {
@@ -49,6 +50,7 @@ export function contextDoctor(options: ContextDoctorOptions = {}): ContextDoctor
   const packageRoot = routerPackageRoot(paths.root, config);
   const records = readRecords(true);
   const activeRecords = records.filter((record) => !record.archived);
+  const trackedActiveRecords = records.filter((record) => record.path.startsWith('.project-context/active/'));
   const diagnostics: DoctorDiagnostic[] = [];
 
   diagnostics.push(exists(paths.contextDir, 'context-dir', '.project-context exists.', '.project-context is missing.'));
@@ -64,7 +66,8 @@ export function contextDoctor(options: ContextDoctorOptions = {}): ContextDoctor
   diagnostics.push(checkIndex(records, config));
   diagnostics.push(checkSearchImplementation());
   diagnostics.push(checkRecordIds(records));
-  diagnostics.push(checkFileReferences(records));
+  diagnostics.push(checkMappings(trackedActiveRecords, config));
+  diagnostics.push(checkFileReferences(options.commitValidation ? trackedActiveRecords : records, Boolean(options.commitValidation)));
   diagnostics.push(checkBacklog(activeRecords));
   diagnostics.push(checkLint());
   diagnostics.push(checkOldHookState());
@@ -155,6 +158,21 @@ function checkGitHooksPath(root: string, config: ProjectConfig): DoctorDiagnosti
       stdio: ['ignore', 'pipe', 'ignore'],
     }).trim();
     if (hooksPath === expectedPath) {
+      const hooksReference = classifyFileReference(expectedPath);
+      if (hooksReference.kind === 'outside_repository') {
+        return { id: 'git-hooks-path', status: 'fail', message: `Git hooks path escapes the repository: ${expectedPath}.` };
+      }
+      if (hooksReference.kind !== 'directory') {
+        return { id: 'git-hooks-path', status: 'fail', message: `Git hooks directory is missing: ${expectedPath}.` };
+      }
+      const hookPath = resolve(root, expectedPath, 'pre-commit');
+      if (!existsSync(hookPath)) {
+        return { id: 'git-hooks-path', status: 'fail', message: `${expectedPath}/pre-commit is missing.` };
+      }
+      const hook = readFileSync(hookPath, 'utf8');
+      if (!hook.includes('doctor --commit')) {
+        return { id: 'git-hooks-path', status: 'fail', message: `${expectedPath}/pre-commit does not run doctor --commit.` };
+      }
       return { id: 'git-hooks-path', status: 'ok', message: `Git hooks path is ${expectedPath}.` };
     }
     return { id: 'git-hooks-path', status: 'warn', message: `Git hooks path is "${hooksPath || '<unset>'}", expected "${expectedPath}".` };
@@ -212,16 +230,56 @@ function checkSearchImplementation(): DoctorDiagnostic {
   }
 }
 
-function checkFileReferences(records: ReturnType<typeof readRecords>): DoctorDiagnostic {
-  const directoryIssues = collectFileReferenceIssues(records).filter((issue) => issue.kind === 'directory');
-  if (directoryIssues.length === 0) {
-    return { id: 'context-file-references', status: 'ok', message: 'Context file references do not point at directories.' };
+function checkMappings(records: ReturnType<typeof readRecords>, config: ProjectConfig): DoctorDiagnostic {
+  const issues: string[] = [];
+  const configuredModules = new Set(Object.keys(config.modules));
+  for (const moduleName of [...config.routing.defaultModules, ...config.routing.documentationModules]) {
+    if (!configuredModules.has(moduleName)) issues.push(`routing references unknown module: ${moduleName}`);
   }
+  for (const [moduleName, module] of Object.entries(config.modules)) {
+    const relativePath = module.path.replaceAll('\\', '/');
+    if (!relativePath || relativePath.startsWith('/') || relativePath.split('/').includes('..')) {
+      issues.push(`module ${moduleName} has unsafe path: ${module.path}`);
+      continue;
+    }
+    const reference = classifyFileReference(module.path);
+    if (reference.kind === 'outside_repository') {
+      issues.push(`module ${moduleName} path escapes the repository: ${module.path}`);
+    } else if (reference.kind === 'missing') {
+      issues.push(`module ${moduleName} path does not exist: ${module.path}`);
+    } else if (reference.kind !== 'directory') {
+      issues.push(`module ${moduleName} path is not a directory: ${module.path}`);
+    }
+  }
+  for (const record of records) {
+    for (const moduleName of record.modules) {
+      if (!configuredModules.has(moduleName)) issues.push(`${record.path} references unknown module: ${moduleName}`);
+    }
+  }
+  return issues.length === 0
+    ? { id: 'context-mappings', status: 'ok', message: 'Routing and record module mappings are valid.' }
+    : {
+      id: 'context-mappings',
+      status: 'fail',
+      message: `${issues.length} invalid context mapping(s) found.`,
+      details: issues.slice(0, 10),
+    };
+}
+
+function checkFileReferences(records: ReturnType<typeof readRecords>, failOnMissing: boolean): DoctorDiagnostic {
+  const issues = collectFileReferenceIssues(records);
+  const blockingIssues = issues.filter((issue) => failOnMissing || issue.kind !== 'missing');
+  if (blockingIssues.length === 0) {
+    return { id: 'context-file-references', status: 'ok', message: 'Context file references resolve to repository files.' };
+  }
+  const directoriesOnly = blockingIssues.every((issue) => issue.kind === 'directory');
   return {
     id: 'context-file-references',
     status: 'fail',
-    message: `${directoryIssues.length} directory file reference(s) found in context records.`,
-    details: directoryIssues.slice(0, 10).map((issue) => `${issue.recordPath}: ${issue.filePath}`),
+    message: directoriesOnly
+      ? `${blockingIssues.length} directory file reference(s) found in context records.`
+      : `${blockingIssues.length} invalid file reference(s) found in context records.`,
+    details: blockingIssues.slice(0, 10).map((issue) => `${issue.recordPath}: ${issue.filePath} (${issue.kind})`),
   };
 }
 

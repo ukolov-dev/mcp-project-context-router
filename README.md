@@ -40,12 +40,20 @@ npm install --save-dev --save-exact github:ukolov-dev/mcp-project-context-router
 npx project-context init --name "Example Project" --module app:src
 npx project-context index
 npx project-context doctor --json
+npx project-context hooks install
 ```
 
 `init` is non-destructive: it does not overwrite an existing configuration.
 Review `.project-context/project.yaml` after generation and replace the example
 modules, source globs, playbooks, and verification commands with real project
 values.
+
+`hooks install` creates a managed `.githooks/pre-commit`, configures the local
+clone's `core.hooksPath`, and records that wiring in `project.yaml`. The hook runs
+`doctor --commit` before every commit and blocks the commit when mappings are
+invalid or context records reference missing, non-file, or out-of-repository
+paths. Existing custom pre-commit hooks are never overwritten; merge the doctor
+command manually when one is already present.
 
 A typical agent workflow then looks like this:
 
