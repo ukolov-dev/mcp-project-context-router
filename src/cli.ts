@@ -46,6 +46,7 @@ import {
 } from './execution/acceptance.js';
 import { executeTaskRun, planTaskRun, runAdapterSchema } from './execution/runner.js';
 import { getProjectSnapshot } from './project-snapshot/snapshot.js';
+import { installGitHooks } from './git-hooks/git-hooks.js';
 import { changedFilesInCommit, isIndexRelevantPath } from './indexer/changed.js';
 import {
   analystDeltaToBacklog,
@@ -990,10 +991,20 @@ program
   .command('doctor')
   .description('Diagnose context-router wiring, hooks, index, backlog, and lint health')
   .option('--fix-dry-run', 'include non-mutating fix proposals')
+  .option('--commit', 'treat missing mapped files as failures for pre-commit validation')
   .action((options) => {
-    const result = contextDoctor({ fixDryRun: Boolean(options.fixDryRun) });
+    const result = contextDoctor({
+      fixDryRun: Boolean(options.fixDryRun),
+      commitValidation: Boolean(options.commit),
+    });
     emit(result, result.status === 'FAILED' ? 1 : 0);
   });
+
+const gitHooks = program.command('hooks').description('Install repository Git hooks for project-context validation');
+gitHooks
+  .command('install')
+  .description('Install a managed pre-commit hook that blocks commits when context doctor fails')
+  .action(() => emit(installGitHooks()));
 
 program
   .command('snapshot')

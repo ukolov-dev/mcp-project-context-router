@@ -3,6 +3,26 @@
 Notable changes to Project Context Router are recorded here. Versions before
 1.0 are under active development. The package requires Node.js 22.13 or newer.
 
+## Unreleased
+
+## [0.5.1] - 2026-09-24
+
+### Fixed
+
+- Normalize repository-relative record paths to forward slashes on Windows.
+  Backlog filtering now returns all active records instead of an empty list
+  when native paths contain backslashes. Archive classification uses the same
+  portable paths.
+- Add Windows path regression coverage for eight active backlog records, mixed
+  input separators, and draft/archive exclusion.
+
+### Added
+
+- `project-context hooks install` installs a managed, idempotent pre-commit hook
+  and configures the local clone to run `doctor --commit` before commits.
+- Commit validation now rejects unknown module mappings, missing module paths,
+  and context records that reference missing or invalid repository files.
+
 ## [0.5.0] - 2026-09-15
 
 This release adds task execution tracking, evidence-gated acceptance, and an
@@ -80,3 +100,5 @@ It is the first tagged GitHub release; the previous source baseline was 0.4.0.
   GitHub Actions verification.
 
 [0.5.0]: https://github.com/ukolov-dev/mcp-project-context-router/releases/tag/v0.5.0
+
+[0.5.1]: https://github.com/ukolov-dev/mcp-project-context-router/releases/tag/v0.5.1

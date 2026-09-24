@@ -1,6 +1,6 @@
 import { execFileSync, spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
+import { dirname, resolve, sep } from 'node:path';
 
 export type RepoPaths = {
   root: string;
@@ -69,7 +69,10 @@ export function repoPaths(cwd = process.cwd()): RepoPaths {
 }
 
 export function relPath(root: string, path: string): string {
-  return resolve(path).startsWith(resolve(root)) ? resolve(path).slice(resolve(root).length + 1) : path;
+  // Record paths use portable separators for directory filters and index keys.
+  return resolve(path).startsWith(resolve(root))
+    ? resolve(path).slice(resolve(root).length + 1).split(sep).join('/')
+    : path;
 }
 
 export function gitIgnoredPaths(paths: Iterable<string>, cwd = process.cwd()): Set<string> {
