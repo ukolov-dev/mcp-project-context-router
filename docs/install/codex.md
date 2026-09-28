@@ -70,7 +70,7 @@ Use project_context to get the project brief and build a context pack for this t
 ```
 
 The server should expose the `core` tool profile. Change
-`PROJECT_CONTEXT_TOOL_PROFILE` only if the agent needs the `developer`,
+`PROJECT_CONTEXT_TOOL_PROFILE` only if the agent needs the `planning`, `developer`,
 `analyst`, `admin`, or `full` surface described in the project README.
 
 ## Troubleshooting

@@ -10,6 +10,7 @@ import { scanSecrets } from './secrets.js';
 import { classifyFileReference } from './file-references.js';
 import { generatedIdPattern } from './record-types.js';
 import { loadProjectConfig } from './config.js';
+import { researchRecordSchema } from '../research/types.js';
 import { acceptanceReviewSchema, agentRunSchema } from '../execution/types.js';
 
 export type LintResult = {
@@ -29,6 +30,7 @@ const knowledgeRecordBase = {
 };
 
 const typeSchemas: Record<string, z.ZodTypeAny> = {
+  research: researchRecordSchema.passthrough(),
   'agent-run': agentRunSchema.loose(),
   'acceptance-review': acceptanceReviewSchema.loose(),
   task: z.object({

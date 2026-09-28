@@ -1,4 +1,4 @@
-export type McpToolProfile = 'core' | 'analyst' | 'developer' | 'admin' | 'full';
+export type McpToolProfile = 'core' | 'planning' | 'analyst' | 'developer' | 'admin' | 'full';
 
 export const coreToolNames = [
   'get_project_brief',
@@ -33,6 +33,16 @@ export const executionToolNames = [
   'get_acceptance_review',
 ] as const;
 
+export const researchToolNames = [
+  'create_research', 'list_research', 'get_research',
+  'append_research_entry', 'transition_research', 'research_to_backlog',
+] as const;
+
+export const backlogToolNames = [
+  'get_backlog', 'get_backlog_dependency_graph', 'task_from_backlog',
+  'propose_backlog_item', 'confirm_backlog_item', 'transition_backlog_item', 'spec_to_backlog',
+] as const;
+
 const developerToolNames = [
   'accept_assigned_work',
   'submit_implementation_report',
@@ -40,6 +50,7 @@ const developerToolNames = [
 ] as const;
 
 const analystToolNames = [
+  ...researchToolNames,
   'search_project_context',
   'find_integrations',
   'find_data_entities',
@@ -62,13 +73,8 @@ const analystToolNames = [
 
 const adminToolNames = [
   ...executionToolNames,
-  'get_backlog',
-  'get_backlog_dependency_graph',
-  'task_from_backlog',
-  'propose_backlog_item',
-  'confirm_backlog_item',
-  'transition_backlog_item',
-  'spec_to_backlog',
+  ...backlogToolNames,
+  ...researchToolNames,
   'list_verification_evidence',
   'promote_draft',
   'promote_drafts_batch',
@@ -81,6 +87,7 @@ const adminToolNames = [
 
 const profileTools: Record<Exclude<McpToolProfile, 'full'>, ReadonlySet<string>> = {
   core: new Set(coreToolNames),
+  planning: new Set([...coreToolNames, ...backlogToolNames, ...researchToolNames]),
   analyst: new Set([...coreToolNames, ...analystToolNames]),
   developer: new Set([...coreToolNames, ...developerToolNames]),
   admin: new Set([...coreToolNames, ...adminToolNames]),
@@ -90,10 +97,10 @@ export function resolveMcpToolProfile(
   value = process.env.PROJECT_CONTEXT_TOOL_PROFILE ?? process.env.PPM_CONTEXT_TOOL_PROFILE,
 ): McpToolProfile {
   const profile = value?.trim().toLowerCase() || 'core';
-  if (profile === 'core' || profile === 'analyst' || profile === 'developer' || profile === 'admin' || profile === 'full') {
+  if (profile === 'planning' || profile === 'core' || profile === 'analyst' || profile === 'developer' || profile === 'admin' || profile === 'full') {
     return profile;
   }
-  throw new Error(`Unsupported PROJECT_CONTEXT_TOOL_PROFILE: ${value}. Expected core, analyst, developer, admin, or full.`);
+  throw new Error(`Unsupported PROJECT_CONTEXT_TOOL_PROFILE: ${value}. Expected core, planning, analyst, developer, admin, or full.`);
 }
 
 export function toolEnabledForProfile(profile: McpToolProfile, toolName: string): boolean {

@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { coreToolNames, executionToolNames, resolveMcpToolProfile, toolsForProfile } from '../src/mcp/tool-profiles.js';
+import { coreToolNames, executionToolNames, researchToolNames, backlogToolNames, resolveMcpToolProfile, toolsForProfile } from '../src/mcp/tool-profiles.js';
 
 const allTools = [
   ...coreToolNames,
   ...executionToolNames,
+  ...researchToolNames,
   'search_project_context',
   'find_requirements',
   'plan_confluence_publish',
@@ -58,7 +59,15 @@ describe('MCP tool profiles', () => {
     expect(toolsForProfile('full', allTools)).toEqual(allTools);
   });
 
+  it('exposes research and backlog in planning without unrelated admin tools', () => {
+    expect(resolveMcpToolProfile('planning')).toBe('planning');
+    const tools = toolsForProfile('planning', [...allTools, ...backlogToolNames]);
+    expect(tools).toEqual(expect.arrayContaining([...researchToolNames, ...backlogToolNames]));
+    expect(tools).not.toContain('archive_records');
+    expect(toolsForProfile('core', allTools)).not.toContain('create_research');
+  });
+
   it('rejects unknown profile names', () => {
-    expect(() => resolveMcpToolProfile('wide')).toThrow('Expected core, analyst, developer, admin, or full');
+    expect(() => resolveMcpToolProfile('wide')).toThrow('Expected core, planning, analyst, developer, admin, or full');
   });
 });

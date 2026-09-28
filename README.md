@@ -13,7 +13,7 @@ consumer repository. A disposable SQLite index makes retrieval fast without
 turning an external service into the source of truth.
 
 > Status: active development. The current package is
-> `mcp-project-context-router@0.5.1`, requires Node.js 22.13 or newer, and is distributed
+> `mcp-project-context-router@0.6.0`, requires Node.js 22.13 or newer, and is distributed
 > from source or a versioned tarball. It is not currently published to an npm
 > registry.
 
@@ -93,13 +93,19 @@ The server supports scoped tool profiles:
 | Profile | Intended use |
 | --- | --- |
 | `core` | Task contracts, context packs, reuse scans, verification, refactor review, and finalization |
+| `planning` | `core` plus research history, research-to-backlog handoff, and backlog lifecycle |
 | `developer` | `core` plus assigned-work acceptance and implementation reports |
-| `analyst` | `core` plus requirements, source traceability, analyst packs, and Confluence publishing |
-| `admin` | `core` plus backlog lifecycle, promotion, retention, and decision management |
+| `analyst` | `core` plus research, requirements, source traceability, analyst packs, and Confluence publishing |
+| `admin` | `core` plus research, backlog lifecycle, promotion, retention, and decision management |
 | `full` | The complete compatibility surface |
 
 `core` is the default. The legacy `PPM_CONTEXT_TOOL_PROFILE` variable remains
 supported for compatibility.
+
+Research preserves idea discussions, findings, status changes and conclusions separately
+from implementation tasks, then creates linked backlog drafts. See the
+[research workflow](docs/research.ru.md) and the portable
+[Codex skill](templates/skills/context-research/SKILL.md).
 
 ## How data is laid out
 
