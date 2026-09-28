@@ -15,3 +15,5 @@ coverage/
 .project-context/trash/
 .project-context/active/**/.execution.lock
 .project-context/active/**/.*.tmp
+
+.project-context/active/**/.research.lock

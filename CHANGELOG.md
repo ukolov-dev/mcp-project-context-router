@@ -5,6 +5,16 @@ Notable changes to Project Context Router are recorded here. Versions before
 
 ## Unreleased
 
+## [0.6.0] - 2026-09-28
+
+### Added
+
+- Separate research records with discussion history, status transitions, open
+  questions, conclusions, optimistic revision checks and retry-safe backlog handoff.
+- Six research MCP tools, equivalent CLI commands, a research resource, and a
+  `planning` profile combining core, research and backlog workflows.
+- A portable Codex research skill and a Russian research workflow guide.
+
 ## [0.5.1] - 2026-09-24
 
 ### Fixed
@@ -102,3 +112,5 @@ It is the first tagged GitHub release; the previous source baseline was 0.4.0.
 [0.5.0]: https://github.com/ukolov-dev/mcp-project-context-router/releases/tag/v0.5.0
 
 [0.5.1]: https://github.com/ukolov-dev/mcp-project-context-router/releases/tag/v0.5.1
+
+[0.6.0]: https://github.com/ukolov-dev/mcp-project-context-router/releases/tag/v0.6.0

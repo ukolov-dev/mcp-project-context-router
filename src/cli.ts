@@ -1,3 +1,5 @@
+import { createResearch, listResearch, getResearch, appendResearchEntry, transitionResearch, researchToBacklog } from './research/research.js';
+import { createResearchInputSchema, listResearchInputSchema, getResearchInputSchema, appendResearchInputSchema, transitionResearchInputSchema, researchToBacklogInputSchema } from './research/types.js';
 import { readFileSync } from 'node:fs';
 import { Command } from 'commander';
 import {
@@ -514,6 +516,30 @@ program
     includeTraceability: options.traceability !== false,
     includeDecisions: options.decisions !== false,
   }))));
+
+program.command('research')
+  .description('List research ideas and current statuses')
+  .option('--status <statuses>', 'comma-separated research statuses')
+  .option('--query <query>', 'search research history')
+  .option('--include-closed', 'include closed research')
+  .option('--limit <number>', 'maximum results', '50')
+  .action((options) => emit(listResearch({ statuses: options.status?.split(','), query: options.query,
+    includeClosed: Boolean(options.includeClosed), limit: Number(options.limit) })));
+program.command('get-research').argument('<researchId>')
+  .description('Read research and complete history')
+  .action((researchId) => emit(getResearch({ researchId })));
+program.command('create-research').description('Create a research idea')
+  .requiredOption('--input <jsonFile>', 'JSON payload in a repository file')
+  .action((options) => emit(createResearch(createResearchInputSchema.parse(readJsonInput(options.input)))));
+program.command('append-research-entry').description('Append a research discussion, finding or decision')
+  .requiredOption('--input <jsonFile>', 'JSON payload in a repository file')
+  .action((options) => emit(appendResearchEntry(appendResearchInputSchema.parse(readJsonInput(options.input)))));
+program.command('transition-research').description('Change research status with a recorded reason')
+  .requiredOption('--input <jsonFile>', 'JSON payload in a repository file')
+  .action((options) => emit(transitionResearch(transitionResearchInputSchema.parse(readJsonInput(options.input)))));
+program.command('research-to-backlog').description('Preview or create a draft backlog item from research')
+  .requiredOption('--input <jsonFile>', 'JSON payload in a repository file')
+  .action((options) => emit(researchToBacklog(researchToBacklogInputSchema.parse(readJsonInput(options.input)))));
 
 program
   .command('backlog')

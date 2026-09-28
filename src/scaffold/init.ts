@@ -29,6 +29,7 @@ const contextDirectories = [
   'active/refactors',
   'active/patterns',
   'active/backlog',
+  'active/research',
   'active/verification',
   'active/agent-runs',
   'active/acceptance-reviews',
@@ -64,6 +65,7 @@ const ignoredContextPaths = [
   '.project-context/drafts/',
   '.project-context/trash/',
   '.project-context/active/**/.execution.lock',
+  '.project-context/active/**/.research.lock',
   '.project-context/active/**/.*.tmp',
 ];
 

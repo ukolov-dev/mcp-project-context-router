@@ -449,6 +449,7 @@ function isDefaultHiddenHistory(record: { id: string; type: string; status: stri
   if (input.includeHistory) return false;
   if (record.id === input.taskId) return false;
   if (['run-summary', 'verification-evidence', 'refactor', 'agent-run', 'acceptance-review'].includes(record.type)) return true;
+  if (record.type === 'research' && record.status === 'closed') return true;
   if (record.type === 'task' && record.status === 'done') return true;
   if (record.type === 'backlog' && (record.status === 'done' || record.status === 'cancelled')) return true;
   return false;

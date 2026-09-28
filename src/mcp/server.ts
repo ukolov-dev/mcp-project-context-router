@@ -1,3 +1,5 @@
+import { createResearch, listResearch, getResearch, appendResearchEntry, transitionResearch, researchToBacklog } from '../research/research.js';
+import { createResearchInputSchema, listResearchInputSchema, getResearchInputSchema, appendResearchInputSchema, transitionResearchInputSchema, researchToBacklogInputSchema } from '../research/types.js';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
@@ -121,6 +123,12 @@ const structuredJsonOutputSchema = z.object({
     description: z.string(),
   }),
 }).loose();
+
+server.registerResource('project-research', `${resourceScheme}://research`, {
+  title: `${projectName} research`,
+  description: 'Research ideas, statuses, open questions and links to backlog.',
+  mimeType: 'application/json',
+}, async (uri) => resourceJson(uri, listResearch()));
 
 server.registerResource(
   'project-backlog',
@@ -768,6 +776,42 @@ server.registerTool(
   },
   async ({ planDigest }) => json(getConfluencePublishPlan(planDigest)),
 );
+
+server.registerTool('create_research', {
+  title: 'Create research',
+  description: 'Start an idea in research, separate from tasks and backlog.',
+  inputSchema: createResearchInputSchema.shape,
+}, async (args) => json(createResearch(args)));
+
+server.registerTool('list_research', {
+  title: 'List research',
+  description: 'List research status, conclusions, questions and linked backlog items.',
+  inputSchema: listResearchInputSchema.shape,
+}, async (args) => json(listResearch(args)));
+
+server.registerTool('get_research', {
+  title: 'Get research history',
+  description: 'Read complete chronological research history and current revision.',
+  inputSchema: getResearchInputSchema.shape,
+}, async (args) => json(getResearch(args)));
+
+server.registerTool('append_research_entry', {
+  title: 'Append research entry',
+  description: 'Append a discussion, finding or decision without replacing history. Use a stable requestKey for retries and the current expectedRevision.',
+  inputSchema: appendResearchInputSchema.shape,
+}, async (args) => json(appendResearchEntry(args)));
+
+server.registerTool('transition_research', {
+  title: 'Transition research',
+  description: 'Change research status with a reason. Ready requires a conclusion and resolved questions. Reopening preserves history.',
+  inputSchema: transitionResearchInputSchema.shape,
+}, async (args) => json(transitionResearch(args)));
+
+server.registerTool('research_to_backlog', {
+  title: 'Research to backlog',
+  description: 'Preview or create a linked draft backlog item from ready research. Dry-run by default; repeat the requestKey to retry without duplication. Does not approve or implement the task.',
+  inputSchema: researchToBacklogInputSchema.shape,
+}, async (args) => json(researchToBacklog(args)));
 
 server.registerTool(
   'get_backlog',
