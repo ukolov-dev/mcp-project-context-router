@@ -1,3 +1,6 @@
+import { checkSourceCoverage, checkDurableMemory, aliasSuggestions } from './coverage.js';
+import { recordCategory } from '../storage/lifecycle.js';
+import { resolveModuleName } from '../storage/inference.js';
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
@@ -66,8 +69,11 @@ export function contextDoctor(options: ContextDoctorOptions = {}): ContextDoctor
   diagnostics.push(checkIndex(records, config));
   diagnostics.push(checkSearchImplementation());
   diagnostics.push(checkRecordIds(records));
-  diagnostics.push(checkMappings(trackedActiveRecords, config));
-  diagnostics.push(checkFileReferences(options.commitValidation ? trackedActiveRecords : records, Boolean(options.commitValidation)));
+  diagnostics.push(checkMappings(trackedActiveRecords.filter((record) => recordCategory(record) === 'active'), config));
+  diagnostics.push(checkSourceCoverage(), checkDurableMemory());
+  const aliases = aliasSuggestions(trackedActiveRecords.flatMap((record) => record.modules));
+  if (aliases.length) diagnostics.push({ id: 'module-aliases', status: 'warn', message: 'Review legacy module aliases; no records have been rewritten.', details: [...new Set(aliases)] });
+  diagnostics.push(checkFileReferences(records, Boolean(options.commitValidation)));
   diagnostics.push(checkBacklog(activeRecords));
   diagnostics.push(checkLint());
   diagnostics.push(checkOldHookState());
@@ -124,7 +130,7 @@ function checkCodexConfig(root: string, config: ProjectConfig): DoctorDiagnostic
   if (!content.includes(config.contextRouter.mcpServerName)) {
     return { id: 'codex-config', status: 'fail', message: `${relativePath} does not declare ${config.contextRouter.mcpServerName} MCP server.` };
   }
-  return { id: 'codex-config', status: 'ok', message: `Codex project config declares ${config.contextRouter.mcpServerName} MCP server.` };
+  return { id: 'codex-config', status: 'ok', message: `Codex project config declares ${config.contextRouter.mcpServerName}; runtime connection and tool availability in the current client are not verified.` };
 }
 
 function checkHooksJson(root: string, config: ProjectConfig): DoctorDiagnostic {
@@ -251,9 +257,12 @@ function checkMappings(records: ReturnType<typeof readRecords>, config: ProjectC
       issues.push(`module ${moduleName} path is not a directory: ${module.path}`);
     }
   }
+  for (const [name, command] of Object.entries(config.commandMetadata)) {
+    for (const moduleName of command.requiredFor) if (!resolveModuleName(moduleName, config)) issues.push(`command ${name} references unknown module: ${moduleName}`);
+  }
   for (const record of records) {
     for (const moduleName of record.modules) {
-      if (!configuredModules.has(moduleName)) issues.push(`${record.path} references unknown module: ${moduleName}`);
+      if (!resolveModuleName(moduleName, config)) issues.push(`${record.path} references unknown module: ${moduleName}`);
     }
   }
   return issues.length === 0
@@ -267,10 +276,13 @@ function checkMappings(records: ReturnType<typeof readRecords>, config: ProjectC
 }
 
 function checkFileReferences(records: ReturnType<typeof readRecords>, failOnMissing: boolean): DoctorDiagnostic {
-  const issues = collectFileReferenceIssues(records);
+  const active = records.filter((record) => recordCategory(record) === 'active');
+  const historicalCount = collectFileReferenceIssues(records.filter((record) => recordCategory(record) !== 'active')).length;
+  const issues = collectFileReferenceIssues(active);
   const blockingIssues = issues.filter((issue) => failOnMissing || issue.kind !== 'missing');
+  if (issues.length && !blockingIssues.length) return { id: 'context-file-references', status: 'warn', message: `${issues.length} missing active file reference(s); ${historicalCount} historical/draft issue(s) are non-blocking. Commit validation fails on active missing references.`, details: issues.slice(0, 10).map((issue) => `${issue.recordPath}: ${issue.filePath}`) };
   if (blockingIssues.length === 0) {
-    return { id: 'context-file-references', status: 'ok', message: 'Context file references resolve to repository files.' };
+    return { id: 'context-file-references', status: 'ok', message: `Active context file references resolve; ${historicalCount} historical/draft issue(s) are non-blocking.` };
   }
   const directoriesOnly = blockingIssues.every((issue) => issue.kind === 'directory');
   return {
@@ -378,6 +390,7 @@ function checkPackCacheRetention(): DoctorDiagnostic {
 
 function buildFixProposals(diagnostics: DoctorDiagnostic[], config: ProjectConfig): DoctorFixProposal[] {
   return [
+    ...diagnostics.filter((item) => ['source-coverage', 'durable-memory', 'context-mappings', 'module-aliases'].includes(item.id) && item.status !== 'ok').map((item) => ({ id: `review-${item.id}`, title: `Review ${item.id}`, risk: 'low' as const, reason: item.message, action: item.id === 'source-coverage' ? 'Review module paths and source_globs, including test directories and mjs/mts/cts. Preserve intentional exclusions.' : item.id === 'durable-memory' ? 'Review active records and explicitly commit the intended durable knowledge with its owning change.' : `Review configured module names and aliases. ${aliasSuggestions(readRecords(false).flatMap((record) => record.modules)).join('; ')}` })),
     ...gitHooksPathFixes(diagnostics, config),
     ...duplicateIdFixes(),
     ...missingReferenceFixes(),

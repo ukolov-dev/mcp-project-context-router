@@ -78,10 +78,11 @@ function capabilitySourceFiles(): Array<{ filePath: string; module: string }> {
 function discoverModuleFiles(config: ProjectConfig, moduleName: string): string[] {
   const module = config.modules[moduleName];
   if (!module) return [];
-  return fg.sync(sourceGlobsForModule(module), {
+  return fg.sync(sourceGlobsForModule(module).map((glob) => glob.replaceAll('\\', '/')), {
     cwd: repoPaths().root,
     absolute: false,
     onlyFiles: true,
+    followSymbolicLinks: false,
     ignore: [
       '**/.git/**',
       '**/node_modules/**',

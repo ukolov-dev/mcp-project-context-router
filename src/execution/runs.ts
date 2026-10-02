@@ -69,7 +69,14 @@ export function recordRunVerification(input: z.input<typeof recordRunVerificatio
     const snapshot = getRunSnapshot(run.id);
     if (parsed.expectedCodeDigest !== snapshot.codeDigest) throw new Error('Code changed since verification began; evidence would be stale.');
     if (new Set(parsed.checks.map((check) => check.command)).size !== parsed.checks.length) throw new Error('Duplicate verification commands are not allowed.');
+    if (parsed.retriesEvidenceId) {
+      const prior = readExecutionRecord('verification', parsed.retriesEvidenceId);
+      if ((prior.taskId ?? prior.target_id) !== run.taskId) throw new Error('Retry evidence must belong to the same task.');
+    }
     const evidence = runVerificationEvidenceSchema.parse({
+      ...(parsed.boundaries ? { boundaries: parsed.boundaries } : {}),
+      ...(parsed.completion ? { completion: parsed.completion } : {}),
+      ...(parsed.retriesEvidenceId ? { retriesEvidenceId: parsed.retriesEvidenceId } : {}),
       id: newExecutionId('VERIFY'), runId: run.id, taskId: run.taskId,
       taskDigest: snapshot.taskDigest, codeDigest: snapshot.codeDigest,
       baseCommit: snapshot.baseCommit, headCommit: snapshot.headCommit,
@@ -77,8 +84,11 @@ export function recordRunVerification(input: z.input<typeof recordRunVerificatio
       checks: parsed.checks.map((check) => ({ ...check, ...(check.reason ? { reason: redactExecutionText(check.reason) } : {}) })),
       createdAt: new Date().toISOString(),
     });
+    const requiredPending = run.requiredChecks.some((command) => !evidence.checks.some((check) => check.command === command && check.status === 'passed'));
+    if (parsed.completion === 'complete' && (requiredPending || evidence.checks.some((check) => check.status === 'failed' || (check.required !== false && check.status !== 'passed')))) throw new Error('Complete verification requires all required checks to pass.');
     const status = evidence.checks.some((check) => check.status === 'failed') ? 'failed'
-      : evidence.checks.every((check) => check.status === 'passed') ? 'passed' : 'incomplete';
+      : parsed.completion === 'blocked' ? 'blocked' : parsed.completion === 'partial' || requiredPending ? 'partial'
+      : evidence.checks.every((check) => check.status === 'passed' || check.required === false) ? 'passed' : 'incomplete';
     const path = writeExecutionRecord('verification', evidence.id, {
       ...evidence, status, target_id: run.taskId, target_type: 'task', recorded_by: run.executor,
       files: snapshot.changedFiles,
@@ -107,8 +117,10 @@ export function assertRunEvidence(
   });
   if (requirePassed) {
     if (run.requiredChecks.length === 0) throw new Error('No required verification checks are defined; update the Task Contract before proceeding.');
+    if (records.some((record) => record.completion === 'partial' || record.completion === 'blocked')) throw new Error('Partial or blocked evidence cannot pass the review gate; record a complete retry.');
     const checks = records.flatMap((record) => record.checks);
     if (checks.some((check) => check.status === 'failed')) throw new Error('Failed verification evidence cannot pass the review gate.');
+    if (checks.some((check) => check.required !== false && check.status !== 'passed')) throw new Error('Pending required verification cannot pass the review gate.');
     for (const command of run.requiredChecks) {
       const matching = checks.filter((check) => check.command === command);
       if (matching.length === 0 || matching.some((check) => check.status !== 'passed')) throw new Error(`Required verification check has not passed: ${command}`);
@@ -200,4 +212,23 @@ function evidenceDigest(evidence: RunVerificationEvidence): string {
 function citesEvidenceId(text: string, id: string): boolean {
   const escaped = id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   return new RegExp(`(?<![A-Za-z0-9_-])${escaped}(?![A-Za-z0-9_-])`).test(text);
+}
+
+/** Reuse execution evidence and independent acceptance gates for explicit core finalization. */
+export function assertReadyForCompletion(runId: string, taskId: string): void {
+  const run = getAgentRun(runId);
+  if (run.taskId !== taskId || run.status !== 'ready_to_merge' || !run.reviewId) throw new Error('Completion requires a ready_to_merge run for this task.');
+  const snapshot = getRunSnapshot(run.id);
+  assertRunEvidence(run, snapshot, run.evidenceIds);
+  const review = acceptanceReviewSchema.parse(readExecutionRecord('acceptance-reviews', run.reviewId));
+  if (review.runId !== run.id || review.taskId !== taskId || review.taskDigest !== snapshot.taskDigest
+    || review.codeDigest !== snapshot.codeDigest || review.headCommit !== snapshot.headCommit
+    || review.baseCommit !== snapshot.baseCommit || review.verdict !== 'passed' || review.findings.length
+    || review.runRevision !== run.revision - 1 || review.executor !== run.executor
+    || review.reviewer.trim().toLowerCase() === run.executor.trim().toLowerCase()
+    || !sameIds(review.evidenceIds, run.evidenceIds)
+    || !sameIds(review.criteria.map((criterion) => criterion.criterionId), run.acceptanceCriteria.map((criterion) => criterion.id))
+    || review.criteria.some((criterion) => criterion.status !== 'passed' || !review.evidenceIds.some((id) => citesEvidenceId(criterion.verificationEvidence, id)))) {
+    throw new Error('Completion acceptance is stale, incomplete or invalid.');
+  }
 }

@@ -211,10 +211,11 @@ commands:
 
 function renderModule(module: ProjectModuleSeed): string {
   const sourceGlob = module.path === '.'
-    ? '**/*.{ts,tsx,js,jsx,mjs,cjs,java,kt,kts,go,rs,py,rb,php,cs,sql,xml,yaml,yml,md}'
-    : `${module.path}/**/*.{ts,tsx,js,jsx,mjs,cjs,java,kt,kts,go,rs,py,rb,php,cs,sql,xml,yaml,yml,md}`;
+    ? '**/*.{ts,tsx,js,jsx,mjs,cjs,mts,cts,java,kt,kts,go,rs,py,rb,php,cs,sql,xml,yaml,yml,md}'
+    : `${module.path}/**/*.{ts,tsx,js,jsx,mjs,cjs,mts,cts,java,kt,kts,go,rs,py,rb,php,cs,sql,xml,yaml,yml,md}`;
   return `  ${module.name}:
     path: ${yamlString(module.path)}
+    # Add query aliases in your team languages and reviewed legacy module names.
     aliases: [${yamlString(module.name)}]
     source_globs: [${yamlString(sourceGlob)}]
     playbooks: []`;

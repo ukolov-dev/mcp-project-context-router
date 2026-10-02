@@ -13,7 +13,7 @@ consumer repository. A disposable SQLite index makes retrieval fast without
 turning an external service into the source of truth.
 
 > Status: active development. The current package is
-> `mcp-project-context-router@0.6.0`, requires Node.js 22.13 or newer, and is distributed
+> `mcp-project-context-router@0.7.0`, requires Node.js 22.13 or newer, and is distributed
 > from source or a versioned tarball. It is not currently published to an npm
 > registry.
 
@@ -181,3 +181,7 @@ handoff checks are `npm run build`, `npm test`, `npm run package:check`, and
 No open-source license has been granted yet. The package is marked `UNLICENSED`;
 public availability of the source does not grant permission to copy, modify, or
 redistribute it.
+
+### Upgrading to 0.7
+
+See the [0.7 migration guide](docs/upgrade-0.7.md) for configured routing, lifecycle-aware retrieval, actionable diagnostics, required verification and scoped review. Existing records are preserved. The [sanitized audit plan](docs/reliability-audit.md) maps findings to regression coverage.

@@ -11,6 +11,8 @@ project:
     - Build a context pack and inspect existing capabilities.
     - Run applicable verification and finalize the work.
 
+# Defaults must name configured modules. Add deployment/CI modules for existing paths.
+# Run doctor --fix-dry-run to review omitted source files and mappings.
 routing:
   default_modules: [web]
   documentation_modules: [docs]
@@ -45,9 +47,11 @@ modules:
   web:
     path: apps/web
     stack: CHANGE_ME
+    # Add aliases in team languages and reviewed legacy module names.
     aliases: [web, frontend, react, ui]
     source_globs:
-      - "apps/web/src/**/*.{ts,tsx,js,jsx}"
+      - "apps/web/src/**/*.{ts,tsx,mts,cts,js,jsx,mjs,cjs}"
+      - "apps/web/test/**/*.{ts,tsx,mts,cts,js,jsx,mjs,cjs}"
     playbooks:
       - AGENTS.md
       - playbooks/web.md

@@ -1,3 +1,4 @@
+import { recordProvenance } from '../storage/lifecycle.js';
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
@@ -6,7 +7,7 @@ import { findRecordPath, parseRecord, readRecords } from '../storage/markdown.js
 import { contextPackCommandsForModules, loadProjectConfig, retentionNumber, type ProjectConfig } from '../storage/config.js';
 import { classifyFileReference } from '../storage/file-references.js';
 import { relPath, repoPaths } from '../storage/repo.js';
-import { inferModulesFromSignals } from '../storage/inference.js';
+import { inferModulesFromSignals, resolveModuleName } from '../storage/inference.js';
 import { redactSecrets } from '../storage/secrets.js';
 import type { ContextRecord } from '../storage/types.js';
 import { allKnownPlaybookPaths, selectPlaybooks, type PlaybookDetail } from './playbooks.js';
@@ -33,7 +34,8 @@ export type ContextPack = {
   profile: ContextPackProfile;
   workflow: ContextPackWorkflow;
   maxTokens: number;
-  records: Array<{ id: string; path: string; reason: string; excerpt?: string }>;
+  records: Array<{ id: string; path: string; reason: string; excerpt?: string } & Partial<ReturnType<typeof recordProvenance>>>;
+  routing?: { modules: string[]; basis: string; unknownModules: string[]; unmappedFiles: string[] };
   files: Array<{ path: string; reason: string; excerpt?: string }>;
   playbooks: string[];
   playbookDetails: PlaybookDetail[];
@@ -59,7 +61,7 @@ export type ContextPack = {
 };
 
 type CachedContextPack = {
-  version: 3;
+  version: 4;
   state: string;
   pack: Omit<ContextPack, 'cache'>;
 };
@@ -109,7 +111,6 @@ function buildContextPackFresh(input: ContextPackInput): Omit<ContextPack, 'cach
     modules: input.modules,
     files: input.files,
     changedFiles: input.changedFiles,
-    fallback: ['doc'],
     config,
   }));
   const records = new Map<string, { id: string; path: string; reason: string }>();
@@ -121,14 +122,14 @@ function buildContextPackFresh(input: ContextPackInput): Omit<ContextPack, 'cach
       pathWarnings.push(`Ignored unsafe repository file path: ${file}`);
       return;
     }
-    explicitFiles.push({ path: file, reason });
+    explicitFiles.push({ path: file.replaceAll('\\', '/'), reason });
   };
 
   if (input.taskId) {
     const taskPath = findRecordPath(input.taskId);
     if (taskPath) {
       const task = parseRecord(taskPath);
-      for (const module of task.modules) moduleSet.add(module);
+      for (const module of task.modules) { const name = resolveModuleName(module, config); if (name) moduleSet.add(name); }
       for (const file of [...task.files, ...task.deletedFiles]) {
         for (const module of inferModulesFromSignals({ files: [file], fallback: [], config })) moduleSet.add(module);
       }
@@ -161,9 +162,8 @@ function buildContextPackFresh(input: ContextPackInput): Omit<ContextPack, 'cach
   }
 
   const indexedRecords = searchIndex(input.query, indexedRecordLimit * 4, input.includeArchive ?? false, modules);
-  const candidateRecords = indexedRecords.length > 0
-    ? indexedRecords
-    : rankRecordsInMemory(input.query, modules, input.includeArchive ?? false, indexedRecordLimit * 4);
+  const candidateRecords = [...new Map([...indexedRecords, ...rankRecordsInMemory(input.query, modules, input.includeArchive ?? false, input)]
+    .map((record) => [record.id, record])).values()];
   const relevantRecords = rankRetrievedRecords(candidateRecords, input.query, modules)
     .filter((record) => !isDraft(record.path) || record.id === input.taskId)
     .filter((record) => !isDefaultHiddenHistory(record, input))
@@ -179,7 +179,7 @@ function buildContextPackFresh(input: ContextPackInput): Omit<ContextPack, 'cach
       records.set(record.id, {
         id: record.id,
         path: record.path,
-        reason: input.explain ? 'Matched query terms in indexed title/body/tags.' : 'Relevant indexed record.',
+        reason: 'Matched query/module; relevance, decision type and explicit confirmation determine rank; date breaks ties only. Status and authority describe claims, not runtime proof.',
       });
     }
   }
@@ -200,7 +200,15 @@ function buildContextPackFresh(input: ContextPackInput): Omit<ContextPack, 'cach
   );
   const playbooks = playbookSelection.details.map((playbook) => playbook.path);
   const commands = commandsForModules(modules, config);
+  const unknownModules = (input.modules ?? []).filter((name) => !resolveModuleName(name, config));
+  const unmappedFiles = [...(input.files ?? []), ...(input.changedFiles ?? [])].filter((file) => inferModulesFromSignals({ files: [file], fallback: [], config }).length === 0);
+  const directModules = inferModulesFromSignals({ query: input.query, modules: input.modules, files: input.files, changedFiles: input.changedFiles, fallback: [], config });
+  const routing = { modules, basis: directModules.length ? 'explicit/query/path signals' : 'configured fallback', unknownModules, unmappedFiles };
   const warnings: string[] = [...pathWarnings, ...playbookSelection.warnings];
+  if (!directModules.length) warnings.push('No module signal matched; using configured default_modules. Configure aliases in the languages used by your team.');
+  if (!modules.length) warnings.push('No configured module selected; inspect project.yaml routing and module coverage.');
+  if (unknownModules.length) warnings.push(`Unknown or ambiguous module names: ${unknownModules.join(', ')}. Configure reviewed aliases; no implicit spelling migration is applied.`);
+  if (unmappedFiles.length) warnings.push(`Files outside configured module coverage: ${unmappedFiles.join(', ')}.`);
   if (commands.length === 0) {
     warnings.push(`No context-pack verification commands are configured for module(s): ${modules.join(', ') || '<none>'}.`);
   }
@@ -213,6 +221,7 @@ function buildContextPackFresh(input: ContextPackInput): Omit<ContextPack, 'cach
     profile,
     workflow,
     maxTokens,
+    routing,
     records: [...records.values()].slice(0, totalRecordLimit).map((record) => withRecordExcerpt(record, input.query)),
     files: files.map((file) => withFileExcerpt(file, input.query)),
     playbooks,
@@ -238,7 +247,7 @@ function readCachedContextPack(input: ContextPackInput): ContextPack | undefined
   try {
     if (!existsSync(descriptor.absolutePath)) return undefined;
     const cached = JSON.parse(readFileSync(descriptor.absolutePath, 'utf8')) as CachedContextPack;
-    if (cached.version !== 3 || cached.state !== buildCacheState(input)) return undefined;
+    if (cached.version !== 4 || cached.state !== buildCacheState(input)) return undefined;
     return {
       ...cached.pack,
       cache: {
@@ -257,7 +266,7 @@ function writeCachedContextPack(input: ContextPackInput, pack: Omit<ContextPack,
   try {
     mkdirSync(descriptor.dir, { recursive: true });
     const cached: CachedContextPack = {
-      version: 3,
+      version: 4,
       state: buildCacheState(input),
       pack,
     };
@@ -403,12 +412,12 @@ function safeFileStat(path: string): string {
   }
 }
 
-function withRecordExcerpt(record: { id: string; path: string; reason: string }, query: string): { id: string; path: string; reason: string; excerpt?: string } {
+function withRecordExcerpt(record: { id: string; path: string; reason: string }, query: string): ContextPack['records'][number] {
   try {
     const reference = classifyFileReference(record.path);
     if (reference.kind !== 'file') return record;
     const parsed = parseRecord(reference.absolutePath, repoPaths().root);
-    return { ...record, excerpt: buildExcerpt(redactSecrets(`${parsed.title}\n${parsed.body}`), query) };
+    return { ...record, ...recordProvenance(parsed), excerpt: buildExcerpt(redactSecrets(`${parsed.title}\n${parsed.body}`), query) };
   } catch {
     return record;
   }
@@ -448,6 +457,7 @@ function isDraft(path: string): boolean {
 function isDefaultHiddenHistory(record: { id: string; type: string; status: string }, input: ContextPackInput): boolean {
   if (input.includeHistory) return false;
   if (record.id === input.taskId) return false;
+  if (['superseded', 'cancelled', 'canceled', 'retired', 'archived'].includes(record.status)) return true;
   if (['run-summary', 'verification-evidence', 'refactor', 'agent-run', 'acceptance-review'].includes(record.type)) return true;
   if (record.type === 'research' && record.status === 'closed') return true;
   if (record.type === 'task' && record.status === 'done') return true;
@@ -455,10 +465,10 @@ function isDefaultHiddenHistory(record: { id: string; type: string; status: stri
   return false;
 }
 
-function rankRecordsInMemory(query: string, modules: string[], includeArchive: boolean, limit: number) {
+function rankRecordsInMemory(query: string, modules: string[], includeArchive: boolean, input: ContextPackInput) {
   const terms = query.toLowerCase().split(/[^\p{L}\p{N}_-]+/u).filter((word) => word.length > 1);
   return readRecords(includeArchive)
-    .filter((record) => modules.length === 0 || record.modules.length === 0 || record.modules.some((module) => modules.includes(module)))
+    .filter((record) => modules.length === 0 || record.modules.length === 0 || record.modules.some((module) => modules.includes(resolveModuleName(module) ?? module)))
     .map((record) => {
       const title = record.title.toLowerCase();
       const tags = record.tags.join(' ').toLowerCase();
@@ -467,11 +477,11 @@ function rankRecordsInMemory(query: string, modules: string[], includeArchive: b
         + (title.includes(term) ? 8 : 0)
         + (tags.includes(term) ? 5 : 0)
         + (body.includes(term) ? 2 : 0), 0);
-      return { record, score };
+      return { record, score: score + (modules.length && record.modules.some((name) => modules.includes(resolveModuleName(name) ?? name)) ? 1 : 0) };
     })
     .filter((item) => item.score > 0)
-    .sort((left, right) => right.score - left.score || left.record.path.localeCompare(right.record.path))
-    .slice(0, limit)
+    .sort((left, right) => right.score - left.score || String(right.record.frontmatter.confirmed_at ?? '').localeCompare(String(left.record.frontmatter.confirmed_at ?? '')) || left.record.path.localeCompare(right.record.path))
+    .filter((item) => !isDefaultHiddenHistory(item.record, input) && !isDraft(item.record.path))
     .map((item) => item.record);
 }
 
@@ -479,9 +489,9 @@ function rankRetrievedRecords(records: ContextRecord[], query: string, modules: 
   const terms = query.toLowerCase().split(/[^\p{L}\p{N}_-]+/u).filter((word) => word.length > 1);
   const primaryModule = modules[0];
   const typeWeight: Record<string, number> = {
-    task: 8,
-    backlog: 8,
-    decision: 6,
+    task: 2,
+    backlog: 2,
+    decision: 12,
     pattern: 6,
     runbook: 5,
     api: 4,
@@ -502,9 +512,9 @@ function rankRetrievedRecords(records: ContextRecord[], query: string, modules: 
         + (tags.includes(term) ? 5 : 0)
         + (body.includes(term) ? 1 : 0), 0);
       const moduleScore = primaryModule && record.modules.includes(primaryModule) ? 20 : 0;
-      return { record, score: termScore + moduleScore + (typeWeight[record.type] ?? 0) };
+      return { record, score: termScore + moduleScore + (typeWeight[record.type] ?? 0) + (record.frontmatter.confirmed_by_human === true ? 8 : 0) };
     })
-    .sort((left, right) => right.score - left.score || left.record.path.localeCompare(right.record.path))
+    .sort((left, right) => right.score - left.score || String(right.record.frontmatter.confirmed_at ?? '').localeCompare(String(left.record.frontmatter.confirmed_at ?? '')) || left.record.path.localeCompare(right.record.path))
     .map((item) => item.record);
 }
 

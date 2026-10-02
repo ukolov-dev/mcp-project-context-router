@@ -141,7 +141,7 @@ program
   .option('--staged', 'validate staged context records only')
   .action((options) => {
     const result = lintContext(Boolean(options.staged));
-    emit({ status: result.errors.length > 0 ? 'FAILED' : 'OK', ...result }, result.errors.length > 0 ? 1 : 0);
+    emit({ status: result.errors.length > 0 ? 'FAILED' : result.warnings.length > 0 ? 'WARN' : 'OK', ...result }, result.errors.length > 0 ? 1 : 0);
   });
 
 program
@@ -830,7 +830,9 @@ program
   .command('refactor-review')
   .description('Review current diff for local or deferred refactor opportunities')
   .option('--task <taskId>')
-  .action((options) => emit(reviewDiffForRefactor(options.task)));
+  .option('--files <paths>', 'comma-separated concrete task files; an empty value is an empty scope')
+  .option('--base <commit>', 'compare against a verified base commit')
+  .action((options) => emit(reviewDiffForRefactor(options.task, { files: options.files !== undefined ? options.files.split(',').filter(Boolean) : undefined, baseCommit: options.base })));
 
 program
   .command('gc')

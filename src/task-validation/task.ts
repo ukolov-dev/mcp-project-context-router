@@ -1,3 +1,4 @@
+import { assertReadyForCompletion } from '../execution/runs.js';
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, renameSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -56,7 +57,7 @@ export type ValidateTaskResult = {
 };
 
 export function validateTask(query: string, mode = 'feature'): ValidateTaskResult {
-  const modules = inferModulesFromSignals({ query, fallback: ['doc'] });
+  const modules = inferModulesFromSignals({ query });
   const workflow = classifyWorkflow(query, mode, modules);
   const questions = blockingQuestions(query, mode);
   const inferred = [...inferStatements(query, modules), `Рекомендуемый workflow: ${workflow}.`];
@@ -93,7 +94,6 @@ export function confirmTaskContract(input: z.infer<typeof confirmTaskInputSchema
   const modules = parsed.modules ?? inferModulesFromSignals({
     query: `${parsed.goal} ${parsed.scope.join(' ')}`,
     files: parsed.files,
-    fallback: ['doc'],
   });
   const files = parsed.files ?? [];
   const tags = parsed.tags ?? inferTags(`${parsed.goal} ${parsed.scope.join(' ')}`);
@@ -190,10 +190,12 @@ export const finalizeWorkInputSchema = z.object({
   decisions: z.array(z.string()).default([]),
   result: z.string().default('implemented'),
   autoFill: z.boolean().default(false),
+  completion: z.enum(['complete', 'partial', 'blocked']).optional(),
+  runId: z.string().optional(),
 });
 
 export type FinalizeWorkResult =
-  | { status: 'CREATED' | 'UPDATED'; draftPath: string; requiresHumanReview: true }
+  | { status: 'CREATED' | 'UPDATED'; draftPath: string; requiresHumanReview: true; completion?: string; taskStatus?: string }
   | { status: 'SKIPPED'; reason: string; requiresHumanReview: false };
 
 export function finalizeWork(input: z.infer<typeof finalizeWorkInputSchema>): FinalizeWorkResult {
@@ -208,6 +210,14 @@ export function finalizeWork(input: z.infer<typeof finalizeWorkInputSchema>): Fi
       requiresHumanReview: false,
     };
   }
+  const taskPath = findRecordPath(sourceTask);
+  const task = taskPath ? parseRecord(taskPath) : undefined;
+  if (parsed.completion && (!task || task.type !== 'task' || task.frontmatter.confirmed_by_human !== true)) throw new Error('Lifecycle finalization requires a confirmed task.');
+  if (parsed.completion === 'complete') {
+    if (!parsed.runId) throw new Error('Complete finalization requires an execution run with independent acceptance; a passed check alone is insufficient.');
+    assertReadyForCompletion(parsed.runId, sourceTask);
+  }
+  if (parsed.completion && task?.status === 'done' && parsed.completion !== 'complete') throw new Error('A completed task cannot be reopened by finalization.');
   const sourceCommit = gitValue(paths.root, ['rev-parse', 'HEAD']);
   const existing = sourceCommit ? findFinalizeDraft(sourceTask, sourceCommit) : undefined;
   const id = existing?.id ?? nextRecordId('RUN');
@@ -221,6 +231,8 @@ export function finalizeWork(input: z.infer<typeof finalizeWorkInputSchema>): Fi
     created_at: existing?.createdAt ?? timestamp,
     updated_at: timestamp,
     source_task: sourceTask,
+    completion: parsed.completion ?? 'partial',
+    execution_run: parsed.runId ?? null,
     source_commit: sourceCommit ?? null,
     modules: [...new Set(changedFiles.map(inferModule))].filter((module) => module !== 'unknown'),
     files: changedFiles,
@@ -259,7 +271,13 @@ Requires human review before promotion to active context.
 `;
   const target = existing ? resolve(paths.root, existing.path) : resolve(paths.draftsDir, 'run-summaries', fileName);
   writeMarkdown(target, frontmatter, body);
-  return { status: existing ? 'UPDATED' : 'CREATED', draftPath: relPath(paths.root, target), requiresHumanReview: true };
+  if (parsed.completion && taskPath) updateRecord(taskPath, (data) => {
+    data.status = parsed.completion === 'complete' ? 'done' : parsed.completion === 'blocked' ? 'blocked' : 'in_progress';
+    data.updated_at = timestamp;
+    data.completion = parsed.completion;
+    if (parsed.runId) data.execution_run = parsed.runId;
+  });
+  return { status: existing ? 'UPDATED' : 'CREATED', draftPath: relPath(paths.root, target), requiresHumanReview: true, completion: parsed.completion ?? 'partial', taskStatus: parsed.completion === 'complete' ? 'done' : parsed.completion === 'blocked' ? 'blocked' : task?.status };
 }
 
 function inferTaskIdFromChangedFiles(changedFiles: string[]): string | undefined {
@@ -327,7 +345,7 @@ export const decisionInputSchema = z.object({
   tags: z.array(z.string()).default([]),
 });
 
-export function recordDecision(input: z.infer<typeof decisionInputSchema>): { draftPath: string; requiresHumanReview: true } {
+export function recordDecision(input: z.infer<typeof decisionInputSchema>): { draftPath: string; requiresHumanReview: true; completion?: string; taskStatus?: string } {
   const paths = repoPaths();
   const parsed = decisionInputSchema.parse(input);
   const id = nextRecordId('DECISION');

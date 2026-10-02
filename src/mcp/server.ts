@@ -957,20 +957,7 @@ server.registerTool(
   {
     title: 'Record verification evidence',
     description: 'Record executed or skipped verification checks. This does not execute shell commands.',
-    inputSchema: {
-      targetId: z.string(),
-      targetType: z.enum(['task', 'backlog', 'record']).default('task'),
-      summary: z.string(),
-      checks: z.array(z.object({
-        command: z.string(),
-        status: z.enum(['passed', 'failed', 'skipped', 'not_run']),
-        reason: z.string().optional(),
-        durationMs: z.number().optional(),
-      })).default([]),
-      changedFiles: z.array(z.string()).default([]),
-      modules: z.array(z.string()).optional(),
-      recordedBy: z.string().default('agent'),
-    },
+    inputSchema: verificationEvidenceInputSchema.shape,
   },
   async (args) => json(recordVerificationEvidence(verificationEvidenceInputSchema.parse(args))),
 );
@@ -1105,9 +1092,11 @@ server.registerTool(
     description: 'Analyze the current diff for low-risk local or deferred broad refactor candidates.',
     inputSchema: {
       taskId: z.string().optional(),
+      files: z.array(z.string()).optional(),
+      baseCommit: z.string().optional(),
     },
   },
-  async ({ taskId }) => json(reviewDiffForRefactor(taskId)),
+  async ({ taskId, files, baseCommit }) => json(reviewDiffForRefactor(taskId, { files, baseCommit })),
 );
 
 server.registerTool(
@@ -1115,16 +1104,7 @@ server.registerTool(
   {
     title: 'Finalize work',
     description: 'Create or reuse a task-linked draft run summary; taskless git-only work is skipped.',
-    inputSchema: {
-      taskId: z.string().optional(),
-      summary: z.string(),
-      changedFiles: z.array(z.string()).default([]),
-      tests: z.array(z.object({ command: z.string(), status: z.string() })).default([]),
-      skippedChecks: z.array(z.object({ command: z.string(), reason: z.string() })).default([]),
-      decisions: z.array(z.string()).default([]),
-      result: z.string().default('implemented'),
-      autoFill: z.boolean().default(false),
-    },
+    inputSchema: finalizeWorkInputSchema.shape,
   },
   async (args) => json(finalizeWork(finalizeWorkInputSchema.parse(args))),
 );

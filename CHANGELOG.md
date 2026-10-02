@@ -5,6 +5,17 @@ Notable changes to Project Context Router are recorded here. Versions before
 
 ## Unreleased
 
+## [0.7.0] - 2026-10-02
+
+- Replace undeclared `doc` fallbacks with configured modules; explain query/path routing, unknown modules and uncovered files. Resolve unique configured aliases in record and capability retrieval.
+- Hide superseded, cancelled and retired knowledge from ordinary packs; expose lifecycle/provenance metadata and prioritize relevant decisions and explicit confirmation. Preserve history opt-in and required playbooks.
+- Diagnose omitted source/config files without broadening configured globs; scaffold mjs/mts/cts coverage. Report untracked durable records and client configuration verification limits.
+- Separate active, historical and draft diagnostics. Missing active links warn normally and fail commit validation; lint warnings now produce WARN. Flag stale tasks, incomplete legacy evidence and contradictory promotion markers.
+- Add required/optional checks, explicit partial/blocked completion, evidence boundaries and retry links. Core evidence/finalization integrate existing execution snapshots and independent acceptance gates; no automatic closure from a passed check.
+- Scope heuristic refactor review to explicit files, task contract or base commit, with visible fallback and no implicit refactor drafts.
+- Add portable synthetic regressions and a safe migration guide; preserve consumer records and intentional exclusions.
+
+
 ## [0.6.0] - 2026-09-28
 
 ### Added
@@ -114,3 +125,5 @@ It is the first tagged GitHub release; the previous source baseline was 0.4.0.
 [0.5.1]: https://github.com/ukolov-dev/mcp-project-context-router/releases/tag/v0.5.1
 
 [0.6.0]: https://github.com/ukolov-dev/mcp-project-context-router/releases/tag/v0.6.0
+
+[0.7.0]: https://github.com/ukolov-dev/mcp-project-context-router/releases/tag/v0.7.0
