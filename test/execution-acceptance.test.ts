@@ -1,3 +1,4 @@
+import { recordVerificationEvidence, verificationEvidenceInputSchema } from '../src/verification/verification.js';
 import { execFileSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -10,7 +11,7 @@ import {
   type recordAcceptanceReviewInputSchema,
 } from '../src/execution/acceptance.js';
 import { createAgentRun, getAgentRun, getRunSnapshot, recordRunVerification, transitionAgentRun } from '../src/execution/runs.js';
-import { confirmTaskContract } from '../src/task-validation/task.js';
+import { confirmTaskContract, finalizeWork, finalizeWorkInputSchema } from '../src/task-validation/task.js';
 import type { z } from 'zod';
 
 let originalCwd: string;
@@ -114,6 +115,36 @@ describe('independent acceptance reviews', () => {
     });
     expect(getAgentRun(fixture.run.id).status).toBe('reviewing');
     expect(transitionAgentRun({ runId: fixture.run.id, status: 'ready_to_merge', reviewId: accepted.id }).status).toBe('ready_to_merge');
+  });
+
+  it('completes the core task only through fresh independently accepted execution evidence', () => {
+    const fixture = reviewingRun();
+    const accepted = recordAcceptanceReview(passingReview(fixture));
+    transitionAgentRun({ runId: fixture.run.id, status: 'ready_to_merge', reviewId: accepted.id });
+    const result = finalizeWork(finalizeWorkInputSchema.parse({ taskId, runId: fixture.run.id, summary: 'Accepted implementation', completion: 'complete' }));
+    expect(result).toMatchObject({ taskStatus: 'done', completion: 'complete' });
+  });
+
+  it('rejects core completion after accepted code changes', () => {
+    const fixture = reviewingRun();
+    const accepted = recordAcceptanceReview(passingReview(fixture));
+    transitionAgentRun({ runId: fixture.run.id, status: 'ready_to_merge', reviewId: accepted.id });
+    writeFileSync(resolve(fixtureDir, 'src/feature.js'), 'export const enabled = false;\n');
+    expect(() => finalizeWork(finalizeWorkInputSchema.parse({ taskId, runId: fixture.run.id, summary: 'Stale result', completion: 'complete' }))).toThrow(/stale|snapshot/);
+  });
+
+  it('routes core evidence through snapshot gates and requires a complete linked retry', () => {
+    const run = createAgentRun({ taskId, executor: 'implementer-session' });
+    transitionAgentRun({ runId: run.id, status: 'implementing' });
+    transitionAgentRun({ runId: run.id, status: 'verifying' });
+    const snapshot = getRunSnapshot(run.id);
+    const input = { targetId: taskId, runId: run.id, expectedCodeDigest: snapshot.codeDigest, summary: 'Live migration pending', checks: run.requiredChecks.map((command) => ({ command, status: 'passed' })), boundaries: { codeState: snapshot.codeDigest, runtime: 'Node fixture', environment: 'isolated' } };
+    const partial = recordVerificationEvidence(verificationEvidenceInputSchema.parse({ ...input, completion: 'partial' }));
+    expect(() => transitionAgentRun({ runId: run.id, status: 'reviewing', evidenceIds: [partial.id] })).toThrow(/Partial/);
+    const complete = recordVerificationEvidence(verificationEvidenceInputSchema.parse({ ...input, completion: 'complete', retriesEvidenceId: partial.id }));
+    expect(transitionAgentRun({ runId: run.id, status: 'reviewing', evidenceIds: [complete.id] }).status).toBe('reviewing');
+    const bundle = buildAcceptanceReviewBundle({ runId: run.id });
+    expect(bundle.evidence[0]).toMatchObject({ boundaries: { environment: 'isolated' }, retriesEvidenceId: partial.id });
   });
 
   it.each(['missing', 'duplicate', 'unknown'] as const)('rejects %s criterion coverage', (variant) => {

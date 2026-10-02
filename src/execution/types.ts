@@ -9,6 +9,7 @@ export const executionCheckSchema = z.object({
   command: z.string().trim().min(1),
   status: z.enum(['passed', 'failed', 'skipped', 'not_run']),
   reason: z.string().optional(),
+  required: z.boolean().optional(),
   durationMs: z.number().finite().nonnegative().optional(),
 });
 
@@ -69,7 +70,15 @@ export const acceptanceReviewSchema = z.object({
 });
 export type AcceptanceReview = z.infer<typeof acceptanceReviewSchema>;
 
+export const verificationBoundariesSchema = z.object({ codeState: z.string(), runtime: z.string(), environment: z.string(), limitations: z.array(z.string()).optional() });
+const evidenceContext = {
+  boundaries: verificationBoundariesSchema.optional(),
+  completion: z.enum(['complete', 'partial', 'blocked']).optional(),
+  retriesEvidenceId: executionIdSchema.optional(),
+};
+
 export const runVerificationEvidenceSchema = z.object({
+  ...evidenceContext,
   id: executionIdSchema,
   runId: executionIdSchema,
   taskId: executionIdSchema,
@@ -98,6 +107,7 @@ export const transitionAgentRunInputSchema = z.object({
   expectedRevision: z.number().int().nonnegative().optional(),
 });
 export const recordRunVerificationInputSchema = z.object({
+  ...evidenceContext,
   runId: executionIdSchema,
   expectedCodeDigest: executionDigestSchema,
   checks: z.array(executionCheckSchema).min(1),

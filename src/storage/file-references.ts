@@ -1,5 +1,5 @@
 import { existsSync, realpathSync, statSync } from 'node:fs';
-import { dirname, isAbsolute, relative, resolve, sep } from 'node:path';
+import { dirname, isAbsolute, relative, resolve, sep, win32 } from 'node:path';
 import { repoPaths } from './repo.js';
 import type { ContextRecord } from './types.js';
 
@@ -21,8 +21,10 @@ export type FileReferenceIssue = {
 
 export function classifyFileReference(filePath: string): FileReferenceStatus {
   const root = repoPaths().root;
+  const originalPath = filePath;
+  filePath = filePath.replaceAll('\\', '/');
   const absolutePath = resolve(root, filePath);
-  if (!filePath.trim() || isAbsolute(filePath) || !isPathWithin(root, absolutePath)) {
+  if (!filePath.trim() || isAbsolute(filePath) || win32.isAbsolute(originalPath) || !isPathWithin(root, absolutePath)) {
     return {
       filePath,
       absolutePath,

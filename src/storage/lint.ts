@@ -1,3 +1,4 @@
+import { recordCategory } from './lifecycle.js';
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
@@ -16,6 +17,7 @@ import { acceptanceReviewSchema, agentRunSchema } from '../execution/types.js';
 export type LintResult = {
   errors: string[];
   warnings: string[];
+  categories: { active: string[]; historical: string[]; draft: string[] };
 };
 
 const knowledgeRecordBase = {
@@ -176,6 +178,7 @@ export function lintContext(staged = false): LintResult {
   const paths = repoPaths();
   const errors: string[] = [];
   const warnings: string[] = [];
+  const categories: LintResult["categories"] = { active: [], historical: [], draft: [] };
   const files = staged ? stagedContextFiles() : discoverRecordFiles(true).map((path) => path.replace(`${paths.root}/`, ''));
 
   for (const relative of files) {
@@ -193,22 +196,34 @@ export function lintContext(staged = false): LintResult {
       const parsed = schema.safeParse(record.frontmatter);
       if (!parsed.success) errors.push(`${relative}: ${parsed.error.issues.map((issue) => issue.message).join('; ')}`);
     }
-    if (record.path.includes('/active/tasks/') && record.status !== 'confirmed' && record.status !== 'in_progress' && record.status !== 'done') {
+    if (record.path.includes('/active/tasks/') && record.status !== 'confirmed' && record.status !== 'in_progress' && !['done', 'blocked', 'cancelled'].includes(record.status)) {
       errors.push(`${relative}: active task must have a confirmed contract`);
     }
     if (record.path.includes('/active/decisions/') && !record.frontmatter.source_task && record.retention !== 'keep') {
       errors.push(`${relative}: active decision must have a source or keep retention`);
+    }
+    const category = recordCategory(record);
+    const warn = (message: string) => { const issue = `${relative}: ${message}`; warnings.push(issue); categories[category].push(issue); };
+    if (category === 'active' && (record.frontmatter.confirmed_by_human === true || record.frontmatter.promoted_at) && /Draft only|Promote after human review/i.test(record.body)) warn('Confirmed record still contains draft-only review markers.');
+    if (category === 'active' && record.type === 'task' && ['confirmed', 'in_progress', 'blocked'].includes(record.status)) {
+      const age = (Date.now() - Date.parse(record.updatedAt ?? record.createdAt ?? '')) / 86400000;
+      if (age >= 14) warn(`Open task has no recorded update for ${Math.floor(age)} days; review completion or blockers.`);
+    }
+    if (record.type === 'verification-evidence' && record.status === 'passed' && Array.isArray(record.frontmatter.checks)) {
+      const pending = record.frontmatter.checks.some((check) => check && typeof check === 'object' && check.required !== false && check.status !== 'passed');
+      if (pending) warn('Passed evidence contains failed or pending required checks; review retries and completeness.');
     }
     const deletedFiles = new Set(record.deletedFiles);
     for (const file of record.files) {
       if (deletedFiles.has(file)) continue;
       const reference = classifyFileReference(file);
       if (reference.kind === 'missing') {
-        warnings.push(`${relative}: referenced file does not exist: ${file}`);
+        warn(`referenced file does not exist: ${file}`);
       } else if (reference.kind === 'outside_repository') {
         errors.push(`${relative}: referenced path escapes the repository: ${file}`);
       } else if (reference.kind === 'directory') {
-        errors.push(`${relative}: referenced file is a directory, expected concrete file: ${file}`);
+        if (category === 'active') errors.push(`${relative}: referenced file is a directory, expected concrete file: ${file}`);
+        else warn(`historical file reference is a directory: ${file}`);
       } else if (reference.kind === 'other') {
         errors.push(`${relative}: referenced path is not a regular file: ${file}`);
       }
@@ -233,7 +248,7 @@ export function lintContext(staged = false): LintResult {
 
   lintPlaybooks(staged, errors, warnings);
 
-  return { errors, warnings };
+  return { errors, warnings, categories };
 }
 
 function lintPlaybooks(staged: boolean, errors: string[], warnings: string[]): void {

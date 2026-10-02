@@ -103,7 +103,7 @@ export function promoteDraft(input: z.infer<typeof promoteDraftInputSchema>): Pr
     updated_at: timestamp,
   };
   mkdirSync(dirname(target), { recursive: true });
-  writeMarkdown(target, frontmatter, record.body);
+  writeMarkdown(target, frontmatter, record.body.replace(/^Draft only\. Promote after human review\.$/gm, 'Promoted after review; approval metadata is recorded in frontmatter.'));
 
   const archivedDraft = uniqueTrashPath(resolve(paths.trashDir, `${record.id}.promoted-draft.md`));
   mkdirSync(dirname(archivedDraft), { recursive: true });

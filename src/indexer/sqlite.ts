@@ -1,3 +1,4 @@
+import { moduleSearchNames, resolveModuleName } from '../storage/inference.js';
 import { createHash } from 'node:crypto';
 import { mkdirSync, rmSync, statSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
@@ -366,6 +367,7 @@ function recordPathRank(path: string): number {
 }
 
 export function searchIndex(query: string, limit = 10, includeArchive = false, modules: string[] = []): ContextRecord[] {
+  modules = moduleSearchNames(modules);
   const terms = query
     .toLowerCase()
     .split(/[^\p{L}\p{N}_-]+/u)
@@ -458,6 +460,7 @@ export type CapabilitySearchResult = {
 };
 
 export function searchCapabilities(query: string, modules: string[], limit = 12): CapabilitySearchResult[] {
+  modules = [...new Set(modules.flatMap((name) => resolveModuleName(name) ?? []))];
   if (modules.length === 0) return [];
   const words = capabilityQueryWords(query);
   if (words.length === 0) return [];

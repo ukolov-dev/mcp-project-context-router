@@ -1,7 +1,7 @@
 import { execFileSync } from 'node:child_process';
 import { resolve } from 'node:path';
 import { z } from 'zod';
-import { nextRecordId, writeMarkdown } from '../storage/markdown.js';
+import { nextRecordId, writeMarkdown, findRecordPath, parseRecord } from '../storage/markdown.js';
 import { repoPaths, relPath } from '../storage/repo.js';
 import { nowIso } from '../storage/time.js';
 import { inferModule } from '../indexer/capabilities.js';
@@ -15,19 +15,32 @@ export type RefactorCandidate = {
   files: string[];
 };
 
-export function reviewDiffForRefactor(taskId?: string): { candidates: RefactorCandidate[] } {
+export function reviewDiffForRefactor(taskId?: string, options: { files?: string[]; baseCommit?: string } = {}): { candidates: RefactorCandidate[]; scope: string; files: string[]; warnings: string[]; heuristic: true } {
   const paths = repoPaths();
   const config = loadProjectConfig();
   const excludedRoots = ['.project-context', config.contextRouter.packagePath].filter((path): path is string => Boolean(path));
+  const normalize = (path: string) => path.replaceAll('\\', '/').replace(/^\.\//, '');
+  const taskPath = taskId ? findRecordPath(taskId) : undefined;
+  const taskFiles = taskPath ? parseRecord(taskPath).files : undefined;
+  const scopeFiles = options.files ?? (taskId ? taskFiles ?? [] : undefined);
+  const warnings: string[] = [];
+  const scope = options.files !== undefined ? 'explicit files' : taskId ? 'task contract' : options.baseCommit ? 'base commit' : 'working tree fallback';
+  if (taskId && !scopeFiles?.length) warnings.push('Task has no concrete file scope; no unrelated working-tree files are reviewed. Supply explicit files.');
+  if (scope === 'working tree fallback') warnings.push('Unscoped working-tree heuristic; changes may belong to other tasks.');
+  let base = 'HEAD';
+  if (options.baseCommit) base = execFileSync('git', ['rev-parse', '--verify', '--end-of-options', `${options.baseCommit}^{commit}`], { cwd: paths.root, encoding: 'utf8' }).trim();
   let changed: string[] = [];
   try {
-    changed = execFileSync('git', ['diff', '--name-only'], { cwd: paths.root, encoding: 'utf8' })
-      .split(/\r?\n/)
+    changed = execFileSync('git', ['diff', '--name-only', '-z', base, '--'], { cwd: paths.root, encoding: 'utf8' })
+      .split('\0')
       .filter(Boolean)
       .filter((path) => !excludedRoots.some((root) => path === root || path.startsWith(`${root}/`)));
   } catch {
     changed = [];
   }
+  try { changed.push(...execFileSync('git', ['ls-files', '--others', '--exclude-standard', '-z'], { cwd: paths.root, encoding: 'utf8' }).split('\0').filter(Boolean)); } catch { /* Git unavailable: retain the explicit diagnostic scope. */ }
+  changed = [...new Set(changed.map(normalize))].filter((path) => !excludedRoots.some((root) => path === root || path.startsWith(`${root}/`)));
+  if (scopeFiles !== undefined) { const allowed = new Set(scopeFiles.map(normalize)); changed = changed.filter((file) => allowed.has(file)); }
   const modules = new Set(changed.map(inferModule).filter((module) => module !== 'unknown'));
   const candidates: RefactorCandidate[] = [];
   if (changed.length >= 3 && modules.size === 1) {
@@ -48,9 +61,9 @@ export function reviewDiffForRefactor(taskId?: string): { candidates: RefactorCa
       files: changed,
     };
     candidates.push(candidate);
-    if (taskId) createRefactorDraft(taskId, candidate);
+
   }
-  return { candidates };
+  return { candidates, scope, files: changed, warnings, heuristic: true };
 }
 
 export const refactorDraftInputSchema = z.object({

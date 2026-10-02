@@ -13,7 +13,8 @@ export function inferModulesFromSignals(input: ModuleInferenceInput): string[] {
   const config = input.config ?? loadProjectConfig();
   const modules = new Set<string>();
   for (const module of input.modules ?? []) {
-    if (module) modules.add(module);
+    const resolved = resolveModuleName(module, config);
+    if (resolved) modules.add(resolved);
   }
   for (const file of [...(input.files ?? []), ...(input.changedFiles ?? [])]) {
     for (const module of inferModulesFromPath(file, config)) modules.add(module);
@@ -24,7 +25,10 @@ export function inferModulesFromSignals(input: ModuleInferenceInput): string[] {
   if (modules.size > 0 && (hasStrongSignal || queryModules.length === 0)) return [...modules];
   for (const module of queryModules) modules.add(module);
   if (modules.size > 0) return [...modules];
-  return input.fallback ?? config.routing.defaultModules;
+  return [...new Set((input.fallback ?? config.routing.defaultModules).flatMap((name) => {
+    const resolved = resolveModuleName(name, config);
+    return resolved ? [resolved] : [];
+  }))];
 }
 
 export function inferModulesFromPath(path: string, config = loadProjectConfig()): string[] {
@@ -51,9 +55,9 @@ export function inferModulesFromQuery(query: string, config = loadProjectConfig(
 
 export function sourceGlobsForModule(module: ProjectModuleConfig): string[] {
   if (module.sourceGlobs.length > 0) return module.sourceGlobs;
-  const path = normalizePath(module.path);
+  const path = module.path.replaceAll('\\', '/').replace(/^\.\//, '').replace(/\/$/, '');
   if (!path) return [];
-  return [`${path}/**/*.{ts,tsx,js,jsx,mjs,cjs,java,kt,kts,go,rs,py,rb,php,cs,sql,xml,yaml,yml,md}`];
+  return [`${path}/**/*.{ts,tsx,js,jsx,mjs,cjs,mts,cts,java,kt,kts,go,rs,py,rb,php,cs,sql,xml,yaml,yml,md}`];
 }
 
 export function sourceGlobMayMatchPath(glob: string, path: string): boolean {
@@ -102,4 +106,19 @@ function normalizePath(value: string): string {
 
 function normalizeSignal(value: string): string {
   return value.toLowerCase().replace(/\s+/g, ' ').trim();
+}
+
+/** Exact configured names win; only unique, explicitly configured aliases resolve. */
+export function resolveModuleName(name: string, config = loadProjectConfig()): string | undefined {
+  if (Object.hasOwn(config.modules, name)) return name;
+  const matches = Object.entries(config.modules).filter(([, module]) =>
+    module.aliases.some((alias) => normalizeSignal(alias) === normalizeSignal(name)));
+  return matches.length === 1 ? matches[0][0] : undefined;
+}
+
+export function moduleSearchNames(names: string[], config = loadProjectConfig()): string[] {
+  return [...new Set(names.flatMap((name) => {
+    const canonical = resolveModuleName(name, config);
+    return canonical ? [canonical, ...config.modules[canonical].aliases.filter((alias) => resolveModuleName(alias, config) === canonical)] : [name];
+  }))];
 }

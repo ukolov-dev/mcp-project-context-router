@@ -1,10 +1,12 @@
+import { verificationBoundariesSchema } from '../execution/types.js';
+import { getAgentRun, recordRunVerification } from '../execution/runs.js';
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { z } from 'zod';
 import { findRecordPath, nextRecordId, parseRecord, readRecords, writeMarkdown } from '../storage/markdown.js';
 import { contextCliCommand, contextPackCommandsForModules, loadProjectConfig, type ProjectConfig } from '../storage/config.js';
 import { relPath, repoPaths } from '../storage/repo.js';
-import { inferModulesFromPath, inferModulesFromSignals } from '../storage/inference.js';
+import { inferModulesFromPath, inferModulesFromSignals, resolveModuleName } from '../storage/inference.js';
 import { nowIso } from '../storage/time.js';
 import type { ContextRecord } from '../storage/types.js';
 
@@ -45,10 +47,16 @@ export const verificationEvidenceInputSchema = z.object({
     status: z.enum(['passed', 'failed', 'skipped', 'not_run']),
     reason: z.string().optional(),
     durationMs: z.number().optional(),
+    required: z.boolean().optional(),
   })).default([]),
   changedFiles: z.array(z.string()).default([]),
   modules: z.array(z.string()).optional(),
   recordedBy: z.string().default('agent'),
+  completion: z.enum(['complete', 'partial', 'blocked']).optional(),
+  retriesEvidenceId: z.string().optional(),
+  boundaries: verificationBoundariesSchema.optional(),
+  runId: z.string().optional(),
+  expectedCodeDigest: z.string().optional(),
 });
 
 export const listVerificationEvidenceInputSchema = z.object({
@@ -62,7 +70,10 @@ export type VerificationEvidenceSummary = {
   targetId: string;
   status: string;
   title: string;
-  checks: Array<{ command: string; status: string; reason?: string }>;
+  checks: Array<{ command: string; status: string; reason?: string; required?: boolean }>;
+  completion?: string;
+  boundaries?: unknown;
+  retriesEvidenceId?: string;
   createdAt?: string;
 };
 
@@ -84,9 +95,9 @@ export function getVerificationPlan(input: z.infer<typeof verificationPlanInputS
   const explicitModules = [
     ...records.flatMap((record) => record.modules),
     ...records.flatMap((record) => record.files.flatMap((file) => inferModulesFromPath(file, config))),
-  ].filter((module) => module !== 'unknown');
+  ].flatMap((module) => resolveModuleName(module, config) ?? []);
   const inferredModules = parsed.query || explicitModules.length === 0
-    ? inferModulesFromSignals({ query, modules: explicitModules, fallback: ['doc'] })
+    ? inferModulesFromSignals({ query, modules: explicitModules })
     : [];
   const modules = [...new Set([...explicitModules, ...inferredModules].filter((module) => module !== 'unknown'))];
 
@@ -138,18 +149,38 @@ export function getVerificationPlan(input: z.infer<typeof verificationPlanInputS
 
 export function recordVerificationEvidence(input: z.infer<typeof verificationEvidenceInputSchema>): { status: 'RECORDED'; path: string; id: string } {
   const parsed = verificationEvidenceInputSchema.parse(input);
+  if (parsed.runId) {
+    const run = getAgentRun(parsed.runId);
+    if (run.taskId !== parsed.targetId) throw new Error('Verification target must match the execution task.');
+    if (!parsed.expectedCodeDigest) throw new Error('Execution verification requires expectedCodeDigest from get_run_snapshot.');
+    return recordRunVerification({ runId: parsed.runId, expectedCodeDigest: parsed.expectedCodeDigest, summary: parsed.summary, checks: parsed.checks, completion: parsed.completion, boundaries: parsed.boundaries, retriesEvidenceId: parsed.retriesEvidenceId });
+  }
+  if (parsed.retriesEvidenceId) {
+    const previous = findRecordPath(parsed.retriesEvidenceId);
+    const record = previous ? parseRecord(previous) : undefined;
+    if (!record || record.type !== 'verification-evidence' || record.frontmatter.target_id !== parsed.targetId) throw new Error('Retry evidence must reference verification for the same target.');
+  }
+  if (new Set(parsed.checks.map((check) => check.command)).size !== parsed.checks.length) throw new Error('Duplicate checks: record a retry in a separate evidence record using retriesEvidenceId.');
+  const requiredCommands = getVerificationPlan({ id: parsed.targetId }).required.map((check) => check.command);
+  const checks = parsed.checks.map((check) => ({ ...check, required: requiredCommands.includes(check.command) || check.required !== false }));
+  for (const command of requiredCommands) if (!checks.some((check) => check.command === command)) checks.push({ command, status: 'not_run', required: true, reason: 'Required by verification plan; no evidence supplied.' });
+  const status = aggregateStatus(checks);
+  const completion = parsed.completion ?? (status === 'passed' ? 'complete' : status === 'failed' ? 'blocked' : 'partial');
+  if (completion === 'complete' && status !== 'passed') throw new Error('Complete verification requires every required check to pass.');
   const paths = repoPaths();
   const id = nextRecordId('VERIFY');
   const timestamp = nowIso();
   const modules = parsed.modules ?? inferModulesFromSignals({
     query: `${parsed.targetId} ${parsed.summary}`,
     changedFiles: parsed.changedFiles,
-    fallback: ['doc'],
   });
   const frontmatter = {
     id,
     type: 'verification-evidence',
-    status: aggregateStatus(parsed.checks),
+    status: status === 'failed' ? 'failed' : completion === 'blocked' ? 'blocked' : completion === 'partial' ? 'partial' : status,
+    completion,
+    retries_evidence_id: parsed.retriesEvidenceId ?? null,
+    boundaries: parsed.boundaries ?? { codeState: 'unspecified', runtime: 'unspecified', environment: 'unspecified' },
     title: `Verification evidence for ${parsed.targetId}`,
     created_at: timestamp,
     updated_at: timestamp,
@@ -159,7 +190,7 @@ export function recordVerificationEvidence(input: z.infer<typeof verificationEvi
     modules,
     files: parsed.changedFiles,
     tags: ['verification', parsed.targetType],
-    checks: parsed.checks,
+    checks,
     retention: 'normal',
   };
   const body = `# ${id}: Verification evidence for ${parsed.targetId}
@@ -170,7 +201,7 @@ ${parsed.summary}
 
 ## Checks
 
-${parsed.checks.length > 0 ? parsed.checks.map((check) => {
+${checks.length > 0 ? checks.map((check) => {
     const reason = check.reason ? ` - ${check.reason}` : '';
     const duration = typeof check.durationMs === 'number' ? ` (${check.durationMs}ms)` : '';
     return `- ${check.status}: \`${check.command}\`${duration}${reason}`;
@@ -199,6 +230,9 @@ export function listVerificationEvidence(input: z.input<typeof listVerificationE
       status: record.status,
       title: record.title,
       checks: evidenceChecks(record.frontmatter.checks),
+      completion: typeof record.frontmatter.completion === 'string' ? record.frontmatter.completion : undefined,
+      boundaries: record.frontmatter.boundaries,
+      retriesEvidenceId: typeof (record.frontmatter.retries_evidence_id ?? record.frontmatter.retriesEvidenceId) === 'string' ? String(record.frontmatter.retries_evidence_id ?? record.frontmatter.retriesEvidenceId) : undefined,
       createdAt: record.createdAt,
     }));
   return { items, count: items.length };
@@ -269,13 +303,14 @@ function stringArray(value: unknown): string[] {
   return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
 }
 
-function evidenceChecks(value: unknown): Array<{ command: string; status: string; reason?: string }> {
+function evidenceChecks(value: unknown): VerificationEvidenceSummary["checks"] {
   if (!Array.isArray(value)) return [];
   return value
     .filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === 'object')
     .map((item) => ({
       command: stringValue(item.command, ''),
       status: stringValue(item.status, ''),
+      required: typeof item.required === "boolean" ? item.required : undefined,
       reason: typeof item.reason === 'string' ? item.reason : undefined,
     }))
     .filter((item) => item.command && item.status);
@@ -285,9 +320,9 @@ function stringValue(value: unknown, fallback: string): string {
   return typeof value === 'string' && value.trim() ? value : fallback;
 }
 
-function aggregateStatus(checks: Array<{ status: string }>): string {
+export function aggregateStatus(checks: Array<{ status: string; required?: boolean }>): string {
   if (checks.some((check) => check.status === 'failed')) return 'failed';
-  if (checks.length > 0 && checks.every((check) => check.status === 'skipped' || check.status === 'not_run')) return 'skipped';
+  if (checks.some((check) => check.required !== false && check.status !== 'passed')) return 'partial';
   if (checks.some((check) => check.status === 'passed')) return 'passed';
   return 'recorded';
 }
