@@ -12,7 +12,8 @@ Notable changes to Project Context Router are recorded here. Versions before
 - Assemble uncached context packs from Markdown when index storage is unavailable, with a visible warning.
 - Store record metadata in index schema version 5 so context packs can rank all candidates and read only selected Markdown excerpts. Preserve confirmation, history and explicit-task behavior; migrate older indexes and invalidate older pack caches automatically.
 - Check freshness for each context-pack request to preserve immediate visibility of source changes. This adds file-stat overhead to cache hits; new-pack construction improves on larger fixtures. Full rebuilds remain in use.
-- Add 13 portable regression tests and document recovery, performance tradeoffs and the evaluation of incremental updates.
+- Prevent Markdown updates from mutating parser-cache metadata shared by identical content or later restores.
+- Add 15 portable regression tests and document recovery, performance tradeoffs and the evaluation of incremental updates.
 
 ## [0.7.0] - 2026-10-02
 

@@ -85,7 +85,9 @@ export function writeMarkdown(path: string, frontmatter: Record<string, unknown>
 
 export function updateRecord(path: string, updater: (frontmatter: Record<string, unknown>, body: string) => void): void {
   const raw = readFileSync(path, 'utf8');
-  const parsed = matter(raw);
+  // gray-matter shares cached data between identical inputs. Mutating that data
+  // would change other records or later restores of the same original content.
+  const parsed = matter(raw, {});
   updater(parsed.data, parsed.content);
   writeFileSync(path, renderMarkdown(parsed.data, parsed.content), 'utf8');
 }
