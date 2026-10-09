@@ -34,6 +34,7 @@ const required = [
   'docs/execution.md',
   'docs/upgrade-0.7.md',
   'docs/reliability-audit.md',
+  'docs/sqlite-index.md',
   'dist/storage/lifecycle.js',
   'dist/doctor/coverage.js',
   'docs/research.ru.md',
@@ -82,9 +83,9 @@ const result = {
   forbidden,
 };
 
-if (report.name !== 'mcp-project-context-router' || report.version !== '0.7.0') {
+if (report.name !== 'mcp-project-context-router' || report.version !== '0.7.1') {
   result.status = 'FAILED';
-  result.identity = `Expected mcp-project-context-router@0.7.0, got ${report.name}@${report.version}`;
+  result.identity = `Expected mcp-project-context-router@0.7.1, got ${report.name}@${report.version}`;
 }
 
 const packageJson = JSON.parse(execFileSync('npm', ['pkg', 'get'], {

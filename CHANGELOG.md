@@ -5,6 +5,15 @@ Notable changes to Project Context Router are recorded here. Versions before
 
 ## Unreleased
 
+## [0.7.1] - 2026-10-09
+
+- Recover missing or corrupt disposable SQLite indexes before reading them, including corruption discovered in data pages. Preserve healthy indexes on busy, readonly and other I/O errors, and close failed rebuild connections.
+- Apply the same module/alias filters, global-record inclusion, archive selection and duplicate precedence to indexed and fallback record search.
+- Assemble uncached context packs from Markdown when index storage is unavailable, with a visible warning.
+- Store record metadata in index schema version 5 so context packs can rank all candidates and read only selected Markdown excerpts. Preserve confirmation, history and explicit-task behavior; migrate older indexes and invalidate older pack caches automatically.
+- Check freshness for each context-pack request to preserve immediate visibility of source changes. This adds file-stat overhead to cache hits; new-pack construction improves on larger fixtures. Full rebuilds remain in use.
+- Add 13 portable regression tests and document recovery, performance tradeoffs and the evaluation of incremental updates.
+
 ## [0.7.0] - 2026-10-02
 
 - Replace undeclared `doc` fallbacks with configured modules; explain query/path routing, unknown modules and uncovered files. Resolve unique configured aliases in record and capability retrieval.
@@ -127,3 +136,5 @@ It is the first tagged GitHub release; the previous source baseline was 0.4.0.
 [0.6.0]: https://github.com/ukolov-dev/mcp-project-context-router/releases/tag/v0.6.0
 
 [0.7.0]: https://github.com/ukolov-dev/mcp-project-context-router/releases/tag/v0.7.0
+
+[0.7.1]: https://github.com/ukolov-dev/mcp-project-context-router/releases/tag/v0.7.1

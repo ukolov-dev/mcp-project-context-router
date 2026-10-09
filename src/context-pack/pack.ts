@@ -2,8 +2,8 @@ import { recordProvenance } from '../storage/lifecycle.js';
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
-import { ensureFreshIndex, searchCapabilities, searchIndex } from '../indexer/sqlite.js';
-import { findRecordPath, parseRecord, readRecords } from '../storage/markdown.js';
+import { ensureFreshIndex, readSearchRecords, searchCapabilities } from '../indexer/sqlite.js';
+import { parseRecord } from '../storage/markdown.js';
 import { contextPackCommandsForModules, loadProjectConfig, retentionNumber, type ProjectConfig } from '../storage/config.js';
 import { classifyFileReference } from '../storage/file-references.js';
 import { relPath, repoPaths } from '../storage/repo.js';
@@ -61,17 +61,29 @@ export type ContextPack = {
 };
 
 type CachedContextPack = {
-  version: 4;
+  version: 5;
   state: string;
   pack: Omit<ContextPack, 'cache'>;
 };
 
 export function buildContextPack(input: ContextPackInput): ContextPack {
-  ensureFreshIndex();
-  prunePackCache();
-  const cached = readCachedContextPack(input);
-  if (cached) return cached;
-  const pack = buildContextPackFresh(input);
+  let useIndex = true;
+  try {
+    // A pack must see record changes immediately, including within the search TTL.
+    ensureFreshIndex({ force: true });
+  } catch {
+    useIndex = false;
+  }
+  if (useIndex) {
+    prunePackCache();
+    const cached = readCachedContextPack(input);
+    if (cached) return cached;
+  }
+  const { pack, indexAvailable } = buildContextPackFresh(input, useIndex);
+  if (!indexAvailable) return {
+    ...pack,
+    cache: { status: 'disabled', reason: 'Context index unavailable; the pack was built directly from Markdown.' },
+  };
   return writeCachedContextPack(input, pack);
 }
 
@@ -86,7 +98,13 @@ function prunePackCache(): void {
   if (!existsSync(dir)) return;
   const retentionDays = retentionNumber(loadProjectConfig(), 'context_packs', 'delete_after_days', 30);
   const cutoffMs = now - retentionDays * 24 * 60 * 60 * 1000;
-  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+  let entries;
+  try {
+    entries = readdirSync(dir, { withFileTypes: true });
+  } catch {
+    return;
+  }
+  for (const entry of entries) {
     if (!entry.isFile() || !entry.name.endsWith('.json')) continue;
     const path = resolve(dir, entry.name);
     try {
@@ -97,7 +115,7 @@ function prunePackCache(): void {
   }
 }
 
-function buildContextPackFresh(input: ContextPackInput): Omit<ContextPack, 'cache'> {
+function buildContextPackFresh(input: ContextPackInput, useIndex: boolean): { pack: Omit<ContextPack, 'cache'>; indexAvailable: boolean } {
   const paths = repoPaths();
   const config = loadProjectConfig();
   const options = resolvePackOptions(input);
@@ -126,9 +144,8 @@ function buildContextPackFresh(input: ContextPackInput): Omit<ContextPack, 'cach
   };
 
   if (input.taskId) {
-    const taskPath = findRecordPath(input.taskId);
-    if (taskPath) {
-      const task = parseRecord(taskPath);
+    const task = readSearchRecords({ recordId: input.taskId, includeArchive: true, useIndex }).records[0];
+    if (task) {
       for (const module of task.modules) { const name = resolveModuleName(module, config); if (name) moduleSet.add(name); }
       for (const file of [...task.files, ...task.deletedFiles]) {
         for (const module of inferModulesFromSignals({ files: [file], fallback: [], config })) moduleSet.add(module);
@@ -161,9 +178,8 @@ function buildContextPackFresh(input: ContextPackInput): Omit<ContextPack, 'cach
     });
   }
 
-  const indexedRecords = searchIndex(input.query, indexedRecordLimit * 4, input.includeArchive ?? false, modules);
-  const candidateRecords = [...new Map([...indexedRecords, ...rankRecordsInMemory(input.query, modules, input.includeArchive ?? false, input)]
-    .map((record) => [record.id, record])).values()];
+  const retrieved = readSearchRecords({ includeArchive: input.includeArchive, modules, useIndex });
+  const candidateRecords = matchingPackRecords(retrieved.records, input.query, modules, input);
   const relevantRecords = rankRetrievedRecords(candidateRecords, input.query, modules)
     .filter((record) => !isDraft(record.path) || record.id === input.taskId)
     .filter((record) => !isDefaultHiddenHistory(record, input))
@@ -186,7 +202,7 @@ function buildContextPackFresh(input: ContextPackInput): Omit<ContextPack, 'cach
 
   const files = mergeFiles([
     ...explicitFiles,
-    ...findRelevantFiles(input.query, modules, config)
+    ...findRelevantFiles(input.query, modules, config, retrieved.source === 'index')
       .filter((file) => includeSpecification || !(config.specifications.current?.files ?? []).includes(file.path)),
     ...(includeSpecification && !compact
       ? (config.specifications.current?.files ?? []).map((path) => ({ path, reason: 'Active product specification source.' }))
@@ -205,6 +221,7 @@ function buildContextPackFresh(input: ContextPackInput): Omit<ContextPack, 'cach
   const directModules = inferModulesFromSignals({ query: input.query, modules: input.modules, files: input.files, changedFiles: input.changedFiles, fallback: [], config });
   const routing = { modules, basis: directModules.length ? 'explicit/query/path signals' : 'configured fallback', unknownModules, unmappedFiles };
   const warnings: string[] = [...pathWarnings, ...playbookSelection.warnings];
+  if (retrieved.source === 'markdown') warnings.push('Context index unavailable; records were read directly from Markdown. This pack is not cached.');
   if (!directModules.length) warnings.push('No module signal matched; using configured default_modules. Configure aliases in the languages used by your team.');
   if (!modules.length) warnings.push('No configured module selected; inspect project.yaml routing and module coverage.');
   if (unknownModules.length) warnings.push(`Unknown or ambiguous module names: ${unknownModules.join(', ')}. Configure reviewed aliases; no implicit spelling migration is applied.`);
@@ -216,7 +233,7 @@ function buildContextPackFresh(input: ContextPackInput): Omit<ContextPack, 'cach
     warnings.push('Context index is missing; run ppm-context index for better ranking.');
   }
 
-  return fitContextPackBudget({
+  const pack = fitContextPackBudget({
     summary: `Context pack for "${input.query}" (${modules.join(', ')}) workflow=${workflow} profile=${profile}.`,
     profile,
     workflow,
@@ -240,6 +257,7 @@ function buildContextPackFresh(input: ContextPackInput): Omit<ContextPack, 'cach
       droppedPlaybooks: 0,
     },
   });
+  return { pack, indexAvailable: retrieved.source === 'index' };
 }
 
 function readCachedContextPack(input: ContextPackInput): ContextPack | undefined {
@@ -247,7 +265,7 @@ function readCachedContextPack(input: ContextPackInput): ContextPack | undefined
   try {
     if (!existsSync(descriptor.absolutePath)) return undefined;
     const cached = JSON.parse(readFileSync(descriptor.absolutePath, 'utf8')) as CachedContextPack;
-    if (cached.version !== 4 || cached.state !== buildCacheState(input)) return undefined;
+    if (cached.version !== 5 || cached.state !== buildCacheState(input)) return undefined;
     return {
       ...cached.pack,
       cache: {
@@ -266,7 +284,7 @@ function writeCachedContextPack(input: ContextPackInput, pack: Omit<ContextPack,
   try {
     mkdirSync(descriptor.dir, { recursive: true });
     const cached: CachedContextPack = {
-      version: 4,
+      version: 5,
       state: buildCacheState(input),
       pack,
     };
@@ -387,15 +405,8 @@ function cacheDependencyFiles(input: ContextPackInput): string[] {
     ...(input.changedFiles ?? []),
   ]);
   if (input.taskId) {
-    const taskPath = findRecordPath(input.taskId);
-    if (taskPath) {
-      try {
-        const task = parseRecord(taskPath);
-        for (const file of task.files) files.add(file);
-      } catch {
-        // The task file itself is already covered by contextRecordStateFiles.
-      }
-    }
+    const task = readSearchRecords({ recordId: input.taskId, includeArchive: true }).records[0];
+    for (const file of task?.files ?? []) files.add(file);
   }
   return [...files]
     .map((path) => classifyFileReference(path))
@@ -465,24 +476,15 @@ function isDefaultHiddenHistory(record: { id: string; type: string; status: stri
   return false;
 }
 
-function rankRecordsInMemory(query: string, modules: string[], includeArchive: boolean, input: ContextPackInput) {
+function matchingPackRecords(records: ContextRecord[], query: string, modules: string[], input: ContextPackInput) {
   const terms = query.toLowerCase().split(/[^\p{L}\p{N}_-]+/u).filter((word) => word.length > 1);
-  return readRecords(includeArchive)
-    .filter((record) => modules.length === 0 || record.modules.length === 0 || record.modules.some((module) => modules.includes(resolveModuleName(module) ?? module)))
-    .map((record) => {
-      const title = record.title.toLowerCase();
-      const tags = record.tags.join(' ').toLowerCase();
-      const body = record.body.toLowerCase();
-      const score = terms.reduce((total, term) => total
-        + (title.includes(term) ? 8 : 0)
-        + (tags.includes(term) ? 5 : 0)
-        + (body.includes(term) ? 2 : 0), 0);
-      return { record, score: score + (modules.length && record.modules.some((name) => modules.includes(resolveModuleName(name) ?? name)) ? 1 : 0) };
+  return records
+    .filter((record) => {
+      if (record.modules.some((name) => modules.includes(resolveModuleName(name) ?? name))) return true;
+      const fields = [record.title, record.tags.join(' '), record.body].map((field) => field.toLowerCase());
+      return terms.some((term) => fields.some((field) => field.includes(term)));
     })
-    .filter((item) => item.score > 0)
-    .sort((left, right) => right.score - left.score || String(right.record.frontmatter.confirmed_at ?? '').localeCompare(String(left.record.frontmatter.confirmed_at ?? '')) || left.record.path.localeCompare(right.record.path))
-    .filter((item) => !isDefaultHiddenHistory(item.record, input) && !isDraft(item.record.path))
-    .map((item) => item.record);
+    .filter((record) => !isDefaultHiddenHistory(record, input) && !isDraft(record.path));
 }
 
 function rankRetrievedRecords(records: ContextRecord[], query: string, modules: string[]): ContextRecord[] {
@@ -529,8 +531,8 @@ function mergeFiles(files: Array<{ path: string; reason: string }>, limit = 14):
   return output.slice(0, limit);
 }
 
-function findRelevantFiles(query: string, modules: string[], config: ProjectConfig): Array<{ path: string; reason: string }> {
-  const rows = querySymbols(query, modules);
+function findRelevantFiles(query: string, modules: string[], config: ProjectConfig, useIndex: boolean): Array<{ path: string; reason: string }> {
+  const rows = useIndex ? querySymbols(query, modules) : [];
   if (rows.length > 0) return rows;
   return modules
     .flatMap((module) => {
