@@ -1,7 +1,7 @@
 import { moduleSearchNames, resolveModuleName } from '../storage/inference.js';
 import { createHash } from 'node:crypto';
 import { mkdirSync, rmSync, statSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
+import { dirname } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { repoPaths } from '../storage/repo.js';
 import { checksumForFile, discoverRecordFiles, parseRecord, readRecords } from '../storage/markdown.js';
@@ -13,20 +13,40 @@ import {
   discoverCapabilitySourceStateFingerprint,
 } from './capabilities.js';
 
-const schemaVersion = '4';
+const schemaVersion = '5';
 
 export function openDb(): DatabaseSync {
   const paths = repoPaths();
   mkdirSync(dirname(paths.sqlitePath), { recursive: true });
-  let db = new DatabaseSync(paths.sqlitePath);
-  if (hasLegacyFtsIndex(db)) {
-    db.close();
-    removeRebuildableIndex(paths.sqlitePath);
-    db = new DatabaseSync(paths.sqlitePath);
+  for (let attempt = 0; ; attempt += 1) {
+    let db: DatabaseSync | undefined;
+    try {
+      db = new DatabaseSync(paths.sqlitePath);
+      if (hasLegacyFtsIndex(db)) {
+        db.close();
+        db = undefined;
+        removeRebuildableIndex(paths.sqlitePath);
+        indexFreshnessCheckedAt.delete(paths.root);
+        db = new DatabaseSync(paths.sqlitePath);
+      }
+      db.exec('PRAGMA busy_timeout = 5000; PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;');
+      ensureSchema(db);
+      return db;
+    } catch (error) {
+      db?.close();
+      // Only corruption of this disposable index permits deletion. Busy, readonly,
+      // permission and I/O errors must preserve the existing database.
+      if (attempt > 0 || !isCorruptIndex(error)) throw error;
+      removeRebuildableIndex(paths.sqlitePath);
+      indexFreshnessCheckedAt.delete(paths.root);
+    }
   }
-  db.exec('PRAGMA journal_mode = WAL; PRAGMA busy_timeout = 5000; PRAGMA foreign_keys = ON;');
-  ensureSchema(db);
-  return db;
+}
+
+function isCorruptIndex(error: unknown): boolean {
+  if (!error || typeof error !== 'object' || !('errcode' in error) || typeof error.errcode !== 'number') return false;
+  const primaryCode = error.errcode & 0xff;
+  return primaryCode === 11 || primaryCode === 26; // SQLITE_CORRUPT, SQLITE_NOTADB
 }
 
 function hasLegacyFtsIndex(db: DatabaseSync): boolean {
@@ -110,9 +130,14 @@ CREATE TABLE IF NOT EXISTS search_index (
   record_id TEXT PRIMARY KEY,
   title TEXT NOT NULL,
   body TEXT NOT NULL,
-  tags TEXT NOT NULL
+  tags TEXT NOT NULL,
+  metadata TEXT NOT NULL DEFAULT '{}'
 );
 `);
+  const columns = db.prepare('PRAGMA table_info(search_index)').all() as Array<{ name: string }>;
+  if (!columns.some((column) => column.name === 'metadata')) {
+    db.exec("ALTER TABLE search_index ADD COLUMN metadata TEXT NOT NULL DEFAULT '{}'");
+  }
 }
 
 export type IndexRebuildResult = {
@@ -154,8 +179,8 @@ export function rebuildIndex(): IndexRebuildResult {
   const recordSourceState = fingerprintFileState(discoverRecordFiles(true));
   const capabilitySourceState = discoverCapabilitySourceStateFingerprint();
   const db = openDb();
-  db.exec('BEGIN IMMEDIATE');
   try {
+    db.exec('BEGIN IMMEDIATE');
     db.exec(`
 DELETE FROM records;
 DELETE FROM record_tags;
@@ -177,7 +202,7 @@ VALUES (@id, @type, @status, @title, @path, @createdAt, @updatedAt, @retention, 
 INSERT OR REPLACE INTO record_files (record_id, file_path, line_start, line_end, checksum, stale)
 VALUES (?, ?, NULL, NULL, ?, ?)
 `);
-    const insertSearch = db.prepare('INSERT INTO search_index (record_id, title, body, tags) VALUES (?, ?, ?, ?)');
+    const insertSearch = db.prepare('INSERT INTO search_index (record_id, title, body, tags, metadata) VALUES (?, ?, ?, ?, ?)');
     for (const record of indexableRecords) {
       insertRecord.run({
         id: record.id,
@@ -197,7 +222,8 @@ VALUES (?, ?, NULL, NULL, ?, ?)
         const checksum = reference.kind === 'file' ? checksumForFile(reference.absolutePath) : null;
         insertFile.run(record.id, file, checksum, checksum ? 0 : 1);
       }
-      insertSearch.run(record.id, record.title, record.body, record.tags.join(' '));
+      const { body, ...metadata } = record;
+      insertSearch.run(record.id, record.title, body, record.tags.join(' '), JSON.stringify(metadata));
     }
     const insertSymbol = db.prepare(`
 INSERT OR REPLACE INTO symbols (id, name, kind, module, file_path, line_start, line_end, signature, exported)
@@ -366,59 +392,116 @@ function recordPathRank(path: string): number {
   return 3;
 }
 
+function openFreshDb(): DatabaseSync {
+  ensureFreshIndex();
+  const db = openDb();
+  try {
+    const version = db.prepare("SELECT value FROM index_metadata WHERE key = 'schema_version'").get() as { value: string } | undefined;
+    if (version?.value === schemaVersion) return db;
+  } catch (error) {
+    db.close();
+    throw error;
+  }
+  // openDb may have recovered a corrupt/missing index within the freshness TTL.
+  // Populate that replacement before allowing callers to read it.
+  db.close();
+  rebuildIndex();
+  return openDb();
+}
+
+function readFromIndex<T>(read: (db: DatabaseSync) => T): T {
+  for (let attempt = 0; ; attempt += 1) {
+    let db: DatabaseSync | undefined;
+    try {
+      db = openFreshDb();
+      return read(db);
+    } catch (error) {
+      if (attempt > 0 || !isCorruptIndex(error)) throw error;
+    } finally {
+      db?.close();
+    }
+    // Corruption can also be encountered in data pages after opening the schema.
+    const paths = repoPaths();
+    removeRebuildableIndex(paths.sqlitePath);
+    indexFreshnessCheckedAt.delete(paths.root);
+  }
+}
+
+function indexedRecordRows<T>(projection: string, includeArchive: boolean, modules: string[], recordId?: string): T[] {
+  const moduleFilter = modules.length > 0
+    ? `AND (NOT EXISTS (SELECT 1 FROM record_modules WHERE record_modules.record_id = records.id)
+      OR EXISTS (SELECT 1 FROM record_modules WHERE record_modules.record_id = records.id AND record_modules.module IN (${modules.map(() => '?').join(',')})))`
+    : '';
+  return readFromIndex((db) => db.prepare(`
+SELECT ${projection}
+FROM search_index
+JOIN records ON records.id = search_index.record_id
+WHERE (? = 1 OR records.archived = 0)
+${moduleFilter}
+${recordId === undefined ? '' : 'AND records.id = ?'}
+`).all(includeArchive ? 1 : 0, ...modules, ...(recordId === undefined ? [] : [recordId])) as T[]);
+}
+
+export function readSearchRecords(options: {
+  includeArchive?: boolean;
+  modules?: string[];
+  recordId?: string;
+  useIndex?: boolean;
+} = {}): { records: ContextRecord[]; source: 'index' | 'markdown' } {
+  const { includeArchive = false, recordId, useIndex = true } = options;
+  const modules = moduleSearchNames(options.modules ?? []);
+  if (useIndex) {
+    try {
+      const rows = indexedRecordRows<{ body: string; metadata: string }>(
+        'search_index.body, search_index.metadata', includeArchive, modules, recordId,
+      );
+      return {
+        records: rows.map((row) => ({ ...JSON.parse(row.metadata) as Omit<ContextRecord, 'body'>, body: row.body })),
+        source: 'index',
+      };
+    } catch {
+      // The files remain authoritative when index storage cannot be used.
+    }
+  }
+  const { indexableRecords } = selectIndexableRecords(readRecords(includeArchive));
+  return {
+    records: indexableRecords.filter((record) =>
+      (recordId === undefined || record.id === recordId)
+      && (modules.length === 0 || record.modules.length === 0 || record.modules.some((module) => modules.includes(module)))),
+    source: 'markdown',
+  };
+}
+
 export function searchIndex(query: string, limit = 10, includeArchive = false, modules: string[] = []): ContextRecord[] {
-  modules = moduleSearchNames(modules);
   const terms = query
     .toLowerCase()
     .split(/[^\p{L}\p{N}_-]+/u)
     .map((term) => term.replace(/["']/g, ''))
     .filter((term) => term.length > 1);
   if (terms.length === 0) return [];
+  let rows: Array<{ path: string; title: string; body: string; tags: string; record?: ContextRecord }>;
   try {
-    ensureFreshIndex();
-    const db = openDb();
-    const moduleFilter = modules.length > 0
-      ? `AND (NOT EXISTS (SELECT 1 FROM record_modules WHERE record_modules.record_id = records.id)
-        OR EXISTS (SELECT 1 FROM record_modules WHERE record_modules.record_id = records.id AND record_modules.module IN (${modules.map(() => '?').join(',')})))`
-      : '';
-    let rows: Array<{ path: string; title: string; body: string; tags: string }>;
-    try {
-      rows = db.prepare(`
-SELECT records.path, search_index.title, search_index.body, search_index.tags
-FROM search_index
-JOIN records ON records.id = search_index.record_id
-WHERE (? = 1 OR records.archived = 0)
-${moduleFilter}
-`).all(includeArchive ? 1 : 0, ...modules) as Array<{ path: string; title: string; body: string; tags: string }>;
-    } finally {
-      db.close();
-    }
-    const paths = repoPaths();
-    return rows
-      .map((row) => ({ ...row, score: recordSearchScore(row, terms) }))
-      .filter((row) => row.score > 0)
-      .sort((left, right) => right.score - left.score || left.path.localeCompare(right.path))
-      .slice(0, limit)
-      .flatMap((row) => {
+    // Plain search needs only text for scoring; parse full metadata for pack
+    // ranking only, and Markdown only for the selected search results.
+    rows = indexedRecordRows('records.path, search_index.title, search_index.body, search_index.tags', includeArchive, moduleSearchNames(modules));
+  } catch {
+    rows = readSearchRecords({ includeArchive, modules, useIndex: false }).records
+      .map((record) => ({ ...record, tags: record.tags.join(' '), record }));
+  }
+  return rows
+    .map((row) => ({ ...row, score: recordSearchScore(row, terms) }))
+    .filter(({ score }) => score > 0)
+    .sort((left, right) => right.score - left.score || left.path.localeCompare(right.path))
+    .slice(0, limit)
+    .flatMap((row) => {
+      if (row.record) return [row.record];
       try {
         const reference = classifyFileReference(row.path);
-        return reference.kind === 'file' ? [parseRecord(reference.absolutePath, paths.root)] : [];
+        return reference.kind === 'file' ? [parseRecord(reference.absolutePath)] : [];
       } catch {
         return [];
       }
     });
-  } catch {
-    const records = readRecords(includeArchive);
-    return records
-      .map((record) => ({
-        record,
-        score: recordSearchScore({ title: record.title, body: record.body, tags: record.tags.join(' ') }, terms),
-      }))
-      .filter(({ score }) => score > 0)
-      .sort((left, right) => right.score - left.score || left.record.path.localeCompare(right.record.path))
-      .slice(0, limit)
-      .map(({ record }) => record);
-  }
 }
 
 function recordSearchScore(
@@ -464,9 +547,7 @@ export function searchCapabilities(query: string, modules: string[], limit = 12)
   if (modules.length === 0) return [];
   const words = capabilityQueryWords(query);
   if (words.length === 0) return [];
-  ensureFreshIndex();
-  const db = openDb();
-  try {
+  return readFromIndex((db) => {
     const rows = db.prepare(`
 SELECT name, kind, file_path AS path, signature, module, exported
 FROM symbols
@@ -489,9 +570,7 @@ LIMIT 500
         || left.path.localeCompare(right.path)
         || left.name.localeCompare(right.name))
       .slice(0, limit);
-  } finally {
-    db.close();
-  }
+  });
 }
 
 function fingerprintRecords(records: ContextRecord[]): string {
