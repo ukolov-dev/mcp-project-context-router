@@ -34,6 +34,9 @@ describe('standalone repository export', () => {
     expect(existsSync(resolve(destination, 'release'))).toBe(false);
     expect(existsSync(resolve(destination, 'scripts/configure-npm-auth.mjs'))).toBe(false);
     expect(existsSync(resolve(destination, 'scripts/release-artifacts.mjs'))).toBe(false);
+    for (const script of ['consumer-smoke.mjs', 'search-eval.ts', 'search-scale.ts']) {
+      expect(existsSync(resolve(destination, `scripts/${script}`))).toBe(true);
+    }
     expect(existsSync(resolve(destination, 'scripts/macos-portal-credential.js'))).toBe(true);
     expect(existsSync(resolve(destination, 'scripts/windows-confluence-credential.ps1'))).toBe(true);
     expect(existsSync(resolve(destination, 'scripts/windows-portal-credential.ps1'))).toBe(true);
