@@ -83,9 +83,9 @@ const result = {
   forbidden,
 };
 
-if (report.name !== 'mcp-project-context-router' || report.version !== '0.7.1') {
+if (report.name !== 'mcp-project-context-router' || report.version !== '0.8.0') {
   result.status = 'FAILED';
-  result.identity = `Expected mcp-project-context-router@0.7.1, got ${report.name}@${report.version}`;
+  result.identity = `Expected mcp-project-context-router@0.8.0, got ${report.name}@${report.version}`;
 }
 
 const packageJson = JSON.parse(execFileSync('npm', ['pkg', 'get'], {

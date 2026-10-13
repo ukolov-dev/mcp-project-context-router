@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import { buildContextPack, type ContextPack } from './pack.js';
+import { parseSearchEngine, type SearchEngine } from '../indexer/sqlite.js';
 import { retrievePortalContext } from '../portal/bridge.js';
 import type {
   PortalClient,
@@ -13,6 +14,7 @@ export type UnifiedContextInput = PortalContextRetrievalInput & {
   files?: string[];
   changedFiles?: string[];
   includeLocal?: boolean;
+  searchEngine?: SearchEngine;
 };
 
 export type UnifiedContextItem = {
@@ -53,6 +55,7 @@ export async function buildUnifiedContextPack(
   unknowns: string[];
   allocations: { portalTokens: number; localTokens: number };
 }> {
+  parseSearchEngine(input.searchEngine);
   const maximumTokens = clamp(input.maximumTokens, 500, 128_000);
   const portalBudget = Math.max(64, Math.floor(maximumTokens * 0.7));
   const {
@@ -61,6 +64,7 @@ export async function buildUnifiedContextPack(
     files,
     changedFiles,
     includeLocal,
+    searchEngine,
     ...portalInput
   } = input;
   const portal = await retrievePortalContext({
@@ -74,6 +78,7 @@ export async function buildUnifiedContextPack(
     ? (dependencies.localBuilder ?? buildContextPack)({
         query: `${input.intent} ${input.query}`.trim(),
         taskId,
+        searchEngine,
         maxTokens: Math.max(500, localBudget),
         modules,
         files,

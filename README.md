@@ -13,7 +13,7 @@ consumer repository. A disposable SQLite index makes retrieval fast without
 turning an external service into the source of truth.
 
 > Status: active development. The current package is
-> `mcp-project-context-router@0.7.1`, requires Node.js 22.13 or newer, and is distributed
+> `mcp-project-context-router@0.8.0`, requires Node.js 22.13 or newer, and is distributed
 > from source or a versioned tarball. It is not currently published to an npm
 > registry.
 
@@ -106,6 +106,13 @@ Research preserves idea discussions, findings, status changes and conclusions se
 from implementation tasks, then creates linked backlog drafts. See the
 [research workflow](docs/research.ru.md) and the portable
 [Codex skill](templates/skills/context-research/SKILL.md).
+
+Local search and context packs also support an **experimental**, opt-in `fts5` engine with a
+partial-identifier reserve. The existing `current` engine remains the default.
+Use `project-context pack "quick_valid" --search-engine fts5 --max-tokens 4000`
+or pass `searchEngine: "fts5"` to `build_context_pack`. See the
+[SQLite search modes](docs/sqlite-index.md#optional-fts5-search-mode) and
+[evaluation](docs/search-evaluation.md).
 
 ## How data is laid out
 

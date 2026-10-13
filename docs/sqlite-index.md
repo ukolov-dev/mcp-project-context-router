@@ -28,8 +28,8 @@ database service is required.
 
 Index schema version 5 adds a JSON metadata column to `search_index`. It stores
 record fields and frontmatter; the body remains in its existing text column.
-The previous schema is upgraded and rebuilt automatically. Old pack-cache
-entries are invalidated by pack-cache version 5.
+The previous schema is upgraded and rebuilt automatically. Pack-cache version 6
+invalidates older entries and isolates the requested search engine.
 
 A new context pack uses this metadata for module selection, candidate matching,
 confirmation/type ranking and history filtering. It reads Markdown only for the
@@ -90,3 +90,65 @@ Regression coverage lives in `test/index-freshness.test.ts` and
 real missing/corrupt/unavailable index files, inject SQLite busy/readonly and
 data-page corruption errors, verify schema migration, and count record reads on
 a warm cache miss with and without an explicit task.
+
+## Optional FTS5 search mode
+
+**Experimental in 0.8.0.** `current` remains the default for standalone search
+and every local context-pack entry point. Select `fts5` for one request:
+
+```sh
+node bin/project-context search "quick_valid" --search-engine fts5 --limit 10
+node bin/project-context pack "quick_valid" --search-engine fts5 --modules router --max-tokens 4000
+```
+
+CLI `build-project-context-pack` and MCP `build_context_pack`,
+`build_project_context_pack`, and the local part of `retrieve_project_context`
+also accept the mode (`searchEngine: "current" | "fts5"` for API/MCP requests).
+The Portal retrieval mode is independent. Invalid engine names are rejected.
+
+FTS5 uses `unicode61`, quoted OR terms and BM25 title/body/tag weights 10/2/6.
+It returns at most five direct results, then at most five new proper partial
+identifier matches, with a total bounded by the request's result limit. The
+reserve recognizes camel/Pascal case and internal underscores, searches indexed
+title/body/tags for a longer identifier containing the literal fragment, and
+retains the direct FTS5 prefix. Lowercase-only fragments and metadata-only
+matches do not activate this reserve. No related-record expansion is performed.
+
+The disposable `record_fts` and `record_identifiers` projections are populated
+lazily in a transaction from the authoritative plain index. Rebuilding that
+index clears their readiness marker in the same transaction; the next FTS5
+request repopulates them. An existing schema-5 index needs no record migration
+to use this mode. Default search never creates or requires the FTS5 tables.
+Availability depends on the SQLite build's [FTS5 support](https://www.sqlite.org/fts5.html#compiling_and_using_fts5).
+Full projection builds add first-request latency; incremental updates are
+deferred. Identifier lookup still scans its vocabulary for literal substrings.
+
+Module aliases, global records and archive eligibility are filtered in SQL before
+either result cap. Packs also filter drafts and hidden history there before
+selection. Explicit task/specification records retain their existing priority;
+other FTS records retain BM25 order, followed by identifier reserve order, rather
+than the current engine's confirmation/type reranking and module-only candidates.
+Existing authority metadata describes claims; it is not proof of correctness.
+
+The real pack builder applies the same excerpts, secret redaction, files,
+playbooks, provenance and budget trimming as the current mode. Standard packs can
+contain five direct plus five reserve records; fast packs have a five-record cap
+that can leave no room for reserve when all direct slots are occupied. Small
+budgets may retain a record reference without its excerpt or remove it entirely.
+The selected engine participates in the cache key. When FTS5 or index storage
+is unavailable, packs use current retrieval with a warning and disable caching;
+standalone search falls back to current retrieval. Healthy source records and
+the plain index are preserved on setup/busy/readonly failures.
+
+Direct matches, identifier candidates and selected indexed metadata are read in
+one SQLite read transaction. A rebuild on another connection cannot mix their
+database versions. If a rebuild invalidates the projection before that snapshot
+is pinned, the request falls back to current retrieval. Markdown excerpts and
+explicit files still use the normal file reads; the pack is not an atomic
+filesystem snapshot during concurrent source edits.
+
+Routing remains shared: unknown explicit module names can lead to configured
+fallback modules, with a warning. This is broader than the retrieval evaluator's
+literal unknown-module scope. Use reviewed configured module names/aliases when
+requesting a pack. See the actual-pack evaluation for this distinction and the
+default hidden-history policy.

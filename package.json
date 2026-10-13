@@ -1,6 +1,6 @@
 {
   "name": "mcp-project-context-router",
-  "version": "0.7.1",
+  "version": "0.8.0",
   "description": "Local-first project memory, context packs, backlog, and verification workflows for coding agents",
   "license": "UNLICENSED",
   "private": false,
@@ -52,7 +52,9 @@
     "prepare": "npm run build",
     "prepack": "npm run build",
     "package:check": "node scripts/package-smoke.mjs",
-    "export:standalone": "node scripts/export-standalone.mjs"
+    "export:standalone": "node scripts/export-standalone.mjs",
+    "search:eval": "node --import tsx scripts/search-eval.ts",
+    "package:consumer": "node scripts/consumer-smoke.mjs"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.29.0",

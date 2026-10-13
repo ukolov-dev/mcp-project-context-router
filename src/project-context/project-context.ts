@@ -1,5 +1,6 @@
 import { resolve } from 'node:path';
 import { z } from 'zod';
+import { searchEngines } from '../indexer/sqlite.js';
 import { buildContextPack, type ContextPackInput } from '../context-pack/pack.js';
 import { nextRecordId, parseRecord, readRecords, writeMarkdown } from '../storage/markdown.js';
 import {
@@ -83,6 +84,7 @@ export const getDecisionsInputSchema = z.object({
 
 export const buildProjectContextPackInputSchema = z.object({
   query: z.string(),
+  searchEngine: z.enum(searchEngines).optional(),
   taskId: z.string().optional(),
   profile: z.enum(['default', 'local-model']).optional(),
   workflow: z.enum(['fast', 'standard', 'strict']).optional(),
