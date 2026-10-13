@@ -5,6 +5,16 @@ Notable changes to Project Context Router are recorded here. Versions before
 
 ## Unreleased
 
+## [0.8.0] - 2026-10-13
+
+- Validate Node 22.13.0 current/fallback compatibility and Node 22.23.2 FTS5 support separately; older official runtimes lack the compiled FTS5 module.
+- Add experimental per-request `fts5` search with a partial-identifier reserve in CLI search, local context packs and MCP pack tools. `current` remains the default; related-record expansion is not enabled.
+- Preserve the five direct BM25 results before appending up to five new identifier matches. Filter module/alias/archive and pack history/draft eligibility before result caps and candidate Markdown reads.
+- Build disposable FTS5/identifier projections lazily and transactionally; invalidate them on plain-index rebuild and read direct/reserve results from one SQLite snapshot. Preserve 0.7.1 recovery, fallback and source-record behavior.
+- Isolate search-mode caches (cache version 6). An unavailable FTS5 projection falls back to current pack retrieval with a warning and no degraded cache entry.
+- Document fixed-query evaluations, independent consumer replay and limitations: lexical false positives, lost evidence passages, guidance-only budget overflow, first-use projection cost and ranking regressions remain. This release does not promote FTS5 to the stable/default engine.
+- Add lifecycle/filter/cache/CLI/MCP/concurrency regressions and a clean tarball consumer installation smoke in CI. See [0.8 release notes](docs/release-0.8.md) for usage and validation boundaries.
+
 ## [0.7.1] - 2026-10-09
 
 - Recover missing or corrupt disposable SQLite indexes before reading them, including corruption discovered in data pages. Preserve healthy indexes on busy, readonly and other I/O errors, and close failed rebuild connections.

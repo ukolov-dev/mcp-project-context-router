@@ -18,7 +18,7 @@ import {
 import { contextDoctor } from './doctor/doctor.js';
 import { currentTruthAudit, currentTruthInputSchema } from './current-truth/current-truth.js';
 import { archiveStale, applyCleanup, compactCleanupResult, proposeCleanup, restore } from './gc/gc.js';
-import { rebuildIndex, checkIndexHealth, searchIndex } from './indexer/sqlite.js';
+import { rebuildIndex, checkIndexHealth, searchIndex, parseSearchEngine } from './indexer/sqlite.js';
 import { promoteDraft, promoteDraftInputSchema, promoteDraftsBatch, promoteDraftsBatchInputSchema } from './promotion/promote.js';
 import { reviewDiffForRefactor } from './refactor-review/refactor.js';
 import { findExistingCapabilities, findExistingCapability } from './reuse-scan/reuse.js';
@@ -188,10 +188,11 @@ program
   .command('search')
   .argument('<query>')
   .description('Search active project context records')
+  .option('--search-engine <engine>', 'current (default)|fts5 (experimental, includes partial identifier reserve)', 'current')
   .option('--include-archive', 'include archived records')
   .option('--limit <number>', 'maximum result count', '10')
   .action((query, options) => {
-    const records = searchIndex(query, Number(options.limit), Boolean(options.includeArchive)).map((record) => ({
+    const records = searchIndex(query, Number(options.limit), Boolean(options.includeArchive), [], parseSearchEngine(options.searchEngine)).map((record) => ({
       id: record.id,
       type: record.type,
       status: record.status,
@@ -205,6 +206,7 @@ program
   .command('pack')
   .argument('<query>')
   .description('Build a compact context pack for a task')
+  .option('--search-engine <engine>', 'current (default)|fts5 (experimental, includes partial identifier reserve)', 'current')
   .option('--task <taskId>')
   .option('--profile <profile>', 'default|local-model')
   .option('--workflow <level>', 'fast|standard|strict')
@@ -220,6 +222,7 @@ program
     emit(
       buildContextPack({
         query,
+        searchEngine: parseSearchEngine(options.searchEngine),
         taskId: options.task,
         profile: parseProfile(options.profile),
         workflow: parseWorkflow(options.workflow),
@@ -322,6 +325,7 @@ program
   .command('build-project-context-pack')
   .argument('<query>')
   .description('Build a context pack with mandatory top-level sources')
+  .option('--search-engine <engine>', 'current (default)|fts5 (experimental, includes partial identifier reserve)', 'current')
   .option('--task <taskId>')
   .option('--profile <profile>', 'default|local-model')
   .option('--workflow <level>', 'fast|standard|strict')
@@ -333,6 +337,7 @@ program
   .option('--changed-file <path>', 'changed file path hint; can be repeated', collectValues, [])
   .action((query, options) => emit(buildProjectContextPack(buildProjectContextPackInputSchema.parse({
     query,
+    searchEngine: parseSearchEngine(options.searchEngine),
     taskId: options.task,
     profile: parseProfile(options.profile),
     workflow: parseWorkflow(options.workflow),

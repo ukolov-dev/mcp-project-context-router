@@ -2,7 +2,7 @@ import { recordProvenance } from '../storage/lifecycle.js';
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
-import { ensureFreshIndex, readSearchRecords, searchCapabilities } from '../indexer/sqlite.js';
+import { ensureFreshIndex, parseSearchEngine, readSearchRecords, searchCapabilities, searchFtsRecords, type SearchEngine } from '../indexer/sqlite.js';
 import { parseRecord } from '../storage/markdown.js';
 import { contextPackCommandsForModules, loadProjectConfig, retentionNumber, type ProjectConfig } from '../storage/config.js';
 import { classifyFileReference } from '../storage/file-references.js';
@@ -17,6 +17,7 @@ export type ContextPackWorkflow = 'fast' | 'standard' | 'strict';
 
 export type ContextPackInput = {
   query: string;
+  searchEngine?: SearchEngine;
   taskId?: string;
   profile?: ContextPackProfile;
   workflow?: ContextPackWorkflow;
@@ -61,12 +62,13 @@ export type ContextPack = {
 };
 
 type CachedContextPack = {
-  version: 5;
+  version: 6;
   state: string;
   pack: Omit<ContextPack, 'cache'>;
 };
 
 export function buildContextPack(input: ContextPackInput): ContextPack {
+  parseSearchEngine(input.searchEngine);
   let useIndex = true;
   try {
     // A pack must see record changes immediately, including within the search TTL.
@@ -82,7 +84,9 @@ export function buildContextPack(input: ContextPackInput): ContextPack {
   const { pack, indexAvailable } = buildContextPackFresh(input, useIndex);
   if (!indexAvailable) return {
     ...pack,
-    cache: { status: 'disabled', reason: 'Context index unavailable; the pack was built directly from Markdown.' },
+    cache: { status: 'disabled', reason: input.searchEngine === 'fts5'
+      ? 'FTS5 unavailable; the fallback pack is not cached.'
+      : 'Context index unavailable; the pack was built directly from Markdown.' },
   };
   return writeCachedContextPack(input, pack);
 }
@@ -178,12 +182,18 @@ function buildContextPackFresh(input: ContextPackInput, useIndex: boolean): { pa
     });
   }
 
-  const retrieved = readSearchRecords({ includeArchive: input.includeArchive, modules, useIndex });
-  const candidateRecords = matchingPackRecords(retrieved.records, input.query, modules, input);
-  const relevantRecords = rankRetrievedRecords(candidateRecords, input.query, modules)
+  const fts = input.searchEngine === 'fts5' && useIndex
+    ? searchFtsRecords(input.query, { modules, includeArchive: input.includeArchive, excludeDrafts: true,
+      includeHistory: input.includeHistory ?? false, limit: totalRecordLimit })
+    : undefined;
+  const retrieved = fts?.available ? { records: fts.records, source: 'index' as const }
+    : readSearchRecords({ includeArchive: input.includeArchive, modules, useIndex });
+  const candidateRecords = fts?.available ? retrieved.records
+    : rankRetrievedRecords(matchingPackRecords(retrieved.records, input.query, modules, input), input.query, modules);
+  const relevantRecords = candidateRecords
     .filter((record) => !isDraft(record.path) || record.id === input.taskId)
     .filter((record) => !isDefaultHiddenHistory(record, input))
-    .slice(0, indexedRecordLimit);
+    .slice(0, fts?.available ? totalRecordLimit : indexedRecordLimit);
   for (const record of relevantRecords) {
     if (isDraft(record.path) && record.id !== input.taskId) {
       continue;
@@ -195,7 +205,9 @@ function buildContextPackFresh(input: ContextPackInput, useIndex: boolean): { pa
       records.set(record.id, {
         id: record.id,
         path: record.path,
-        reason: 'Matched query/module; relevance, decision type and explicit confirmation determine rank; date breaks ties only. Status and authority describe claims, not runtime proof.',
+        reason: fts?.available
+          ? fts.identifierIds.includes(record.id) ? 'Matched partial identifier reserve.' : 'Matched FTS5 query (BM25 rank).'
+          : 'Matched query/module; relevance, decision type and explicit confirmation determine rank; date breaks ties only. Status and authority describe claims, not runtime proof.',
       });
     }
   }
@@ -221,6 +233,7 @@ function buildContextPackFresh(input: ContextPackInput, useIndex: boolean): { pa
   const directModules = inferModulesFromSignals({ query: input.query, modules: input.modules, files: input.files, changedFiles: input.changedFiles, fallback: [], config });
   const routing = { modules, basis: directModules.length ? 'explicit/query/path signals' : 'configured fallback', unknownModules, unmappedFiles };
   const warnings: string[] = [...pathWarnings, ...playbookSelection.warnings];
+  if (input.searchEngine === 'fts5' && !fts?.available) warnings.push('FTS5 unavailable; used current retrieval. This pack is not cached.');
   if (retrieved.source === 'markdown') warnings.push('Context index unavailable; records were read directly from Markdown. This pack is not cached.');
   if (!directModules.length) warnings.push('No module signal matched; using configured default_modules. Configure aliases in the languages used by your team.');
   if (!modules.length) warnings.push('No configured module selected; inspect project.yaml routing and module coverage.');
@@ -257,7 +270,7 @@ function buildContextPackFresh(input: ContextPackInput, useIndex: boolean): { pa
       droppedPlaybooks: 0,
     },
   });
-  return { pack, indexAvailable: retrieved.source === 'index' };
+  return { pack, indexAvailable: retrieved.source === 'index' && (input.searchEngine !== 'fts5' || fts?.available === true) };
 }
 
 function readCachedContextPack(input: ContextPackInput): ContextPack | undefined {
@@ -265,7 +278,7 @@ function readCachedContextPack(input: ContextPackInput): ContextPack | undefined
   try {
     if (!existsSync(descriptor.absolutePath)) return undefined;
     const cached = JSON.parse(readFileSync(descriptor.absolutePath, 'utf8')) as CachedContextPack;
-    if (cached.version !== 5 || cached.state !== buildCacheState(input)) return undefined;
+    if (cached.version !== 6 || cached.state !== buildCacheState(input)) return undefined;
     return {
       ...cached.pack,
       cache: {
@@ -284,7 +297,7 @@ function writeCachedContextPack(input: ContextPackInput, pack: Omit<ContextPack,
   try {
     mkdirSync(descriptor.dir, { recursive: true });
     const cached: CachedContextPack = {
-      version: 5,
+      version: 6,
       state: buildCacheState(input),
       pack,
     };
@@ -325,10 +338,12 @@ function normalizeCacheInput(input: ContextPackInput): Required<Pick<ContextPack
   taskId: string | null;
   workflow: ContextPackWorkflow;
   includeHistory: boolean;
+  searchEngine: SearchEngine;
 } {
   const options = resolvePackOptions(input);
   return {
     query: input.query,
+    searchEngine: input.searchEngine ?? 'current',
     taskId: input.taskId ?? null,
     profile: options.profile,
     workflow: options.workflow,
@@ -465,7 +480,7 @@ function isDraft(path: string): boolean {
   return path.includes('/drafts/');
 }
 
-function isDefaultHiddenHistory(record: { id: string; type: string; status: string }, input: ContextPackInput): boolean {
+export function isDefaultHiddenHistory(record: { id: string; type: string; status: string }, input: ContextPackInput): boolean {
   if (input.includeHistory) return false;
   if (record.id === input.taskId) return false;
   if (['superseded', 'cancelled', 'canceled', 'retired', 'archived'].includes(record.status)) return true;

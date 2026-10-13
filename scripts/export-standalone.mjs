@@ -38,6 +38,9 @@ mkdirSync(resolve(destination, 'scripts'), { recursive: true });
 for (const script of [
   'package-smoke.mjs',
   'export-standalone.mjs',
+  'consumer-smoke.mjs',
+  'search-eval.ts',
+  'search-scale.ts',
   'macos-portal-credential.js',
   'windows-confluence-credential.ps1',
   'windows-portal-credential.ps1',

@@ -19,6 +19,7 @@ import {
   transitionBacklogItemInputSchema,
 } from '../backlog/backlog.js';
 import { buildContextPack } from '../context-pack/pack.js';
+import { searchEngines } from '../indexer/sqlite.js';
 import { createAgentRun, getAgentRun, getRunSnapshot, listAgentRuns, recordRunVerification, transitionAgentRun } from '../execution/runs.js';
 import { createAgentRunInputSchema, recordRunVerificationInputSchema, transitionAgentRunInputSchema } from '../execution/types.js';
 import {
@@ -369,6 +370,7 @@ server.registerTool(
     title: 'Build context pack',
     description: 'Return a compact set of records, files, playbooks, commands, and warnings for a task.',
     inputSchema: {
+      searchEngine: z.enum(searchEngines).optional().describe('current is the default; fts5 is experimental and includes a partial identifier reserve.'),
       query: z.string(),
       taskId: z.string().optional(),
       profile: z.enum(['default', 'local-model']).optional(),
@@ -397,6 +399,7 @@ server.registerTool(
       openWorldHint: true,
     },
     inputSchema: {
+      searchEngine: z.enum(searchEngines).optional().describe('current is the default; fts5 is experimental and includes a partial identifier reserve.'),
       query: z.string().default(''),
       intent: z.string().default(''),
       maximumTokens: z.number().int().min(500).max(128_000).default(8_000),
@@ -512,6 +515,7 @@ server.registerTool(
     title: 'Build project context pack',
     description: 'Build a context pack and add mandatory top-level sources[] for the included records.',
     inputSchema: {
+      searchEngine: z.enum(searchEngines).optional().describe('current is the default; fts5 is experimental and includes a partial identifier reserve.'),
       query: z.string(),
       taskId: z.string().optional(),
       profile: z.enum(['default', 'local-model']).optional(),

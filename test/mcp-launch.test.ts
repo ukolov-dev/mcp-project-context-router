@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
+import { hasFts5 } from './sqlite-fts.js';
 import { coreToolNames, executionToolNames, researchToolNames, type McpToolProfile } from '../src/mcp/tool-profiles.js';
 import { loadProjectConfig } from '../src/storage/config.js';
 
@@ -20,6 +21,7 @@ type JsonRpcResponse = {
 
 type McpTool = {
   name: string;
+  inputSchema?: { properties?: Record<string, { enum?: string[] }> };
   execution?: unknown;
   outputSchema?: Record<string, unknown>;
 };
@@ -46,6 +48,17 @@ function findRepositoryRoot(): string {
 }
 
 describe('Codex project-context MCP launch config', () => {
+  it('accepts the optional FTS5 mode in the running pack tool', async () => {
+    const config = readProjectContextConfig(readFileSync(configPath, 'utf8'));
+    const responses = await initializeAndListTools(config, 'core', 'build_context_pack', {
+      query: 'UnmatchedFtsIdentifierZXCV', modules: ['router'], searchEngine: 'fts5', maxTokens: 4000,
+    });
+    const tools = responseResult(responses, 2).tools as McpTool[];
+    expect(tools.find((tool) => tool.name === 'build_context_pack')?.inputSchema?.properties?.searchEngine?.enum).toEqual(['current', 'fts5']);
+    const result = responseResult(responses, 3).structuredContent as { records: unknown[]; warnings: string[] };
+    if (hasFts5) expect(result.records).toEqual([]);
+    expect(result.warnings.some((warning) => warning.includes('FTS5 unavailable'))).toBe(!hasFts5);
+  });
   it('starts the configured server and keeps the indexed project config portable', async () => {
     const config = readProjectContextConfig(readFileSync(configPath, 'utf8'));
     const indexedConfig = readProjectContextConfig(readIndexedConfig());
@@ -190,7 +203,7 @@ function readStringArrayField(body: string, key: string): string[] {
   return values.map((value) => value.slice(1, -1));
 }
 
-function initializeAndListTools(config: McpConfig, profile: McpToolProfile, callToolName?: string): Promise<JsonRpcResponse[]> {
+function initializeAndListTools(config: McpConfig, profile: McpToolProfile, callToolName?: string, callArguments: Record<string, unknown> = {}): Promise<JsonRpcResponse[]> {
   return new Promise((resolvePromise, reject) => {
     const child = spawn(config.command, config.args, {
       cwd: resolve(configDir, config.cwd),
@@ -251,7 +264,7 @@ function initializeAndListTools(config: McpConfig, profile: McpToolProfile, call
             jsonrpc: '2.0',
             id: 3,
             method: 'tools/call',
-            params: { name: callToolName, arguments: {} },
+            params: { name: callToolName, arguments: callArguments },
           })}\n`);
         }
 

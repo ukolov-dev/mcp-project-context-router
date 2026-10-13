@@ -1,7 +1,7 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { buildUnifiedContextPack } from '../src/context-pack/unified.js';
 import { sha256, type PortalClient, type PortalContextPack } from '../src/portal/client.js';
 import type { ContextPack } from '../src/context-pack/pack.js';
@@ -42,6 +42,10 @@ afterEach(() => {
 });
 
 describe('unified context pack', () => {
+  it('rejects an invalid local engine before Portal access, even when local retrieval is disabled', async () => {
+    await expect(buildUnifiedContextPack({ query: 'evidence', intent: '', maximumTokens: 1000, topK: 5,
+      includeLocal: false, searchEngine: 'invalid' as never })).rejects.toThrow('searchEngine');
+  });
   it('preserves Portal and local authority labels under one deterministic token budget', async () => {
     const portalPack: PortalContextPack = {
       contextSessionId: sessionId,
@@ -79,7 +83,7 @@ describe('unified context pack', () => {
     const client = {
       retrieveContext: async () => portalPack,
     } as unknown as PortalClient;
-    const localBuilder = (): ContextPack => ({
+    const localBuilder = vi.fn((): ContextPack => ({
       summary: 'local',
       profile: 'default',
       workflow: 'fast',
@@ -106,14 +110,16 @@ describe('unified context pack', () => {
         droppedFiles: 0,
         droppedPlaybooks: 0,
       },
-    });
+    }));
 
     const pack = await buildUnifiedContextPack({
+      searchEngine: 'fts5',
       query: 'evidence',
       intent: 'proposal',
       maximumTokens: 1_000,
       topK: 10,
     }, { client, localBuilder });
+    expect(localBuilder).toHaveBeenCalledWith(expect.objectContaining({ searchEngine: 'fts5' }));
 
     expect(pack.actualTokens).toBeLessThanOrEqual(1_000);
     expect(pack.allocations).toEqual({ portalTokens: 200, localTokens: 800 });

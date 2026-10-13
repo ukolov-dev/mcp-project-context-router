@@ -15,6 +15,20 @@ import {
 
 const schemaVersion = '5';
 
+export const searchEngines = ['current', 'fts5'] as const;
+export type SearchEngine = typeof searchEngines[number];
+
+export function parseSearchEngine(value: unknown): SearchEngine {
+  if (value === undefined || value === 'current') return 'current';
+  if (value === 'fts5') return 'fts5';
+  throw new Error('searchEngine must be current or fts5');
+}
+
+export function identifierTerms(query: string): string[] {
+  return [...new Set((query.match(/[\p{L}_][\p{L}\p{N}_]*/gu) ?? [])
+    .filter((term) => /\p{Ll}\p{Lu}|[\p{L}\p{N}]_[\p{L}\p{N}]/u.test(term)))];
+}
+
 export function openDb(): DatabaseSync {
   const paths = repoPaths();
   mkdirSync(dirname(paths.sqlitePath), { recursive: true });
@@ -428,10 +442,7 @@ function readFromIndex<T>(read: (db: DatabaseSync) => T): T {
 }
 
 function indexedRecordRows<T>(projection: string, includeArchive: boolean, modules: string[], recordId?: string): T[] {
-  const moduleFilter = modules.length > 0
-    ? `AND (NOT EXISTS (SELECT 1 FROM record_modules WHERE record_modules.record_id = records.id)
-      OR EXISTS (SELECT 1 FROM record_modules WHERE record_modules.record_id = records.id AND record_modules.module IN (${modules.map(() => '?').join(',')})))`
-    : '';
+  const moduleFilter = recordModuleFilter(modules);
   return readFromIndex((db) => db.prepare(`
 SELECT ${projection}
 FROM search_index
@@ -440,6 +451,108 @@ WHERE (? = 1 OR records.archived = 0)
 ${moduleFilter}
 ${recordId === undefined ? '' : 'AND records.id = ?'}
 `).all(includeArchive ? 1 : 0, ...modules, ...(recordId === undefined ? [] : [recordId])) as T[]);
+}
+
+function recordModuleFilter(modules: string[]): string {
+  return modules.length > 0
+    ? `AND (NOT EXISTS (SELECT 1 FROM record_modules WHERE record_modules.record_id = records.id)
+      OR EXISTS (SELECT 1 FROM record_modules WHERE record_modules.record_id = records.id AND record_modules.module IN (${modules.map(() => '?').join(',')})))`
+    : '';
+}
+
+function ensureFtsProjection(db: DatabaseSync): void {
+  const ready = () => (db.prepare("SELECT value FROM index_metadata WHERE key = 'fts_projection_version'").get() as { value: string } | undefined)?.value === '1'
+    && (db.prepare("SELECT count(*) AS count FROM sqlite_master WHERE type = 'table' AND name IN ('record_fts', 'record_identifiers')").get() as { count: number }).count === 2;
+  if (ready()) return;
+  // Rebuild clears the marker atomically; current search never needs FTS5 support.
+  db.exec('BEGIN IMMEDIATE');
+  try {
+    if (!ready()) {
+      db.exec(`CREATE VIRTUAL TABLE IF NOT EXISTS record_fts USING fts5(record_id UNINDEXED, title, body, tags, tokenize='unicode61');
+        CREATE TABLE IF NOT EXISTS record_identifiers (record_id TEXT NOT NULL, identifier TEXT NOT NULL, PRIMARY KEY(record_id, identifier));
+        DELETE FROM record_fts;
+        DELETE FROM record_identifiers;
+        INSERT INTO record_fts SELECT record_id, title, body, tags FROM search_index;`);
+      const insert = db.prepare('INSERT OR IGNORE INTO record_identifiers VALUES (?, ?)');
+      const rows = db.prepare('SELECT record_id, title, body, tags FROM search_index').all() as Array<{ record_id: string; title: string; body: string; tags: string }>;
+      for (const row of rows) {
+        for (const word of identifierTerms(`${row.title} ${row.body} ${row.tags}`)) insert.run(row.record_id, word.toLowerCase());
+      }
+      db.prepare("INSERT OR REPLACE INTO index_metadata VALUES ('fts_projection_version', '1')").run();
+    }
+    db.exec('COMMIT');
+  } catch (error) {
+    db.exec('ROLLBACK');
+    throw error;
+  }
+}
+
+export function searchFtsRecords(query: string, options: {
+  modules?: string[];
+  includeArchive?: boolean;
+  excludeDrafts?: boolean;
+  includeHistory?: boolean;
+  limit?: number;
+} = {}): { records: ContextRecord[]; identifierIds: string[]; available: boolean } {
+  const limit = options.limit ?? 10;
+  if (!Number.isInteger(limit) || limit < 1) throw new Error('FTS5 limit must be a positive integer');
+  const terms = query.toLowerCase().split(/[^\p{L}\p{N}_-]+/u).filter((word) => word.length > 1);
+  if (!terms.length) return { records: [], identifierIds: [], available: true };
+  const modules = moduleSearchNames(options.modules ?? []);
+  const scope = `(? = 1 OR records.archived = 0) ${recordModuleFilter(modules)}
+    ${options.excludeDrafts ? "AND instr(records.path, '/drafts/') = 0" : ''}
+    ${options.includeHistory === false ? `AND records.status NOT IN ('superseded', 'cancelled', 'canceled', 'retired', 'archived')
+      AND records.type NOT IN ('run-summary', 'verification-evidence', 'refactor', 'agent-run', 'acceptance-review')
+      AND NOT (records.type = 'research' AND records.status = 'closed')
+      AND NOT (records.type IN ('task', 'backlog') AND records.status = 'done')` : ''}`;
+  const bindings = [options.includeArchive ? 1 : 0, ...modules];
+  try {
+    return readFromIndex((db) => {
+      ensureFtsProjection(db);
+      db.exec('BEGIN');
+      // Pin projection and plain records to one snapshot across all result reads.
+      const ready = db.prepare("SELECT value FROM index_metadata WHERE key = 'fts_projection_version'").get() as { value: string } | undefined;
+      if (ready?.value !== '1') throw new Error('FTS5 projection invalidated before reading');
+      const rows = db.prepare(`SELECT search_index.body, search_index.metadata FROM record_fts
+        JOIN records ON records.id = record_fts.record_id JOIN search_index ON search_index.record_id = records.id
+        WHERE record_fts MATCH ? AND ${scope}
+        ORDER BY bm25(record_fts, 0, 10, 2, 6), records.path LIMIT ?`)
+        .all(terms.map((term) => `"${term.replaceAll('"', '""')}"`).join(' OR '), ...bindings, Math.min(5, limit)) as Array<{ body: string; metadata: string }>;
+      const records = rows.map((row) => ({ ...JSON.parse(row.metadata) as Omit<ContextRecord, 'body'>, body: row.body }));
+      const seen = new Set(records.map((record) => record.id));
+      const identifierIds: string[] = [];
+      const markedTerms = identifierTerms(query);
+      if (markedTerms.length && records.length < limit) {
+        // shortcut: literal substring lookup scans the vocabulary; upgrade after real workload measurements justify another index.
+        const candidates = db.prepare(`SELECT records.id, records.path, search_index.title, search_index.body, search_index.tags
+          FROM records JOIN search_index ON search_index.record_id = records.id
+          WHERE ${scope} AND records.id IN (SELECT record_id FROM record_identifiers WHERE identifier != ? AND instr(identifier, ?) > 0)`);
+        const selected: string[] = [];
+        for (const term of markedTerms) {
+          const lower = term.toLowerCase();
+          const matches = candidates.all(...bindings, lower, lower) as Array<{ id: string; path: string; title: string; body: string; tags: string }>;
+          matches.sort((a, b) => recordSearchScore(b, [lower]) - recordSearchScore(a, [lower]) || a.path.localeCompare(b.path));
+          for (const row of matches) {
+            if (seen.has(row.id)) continue;
+            seen.add(row.id);
+            selected.push(row.id);
+            if (selected.length >= Math.min(5, limit - records.length)) break;
+          }
+          if (selected.length >= Math.min(5, limit - records.length)) break;
+        }
+        const read = db.prepare('SELECT body, metadata FROM search_index WHERE record_id = ?');
+        for (const id of selected) {
+          const row = read.get(id) as { body: string; metadata: string };
+          records.push({ ...JSON.parse(row.metadata) as Omit<ContextRecord, 'body'>, body: row.body });
+          identifierIds.push(id);
+        }
+      }
+      db.exec('COMMIT');
+      return { records, identifierIds, available: true };
+    });
+  } catch {
+    return { records: [], identifierIds: [], available: false };
+  }
 }
 
 export function readSearchRecords(options: {
@@ -472,7 +585,11 @@ export function readSearchRecords(options: {
   };
 }
 
-export function searchIndex(query: string, limit = 10, includeArchive = false, modules: string[] = []): ContextRecord[] {
+export function searchIndex(query: string, limit = 10, includeArchive = false, modules: string[] = [], searchEngine: SearchEngine = 'current'): ContextRecord[] {
+  if (parseSearchEngine(searchEngine) === 'fts5') {
+    const result = searchFtsRecords(query, { limit, includeArchive, modules });
+    if (result.available) return result.records;
+  }
   const terms = query
     .toLowerCase()
     .split(/[^\p{L}\p{N}_-]+/u)
