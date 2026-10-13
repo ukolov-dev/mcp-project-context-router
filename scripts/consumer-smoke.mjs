@@ -15,7 +15,7 @@ const consumer = join(scratch, 'consumer');
 const cache = join(scratch, 'npm-cache');
 const userconfig = join(scratch, 'empty.npmrc');
 const report = { status: 'RUNNING', version: metadata.version, node: process.version, sqlite: process.versions.sqlite,
-  sourceCommit: null, sourceDirty: null, checks: [], tarball: null, tarballSha256: null, lockSha256: null };
+  sourceCommit: null, sourceDirty: null, fts5Available: null, checks: [], tarball: null, tarballSha256: null, lockSha256: null };
 const npmCli = process.env.npm_execpath;
 assert(npmCli, 'Run this check through npm run package:consumer.');
 const env = { ...process.env, npm_config_cache: cache, npm_config_userconfig: userconfig,
@@ -68,6 +68,10 @@ try {
   json('index');
   const dbPath = join(consumer, '.project-context/indexes/context.sqlite');
   const { DatabaseSync } = await import('node:sqlite');
+  const probe = new DatabaseSync(':memory:');
+  try { report.fts5Available = Boolean(probe.prepare("SELECT sqlite_compileoption_used('ENABLE_FTS5') AS enabled").get().enabled); }
+  finally { probe.close(); }
+  if (env.PROJECT_CONTEXT_EXPECT_FTS5 !== undefined) assert.equal(String(report.fts5Available), env.PROJECT_CONTEXT_EXPECT_FTS5);
   const defaultSearch = json('search', 'quick_valid');
   assert.deepEqual(defaultSearch, json('search', 'quick_valid', '--search-engine', 'current'));
   const db = new DatabaseSync(dbPath);
@@ -75,17 +79,24 @@ try {
   finally { db.close(); }
   checked('Default current search is equivalent and creates no FTS projection');
   const ftsSearch = json('search', 'quick_valid', '--search-engine', 'fts5');
-  assert.deepEqual(ftsSearch.records.map((record) => record.id), ['DIRECT', 'RESERVE']);
+  if (report.fts5Available) assert.deepEqual(ftsSearch.records.map((record) => record.id), ['DIRECT', 'RESERVE']);
+  else assert.deepEqual(ftsSearch, defaultSearch);
   const stripCache = ({ cache, ...pack }) => pack;
   const packArgs = ['pack', 'quick_valid', '--modules', 'app', '--max-tokens', '4000'];
   assert.deepEqual(stripCache(json(...packArgs)), stripCache(json(...packArgs, '--search-engine', 'current')));
   const pack = json(...packArgs, '--search-engine', 'fts5');
-  assert.deepEqual(pack.records.map((record) => record.id), ['DIRECT', 'RESERVE']);
-  assert.equal(pack.records[1].reason, 'Matched partial identifier reserve.');
-  assert(pack.records[1].excerpt.includes('quick_validation'));
+  if (report.fts5Available) {
+    assert.deepEqual(pack.records.map((record) => record.id), ['DIRECT', 'RESERVE']);
+    assert.equal(pack.records[1].reason, 'Matched partial identifier reserve.');
+    assert(pack.records[1].excerpt.includes('quick_validation'));
+  } else {
+    assert.deepEqual(pack.records, json(...packArgs).records);
+    assert.equal(pack.cache.status, 'disabled');
+  }
   assert(!pack.budget.exceedsLimit && pack.budget.estimatedTokens <= 4000);
-  assert(!pack.warnings.some((warning) => warning.includes('FTS5 unavailable')));
-  checked('Installed CLI preserves direct FTS results and delivers reserve evidence in a bounded pack');
+  assert.equal(pack.warnings.some((warning) => warning.includes('FTS5 unavailable')), !report.fts5Available);
+  checked(report.fts5Available ? 'Installed CLI preserves direct FTS results and delivers reserve evidence in a bounded pack'
+    : 'Installed CLI falls back to current search with a visible warning and disabled caching');
   const sdk = join(consumer, 'node_modules/@modelcontextprotocol/sdk/dist/esm/client');
   const { Client } = await import(pathToFileURL(join(sdk, 'index.js')).href);
   const { StdioClientTransport } = await import(pathToFileURL(join(sdk, 'stdio.js')).href);
@@ -107,9 +118,16 @@ try {
   };
   assert.deepEqual(stripCache(await call(input)), stripCache(await call({ ...input, searchEngine: 'current' })));
   const mcpPack = await call({ ...input, searchEngine: 'fts5' });
-  assert.deepEqual(mcpPack.records.map((record) => record.id), ['DIRECT', 'RESERVE']);
-  assert.equal(mcpPack.records[1].reason, 'Matched partial identifier reserve.');
-  assert(!mcpPack.budget.exceedsLimit && mcpPack.records[1].excerpt.includes('quick_validation'));
+  if (report.fts5Available) {
+    assert.deepEqual(mcpPack.records.map((record) => record.id), ['DIRECT', 'RESERVE']);
+    assert.equal(mcpPack.records[1].reason, 'Matched partial identifier reserve.');
+    assert(mcpPack.records[1].excerpt.includes('quick_validation'));
+  } else {
+    assert.deepEqual(mcpPack.records, (await call(input)).records);
+    assert.equal(mcpPack.cache.status, 'disabled');
+  }
+  assert(!mcpPack.budget.exceedsLimit);
+  assert.equal(mcpPack.warnings.some((warning) => warning.includes('FTS5 unavailable')), !report.fts5Available);
   checked('Installed stdio MCP handshake/version/default/FTS pack tool');
   await client.close();
   client = undefined;

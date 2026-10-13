@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { hasFts5 } from './sqlite-fts.js';
 import { buildContextPack } from '../src/context-pack/pack.js';
 import { ensureFreshIndex, openDb, rebuildIndex, searchFtsRecords, searchIndex } from '../src/indexer/sqlite.js';
 import { buildProjectContextPack, buildProjectContextPackInputSchema } from '../src/project-context/project-context.js';
@@ -37,7 +38,7 @@ function ids(query: string, options: Parameters<typeof searchFtsRecords>[1] = {}
   return result.records.map((record) => record.id);
 }
 
-describe('optional FTS5 with identifier reserve', () => {
+describe.skipIf(!hasFts5)('optional FTS5 with identifier reserve', () => {
   it('reads direct and reserve results from one snapshot when another connection rebuilds between them', () => {
     record('FIRST', 'quick_valid');
     record('THIRD', 'quick_validation');
@@ -219,4 +220,15 @@ describe('optional FTS5 with identifier reserve', () => {
     expect(search.records.map((r: { id: string }) => r.id)).toEqual(['RECORD']);
     expect(readFileSync(resolve(root, '.project-context/active/records/RECORD.md'), 'utf8')).toContain('quick_validation');
   });
+});
+
+it.skipIf(hasFts5)('preserves current retrieval and reports uncached fallback when the runtime lacks FTS5', () => {
+  record('RECORD', 'quick_validation');
+  const input = { query: 'quick_valid', modules: ['router'], maxTokens: 4000 };
+  const current = buildContextPack(input);
+  const fallback = buildContextPack({ ...input, searchEngine: 'fts5' });
+  expect(searchFtsRecords('quick_valid').available).toBe(false);
+  expect(fallback.records).toEqual(current.records);
+  expect(fallback.cache?.status).toBe('disabled');
+  expect(fallback.warnings.some((warning) => warning.includes('FTS5 unavailable'))).toBe(true);
 });

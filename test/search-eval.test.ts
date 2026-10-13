@@ -2,6 +2,7 @@ import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSy
 import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { hasFts5 } from './sqlite-fts.js';
 import { budgetContext, applyIdentifierFallback, identifierTerms, engines, evaluateSearch, expandRelations, fuseRankings, supportingRecords, scoreHits, validateFixture } from '../scripts/search-eval.js';
 import type { ContextRecord } from '../src/storage/types.js';
 import { estimateTokens } from '../src/context-pack/pack.js';
@@ -16,7 +17,7 @@ function record(id: string, fields: Partial<ContextRecord> = {}): ContextRecord 
 }
 
 describe('search relevance evaluation', () => {
-  it('replays consumer routing and required guidance, recording honest budget overflow', () => {
+  it.skipIf(!hasFts5)('replays consumer routing and required guidance, recording honest budget overflow', () => {
     const snapshot = { kind: 'project-snapshot', version: 1, description: 'Consumer budget regression',
       capturedAt: '2026-10-13T00:00:00Z', excludedRecordIds: [],
       config: { modules: { product: { path: 'src', aliases: ['backend'] } } },
@@ -33,7 +34,7 @@ describe('search relevance evaluation', () => {
     expect(() => evaluateSearch({ ...snapshot, consumer: { ...snapshot.consumer, supportFiles: [{ path: '.project-context/project.yaml', content: '' }] } }, 1)).toThrow('overwrite context');
     expect(() => evaluateSearch({ ...snapshot, consumer: { ...snapshot.consumer, supportFiles: [...snapshot.consumer.supportFiles, ...snapshot.consumer.supportFiles] } }, 1)).toThrow('Duplicate support');
   });
-  it('evaluates actual excerpt packs with explicit history controls and unchanged relevance labels', () => {
+  it.skipIf(!hasFts5)('evaluates actual excerpt packs with explicit history controls and unchanged relevance labels', () => {
     const snapshot = { kind: 'project-snapshot', version: 1, description: 'Runtime pack policy control',
       capturedAt: '2026-10-13T00:00:00Z', excludedRecordIds: [],
       config: { modules: { router: { path: 'src', aliases: ['engine'] } } },
@@ -68,7 +69,7 @@ describe('search relevance evaluation', () => {
     expect(() => scaleCorpus({ ...base, records: [...base.records, { ...base.records[0], id: 'LOAD-000000' }] }, 240)).toThrow('collision');
   });
 
-  it('preserves snapshot Markdown bytes and queries when adding load', () => {
+  it.skipIf(!hasFts5)('preserves snapshot Markdown bytes and queries when adding load', () => {
     const snapshot = { kind: 'project-snapshot' as const, version: 1, description: 'Generic load replay',
       capturedAt: '2026-10-12T00:00:00Z', excludedRecordIds: [],
       config: { modules: { router: { path: 'src', aliases: ['engine'] }, docs: { path: 'docs', aliases: [] } } },
@@ -84,7 +85,7 @@ describe('search relevance evaluation', () => {
     expect(() => scaleCorpus({ ...snapshot, documents: [{ ...snapshot.documents[0], markdown: renderMarkdown({ id: 'LOAD-000000' }, 'Collision') }] }, 220)).toThrow('collision');
   });
 
-  it('selects benchmark engines while preserving their default quality and budget outcomes', () => {
+  it.skipIf(!hasFts5)('selects benchmark engines while preserving their default quality and budget outcomes', () => {
     const input = { ...fixture, queries: fixture.queries.slice(0, 2) };
     const all = evaluateSearch(input, 1);
     const subset = evaluateSearch(input, 1, [500, 1000, 2000, 4000], ['current', 'fts5', 'fts5+identifiers']);
@@ -171,7 +172,7 @@ describe('search relevance evaluation', () => {
     expect(direct.map((hit) => hit.id)).toEqual(['A', 'B', 'C', 'D', 'E']);
   });
 
-  it('finds multiple proper identifiers beyond five exact glossary candidates and preserves the FTS prefix', () => {
+  it.skipIf(!hasFts5)('finds multiple proper identifiers beyond five exact glossary candidates and preserves the FTS prefix', () => {
     const partials = ['PARTIAL-A', 'PARTIAL-B', 'PARTIAL-C', 'PARTIAL-D'];
     const data = {
       version: 1, description: 'Generic candidate depth regression',
@@ -194,7 +195,7 @@ describe('search relevance evaluation', () => {
     expect(row.engines['fts5+identifiers'].identifierCandidateMatches).toBe(4);
   });
 
-  it('filters indexed identifiers with Unicode case folding and preserves weighted ranking and term order before capped reads', () => {
+  it.skipIf(!hasFts5)('filters indexed identifiers with Unicode case folding and preserves weighted ranking and term order before capped reads', () => {
     const fields = (id: string, title: string, body: string, tags: string[] = []) => ({ id, type: 'source', module: 'router', title, body, tags, files: [] });
     const ranked = ['Z', 'D', 'A', 'C', 'B', 'E', 'F'];
     const data = {
@@ -228,7 +229,7 @@ describe('search relevance evaluation', () => {
     }
   });
 
-  it('limits fallback to longer code identifiers in eligible modules and archive scope', () => {
+  it.skipIf(!hasFts5)('limits fallback to longer code identifiers in eligible modules and archive scope', () => {
     const data = {
       version: 1, description: 'Generic fallback scope regression',
       records: [
@@ -301,7 +302,7 @@ describe('search relevance evaluation', () => {
     expect(process.cwd()).toBe(cwd);
   });
 
-  it('compares all variants on real SQLite/Markdown with shared scope and restores cwd', () => {
+  it.skipIf(!hasFts5)('compares all variants on real SQLite/Markdown with shared scope and restores cwd', () => {
     const cwd = process.cwd();
     const report = evaluateSearch(fixture, 1);
     expect(process.cwd()).toBe(cwd);
@@ -368,7 +369,7 @@ describe('search relevance evaluation', () => {
     }
   });
 
-  it('replays original Markdown, aliases and duplicate/archive selection without touching the caller index', () => {
+  it.skipIf(!hasFts5)('replays original Markdown, aliases and duplicate/archive selection without touching the caller index', () => {
     const originalCwd = process.cwd();
     const caller = realpathSync(mkdtempSync(resolve(tmpdir(), 'search-eval-caller-')));
     const document = (id: string, area: string, fields: Record<string, unknown>, body: string) => ({

@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
+import { hasFts5 } from './sqlite-fts.js';
 import { coreToolNames, executionToolNames, researchToolNames, type McpToolProfile } from '../src/mcp/tool-profiles.js';
 import { loadProjectConfig } from '../src/storage/config.js';
 
@@ -55,8 +56,8 @@ describe('Codex project-context MCP launch config', () => {
     const tools = responseResult(responses, 2).tools as McpTool[];
     expect(tools.find((tool) => tool.name === 'build_context_pack')?.inputSchema?.properties?.searchEngine?.enum).toEqual(['current', 'fts5']);
     const result = responseResult(responses, 3).structuredContent as { records: unknown[]; warnings: string[] };
-    expect(result.records).toEqual([]);
-    expect(result.warnings.some((warning) => warning.includes('FTS5 unavailable'))).toBe(false);
+    if (hasFts5) expect(result.records).toEqual([]);
+    expect(result.warnings.some((warning) => warning.includes('FTS5 unavailable'))).toBe(!hasFts5);
   });
   it('starts the configured server and keeps the indexed project config portable', async () => {
     const config = readProjectContextConfig(readFileSync(configPath, 'utf8'));

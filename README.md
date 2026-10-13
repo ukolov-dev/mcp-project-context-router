@@ -109,6 +109,8 @@ from implementation tasks, then creates linked backlog drafts. See the
 
 Local search and context packs also support an **experimental**, opt-in `fts5` engine with a
 partial-identifier reserve. The existing `current` engine remains the default.
+FTS5 requires a runtime compiled with SQLite FTS5 (verified with Node.js 22.23.2);
+Node.js 22.13.0 supports the default mode and falls back with a pack warning.
 Use `project-context pack "quick_valid" --search-engine fts5 --max-tokens 4000`
 or pass `searchEngine: "fts5"` to `build_context_pack`. See the
 [SQLite search modes](docs/sqlite-index.md#optional-fts5-search-mode) and

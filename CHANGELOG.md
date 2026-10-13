@@ -7,6 +7,7 @@ Notable changes to Project Context Router are recorded here. Versions before
 
 ## [0.8.0] - 2026-10-13
 
+- Validate Node 22.13.0 current/fallback compatibility and Node 22.23.2 FTS5 support separately; older official runtimes lack the compiled FTS5 module.
 - Add experimental per-request `fts5` search with a partial-identifier reserve in CLI search, local context packs and MCP pack tools. `current` remains the default; related-record expansion is not enabled.
 - Preserve the five direct BM25 results before appending up to five new identifier matches. Filter module/alias/archive and pack history/draft eligibility before result caps and candidate Markdown reads.
 - Build disposable FTS5/identifier projections lazily and transactionally; invalidate them on plain-index rebuild and read direct/reserve results from one SQLite snapshot. Preserve 0.7.1 recovery, fallback and source-record behavior.

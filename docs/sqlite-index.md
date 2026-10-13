@@ -93,6 +93,11 @@ a warm cache miss with and without an explicit task.
 
 ## Optional FTS5 search mode
 
+FTS5 needs a Node runtime compiled with SQLite `SQLITE_ENABLE_FTS5`. Official
+Node.js 22.13.0 does not include it; the default mode remains supported and packs
+report an uncached fallback. FTS5 is verified on Node.js 22.23.2. See the
+[Node compile flags](https://github.com/nodejs/node/blob/v22.23.2/deps/sqlite/sqlite.gyp).
+
 **Experimental in 0.8.0.** `current` remains the default for standalone search
 and every local context-pack entry point. Select `fts5` for one request:
 
