@@ -121,9 +121,10 @@ or pass `searchEngine: "fts5"` to `build_context_pack`. See the
 There is no language switch: discovery runs automatically for files selected by
 `modules.*.source_globs` in `.project-context/project.yaml`. Project memory, task
 contracts and context packs work independently of the application stack. The
-router itself requires Node.js 22.13+ and npm, including in .NET and Java projects.
+router itself requires Node.js 22.13+ and npm, even when the application uses
+another language.
 
-For a .NET or Java repository without `package.json`, run `npm init -y` before
+For a repository without `package.json`, run `npm init -y` before
 the install command in Quick start. This adds the router's Node tooling beside
 your existing application build; keep the resulting package manifest and lockfile
 in the consumer repository.
@@ -144,8 +145,16 @@ After installing the router, initialize from the consumer repository root:
 npx project-context init --name "My Project" --module backend:src
 ```
 
-For Java or frontend-only projects, use `--module backend:backend` or
-`--module frontend:frontend` instead. `init` preserves existing configuration.
+Choose the initial module for the example layout you use:
+
+| Stack | `--module` |
+| --- | --- |
+| C# / .NET | `backend:src` |
+| Java / Spring or Node.js backend | `backend:backend` |
+| Frontend | `frontend:frontend` |
+| Python, Go or Rust examples | `app:.` |
+
+`init` preserves existing configuration.
 Add or update the relevant blocks below in `.project-context/project.yaml`; keep
 other project settings and replace example paths and commands with your own.
 Explicit `source_globs` replace the module's defaults, so include every source
@@ -193,8 +202,11 @@ combinations are outside this basic coverage.
 
 ### Java / Spring
 
-This example assumes a Maven application under `backend/` and a Maven wrapper
-at the repository root:
+Maven and Gradle use the same source module configuration. The examples below
+assume the application/build files are under `backend/` and the selected wrapper
+is at the repository root; adjust both paths to match your layout.
+
+#### Maven
 
 ```yaml
 routing:
@@ -213,8 +225,26 @@ commands:
     context_pack: true
 ```
 
-For Gradle, replace the command with your wrapper's build command, for example
-`./gradlew -p backend build`. Match wrapper locations to your repository.
+#### Gradle
+
+Keep the Java module above and replace its `commands` block with:
+
+```yaml
+commands:
+  backend_verify:
+    run: ./gradlew -p backend build
+    required_for: [backend]
+    context_pack: true
+```
+
+This also works with Kotlin DSL `build.gradle.kts`; the selected source files in
+this example remain Java. For a Gradle multi-project build rooted at the
+repository root, use its actual task path, for example `./gradlew :backend:build`,
+instead of treating the subproject as a separate build. On Windows, use
+`mvnw.cmd` or `gradlew.bat` in place of the shell wrapper. See the official
+[Gradle CLI](https://docs.gradle.org/current/userguide/command_line_interface.html)
+and [wrapper guide](https://docs.gradle.org/current/userguide/gradle_wrapper.html).
+
 Discovery recognizes class, record, interface and enum declarations, plus simple
 Spring MVC `RequestMapping` and `Get/Post/Put/Patch/DeleteMapping` annotations
 with literal routes. It does not provide Java method discovery, compiler-level
@@ -254,9 +284,146 @@ it classifies common `use*` functions as hooks and capitalized functions as
 components. It does not resolve imports, infer framework routes, or fully parse
 JSX, Vue/Svelte components or TypeScript semantics.
 
-For a monorepo, combine the backend and frontend module/command blocks under one
-`modules` and one `commands` mapping. Add a separate module or globs for tests and
-documentation if they live outside the selected source paths. Use `AGENTS.md`
+### Node.js backend / TypeScript / JavaScript
+
+This example assumes a Node.js service in `backend/` with sources in `src/` and
+existing `build` and `test` npm scripts:
+
+```yaml
+routing:
+  default_modules: [backend]
+modules:
+  backend:
+    path: backend
+    aliases: [backend, api, node, nodejs, javascript, typescript]
+    source_globs:
+      - "backend/src/**/*.{ts,js,mjs,cjs,mts,cts}"
+    playbooks: [AGENTS.md]
+commands:
+  backend_build:
+    run: npm --prefix backend run build
+    required_for: [backend]
+    context_pack: true
+  backend_tests:
+    run: npm --prefix backend test
+    required_for: [backend]
+    context_pack: true
+```
+
+Node.js uses the same TS/JS discovery rules as the frontend example; Express,
+Fastify and other framework routes are not automatically resolved. For plain
+JavaScript without a build script, omit `backend_build`. If the service is at the
+repository root, use `path: .`, `src/**/*.{ts,js,mjs,cjs,mts,cts}` globs and
+commands without `--prefix`. Use the project's actual scripts and package manager.
+
+### Python
+
+This example assumes sources in `src/`, tests in `tests/`, and pytest already
+installed in the active Python environment:
+
+```yaml
+routing:
+  default_modules: [app]
+modules:
+  app:
+    path: .
+    aliases: [app, backend, api, python]
+    source_globs:
+      - "src/**/*.py"
+      - "tests/**/*.py"
+    playbooks: [AGENTS.md]
+commands:
+  python_syntax:
+    run: python -m compileall -q src tests
+    required_for: [app]
+    context_pack: true
+  python_tests:
+    run: python -m pytest tests
+    required_for: [app]
+    context_pack: true
+```
+
+Use the interpreter/environment and test runner already used by your project;
+replace `python` with `python3` where appropriate. `compileall` checks syntax and
+writes bytecode caches, so keep `__pycache__/` and `*.pyc` out of Git. It does not
+replace linting, type checks or tests. Command references:
+[compileall](https://docs.python.org/3/library/compileall.html) and
+[pytest](https://docs.pytest.org/en/stable/how-to/usage.html).
+
+### Go
+
+This example assumes `go.mod` at the repository root:
+
+```yaml
+routing:
+  default_modules: [app]
+modules:
+  app:
+    path: .
+    aliases: [app, backend, api, go, golang]
+    source_globs:
+      - "**/*.go"
+      - "!vendor/**"
+    playbooks: [AGENTS.md]
+commands:
+  go_build:
+    run: go build ./...
+    required_for: [app]
+    context_pack: true
+  go_tests:
+    run: go test ./...
+    required_for: [app]
+    context_pack: true
+```
+
+For multiple Go modules, configure their actual source paths and run checks from
+each module directory. The commands above target the module rooted in the current
+directory. See the official [Go command reference](https://pkg.go.dev/cmd/go).
+
+### Rust
+
+This example assumes a Cargo package with `Cargo.toml` at the repository root:
+
+```yaml
+routing:
+  default_modules: [app]
+modules:
+  app:
+    path: .
+    aliases: [app, backend, rust, cargo]
+    source_globs:
+      - "**/*.rs"
+      - "!target/**"
+    playbooks: [AGENTS.md]
+commands:
+  rust_check:
+    run: cargo check --all-targets
+    required_for: [app]
+    context_pack: true
+  rust_tests:
+    run: cargo test
+    required_for: [app]
+    context_pack: true
+```
+
+`cargo check` checks the package without producing the final executable. For a
+workspace, add `--workspace` to both commands when all members must be checked.
+See the official [cargo check](https://doc.rust-lang.org/cargo/commands/cargo-check.html)
+and [cargo test](https://doc.rust-lang.org/cargo/commands/cargo-test.html) references.
+
+Python, Go and Rust extensions are already included in the default source globs.
+Their files participate in configured source selection, module routing and index
+freshness. They do not yet have dedicated symbol or endpoint extractors; incidental
+matches from existing text rules are not complete language support. Use reviewed
+context records that reference source files or explicit `pack --file` hints to
+include the code you need. A missing `reuse-scan` result does not prove that an
+implementation is absent.
+
+For a monorepo, combine the relevant module/command blocks under one
+`modules` and one `commands` mapping. Use distinct module names and actual service
+paths when multiple examples would otherwise share `app` or `backend`. Add a
+separate module or globs for tests and documentation if they live outside the
+selected source paths. Use `AGENTS.md`
 in `playbooks` only when that file exists in the consumer repository; otherwise
 use your actual instruction files or `playbooks: []`.
 
@@ -272,7 +439,15 @@ npx project-context pack "Update customer API" --modules backend
 ```
 
 For frontend-only projects, use `--modules frontend` and a component or hook
-name. Source edits and discovery-rule upgrades refresh the index automatically;
+name. For Python, Go or Rust, use `--modules app` and an explicit source path,
+for example:
+
+```bash
+npx project-context pack "Update customer service" --modules app --file src/customer.py
+```
+
+Replace that path with an existing `.py`, `.go` or `.rs` file in your repository.
+Source edits and discovery-rule upgrades refresh the index automatically;
 `index` also lets you rebuild it explicitly. Configured build/test commands are
 verification guidance; indexing does not compile or execute the application.
 
