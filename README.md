@@ -350,6 +350,12 @@ replace linting, type checks or tests. Command references:
 [compileall](https://docs.python.org/3/library/compileall.html) and
 [pytest](https://docs.pytest.org/en/stable/how-to/usage.html).
 
+Python discovery recognizes `def` / `async def` functions, class methods and
+classes, including decorated and multiline headers and generic type parameters.
+Explicit aliases declared with `type Name = ...` or `Name: TypeAlias = ...` are
+indexed as types. Leading underscores are treated as private by convention;
+`__all__`, decorator effects and inferred assignment aliases are not resolved.
+
 ### Go
 
 This example assumes `go.mod` at the repository root:
@@ -379,6 +385,12 @@ commands:
 For multiple Go modules, configure their actual source paths and run checks from
 each module directory. The commands above target the module rooted in the current
 directory. See the official [Go command reference](https://pkg.go.dev/cmd/go).
+
+Go discovery recognizes named functions, methods with receivers, generic
+functions/types, struct/interface declarations, named types and aliases,
+including `type (...)` groups. Names beginning with an uppercase letter are
+marked exported. Interface member signatures and compiler/build-tag semantics
+are outside this basic declaration coverage.
 
 ### Rust
 
@@ -411,13 +423,21 @@ workspace, add `--workspace` to both commands when all members must be checked.
 See the official [cargo check](https://doc.rust-lang.org/cargo/commands/cargo-check.html)
 and [cargo test](https://doc.rust-lang.org/cargo/commands/cargo-test.html) references.
 
-Python, Go and Rust extensions are already included in the default source globs.
-Their files participate in configured source selection, module routing and index
-freshness. They do not yet have dedicated symbol or endpoint extractors; incidental
-matches from existing text rules are not complete language support. Use reviewed
-context records that reference source files or explicit `pack --file` hints to
-include the code you need. A missing `reuse-scan` result does not prove that an
-implementation is absent.
+Rust discovery recognizes functions and methods in `impl` / `trait` blocks,
+structs, enums, traits, unions and type aliases. Common generics, lifetimes, raw
+identifiers and function qualifiers are accepted. Visibility reflects explicit
+`pub` and public trait items; restricted `pub(crate)` / `pub(super)` items are
+not marked externally exported. `macro_rules!` definitions and macro invocations are skipped.
+
+All three languages have dedicated declaration extractors, selected automatically
+for `.py`, `.go` and `.rs` sources. Comments and string literals are masked before
+discovery; symbols feed the same SQLite index, reuse scans and context packs as
+other languages. Existing consumer indexes refresh after this extractor upgrade.
+These are bounded text parsers, not compiler frontends: they do not resolve
+imports, inheritance, generated symbols, macro expansion, conditional compilation,
+framework endpoints or the entire language grammar. A missing `reuse-scan` result
+does not prove that an implementation is absent; inspect the code and use reviewed
+context records or `pack --file` hints when needed.
 
 For a monorepo, combine the relevant module/command blocks under one
 `modules` and one `commands` mapping. Use distinct module names and actual service
@@ -439,8 +459,8 @@ npx project-context pack "Update customer API" --modules backend
 ```
 
 For frontend-only projects, use `--modules frontend` and a component or hook
-name. For Python, Go or Rust, use `--modules app` and an explicit source path,
-for example:
+name. For Python, Go or Rust, use `--modules app` and your function/type names.
+An explicit source path can also be supplied, for example:
 
 ```bash
 npx project-context pack "Update customer service" --modules app --file src/customer.py
