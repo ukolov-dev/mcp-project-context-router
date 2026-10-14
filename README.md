@@ -20,6 +20,27 @@ turning an external service into the source of truth.
 See the [changelog](CHANGELOG.md) and [GitHub releases](https://github.com/ukolov-dev/mcp-project-context-router/releases)
 for versioned changes and installable tarballs.
 
+## Website and documentation
+
+- [English website](https://ukolov-dev.github.io/mcp-project-context-router/en/) · [English documentation](https://ukolov-dev.github.io/mcp-project-context-router/en/docs/quickstart.html)
+- [Сайт на русском](https://ukolov-dev.github.io/mcp-project-context-router/ru/) · [Документация на русском](https://ukolov-dev.github.io/mcp-project-context-router/ru/docs/quickstart.html)
+
+Both languages cover installation, project stacks, agent workflow, tools and records,
+and upgrading/troubleshooting. The language switch keeps the current topic.
+Source pages are in `site/content/en` and `site/content/ru`; edit both translations
+when behavior changes. GitHub Actions builds and deploys `site/dist` to GitHub
+Pages after changes land on `main`. The website is excluded from the npm package.
+
+To preview locally after `npm ci`:
+
+```bash
+npm run site:build
+npm run site:check
+npm run site:preview
+```
+
+Open `http://127.0.0.1:4179/`. Rebuild and refresh after editing Markdown or assets.
+
 ## Why use it?
 
 - Keep project memory versioned beside the code that it describes.

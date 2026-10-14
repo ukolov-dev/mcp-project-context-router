@@ -50,10 +50,16 @@ modules:
     aliases: [docs, documentation, template, workflow]
     source_globs: ["README.md", "docs/**/*.md", "templates/**/*.{md,yaml,toml,json}"]
     playbooks: [AGENTS.md]
+  site:
+    path: site
+    stack: Markdown, HTML, CSS, JavaScript
+    aliases: [site, website, pages, сайт]
+    source_globs: ["site/**/*.{md,mjs,js,css,svg}", ".github/workflows/pages.yml"]
+    playbooks: [AGENTS.md, playbooks/testing.md]
 commands:
   context_lint:
     run: node bin/project-context lint
-    required_for: [router, tests, docs]
+    required_for: [router, tests, docs, site]
     context_pack: true
   context_index:
     run: node bin/project-context index
@@ -72,6 +78,14 @@ commands:
   package_check:
     run: npm run package:check
     required_for: [router]
+    context_pack: true
+  site_build:
+    run: npm run site:build
+    required_for: [site]
+    context_pack: true
+  site_check:
+    run: npm run site:check
+    required_for: [site]
     context_pack: true
 retention:
   context_packs:
