@@ -17,3 +17,4 @@ coverage/
 .project-context/active/**/.*.tmp
 
 .project-context/active/**/.research.lock
+site/dist/

@@ -54,7 +54,10 @@
     "package:check": "node scripts/package-smoke.mjs",
     "export:standalone": "node scripts/export-standalone.mjs",
     "search:eval": "node --import tsx scripts/search-eval.ts",
-    "package:consumer": "node scripts/consumer-smoke.mjs"
+    "package:consumer": "node scripts/consumer-smoke.mjs",
+    "site:build": "node site/build.mjs",
+    "site:check": "node site/check.mjs",
+    "site:preview": "vite site/dist --host 127.0.0.1 --port 4179 --strictPort"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.29.0",
@@ -68,6 +71,7 @@
   "devDependencies": {
     "@types/js-yaml": "4.0.9",
     "@types/node": "24.12.4",
+    "marked": "18.1.1",
     "tsx": "4.23.12",
     "typescript": "5.9.3",
     "vite": "6.4.3",

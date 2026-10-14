@@ -1,0 +1,63 @@
+# Инструменты и записи
+
+Project Context Router — локальный stdio MCP-сервер и CLI. Markdown хранит долговечную память; SQLite-индекс можно пересоздать.
+
+## Файлы проекта
+
+| Путь | Назначение |
+| --- | --- |
+| `.project-context/project.yaml` | Модули, маски файлов, плейбуки и команды проверки |
+| `.project-context/active/` | Долговечные записи проекта |
+| `.project-context/drafts/` | Локальные предложения для ревью |
+| `.project-context/archive/` | Исторические записи |
+| `.project-context/indexes/` | Пересоздаваемый SQLite-индекс и кеш контекста |
+| `.agents/skills/` | Установленные skills проекта, если выбрана эта опция |
+
+Не публикуйте индексы, черновики, корзину, учётные данные и личные инструкции в памяти проекта. Проверяйте долговечные записи перед коммитом.
+
+## Инструменты обычной задачи
+
+| MCP-инструмент | Действие |
+| --- | --- |
+| `get_project_brief` | Описание и конфигурация репозитория |
+| `validate_task`, `confirm_task_contract` | Черновик и подтверждение границ задачи |
+| `build_context_pack`, `retrieve_project_context` | Контекст конкретной работы |
+| `find_existing_capability` | Поиск существующей реализации |
+| `get_verification_plan` | Проверки и прежние evidence |
+| `record_verification_evidence` | Реальные результаты и границы окружения |
+| `review_diff_for_refactor` | Эвристика по файлам и модулям выбранного diff |
+| `finalize_work` | Сохранение последнего результата задачи |
+| `context_doctor` | Диагностика локальных данных и конфигурации |
+
+Синтаксис CLI смотрите в `npx project-context --help` и справке конкретной команды. Доступные инструменты определяет [профиль](configuration.html).
+
+## 13 типов записей
+
+| Группа | Типы |
+| --- | --- |
+| Работа и планирование | `task`, `bug`, `backlog`, `research` |
+| Знания проекта | `project`, `decision`, `requirement`, `open_question` |
+| Источники | `source`, `source_chunk` |
+| Проверки и выполнение | `verification-evidence`, `agent-run`, `acceptance-review` |
+
+Не у каждого типа есть отдельный CRUD-инструмент. Общий поиск читает записи; `propose_context_update` предлагает шесть типов знаний: project, decision, requirement, open_question, source и source_chunk. Продвижение требует ревью. Критерии приёмки задачи находятся в Task Contract.
+
+Связи требований используют точные ID или явные `task_key` / `task_keys`. Упоминание в тексте и совпадение префикса не создают связь. Для заданий портала сохраняются необязательные ссылки на исходный документ, ревизию и код задачи.
+
+## Поиск и история
+
+```bash
+npx project-context search "CustomerService"
+npx project-context pack "Update customer service" --modules app
+npx project-context pack "Historical decision" --include-history --include-archive
+```
+
+Обычный пакет скрывает завершённую историю workflow и удалённые из модели типы. `--include-history` разрешает историю; `--include-archive` подключает архивное хранилище.
+
+Режим `--search-engine fts5` экспериментальный. Нужна SQLite с FTS5; проверено на Node 22.23.2. Node 22.13.0 поддерживает обычный поиск и возвращается к нему с предупреждением, если FTS5 недоступен. [Оценка поиска](https://github.com/ukolov-dev/mcp-project-context-router/blob/main/docs/search-evaluation.md).
+
+## Необязательные подключения
+
+Context Hub/портал и Confluence требуют явной конфигурации проекта и учётные данные. Они отделены от локальной памяти разработки. Финализация локальной задачи не обновляет приёмку в портале автоматически. Используйте нужный профиль и собственный процесс интеграции: plan/apply либо назначение/отчёт.
+
+Credentials храните в переменных окружения или поддерживаемом системном хранилище, а не в экспортируемых записях. Справка: `npx project-context portal --help` и `npx project-context confluence --help`.

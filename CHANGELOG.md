@@ -5,6 +5,8 @@ Notable changes to Project Context Router are recorded here. Versions before
 
 ## Unreleased
 
+- Publish a bilingual English/Russian project website and documentation on GitHub Pages, with topic-preserving language links, copyable commands and responsive navigation. Check generated links and translations in CI.
+
 - Bundle a portable `project-context-workflow` skill for confirmed tasks, scoped context, verification and task finalization.
 - Add opt-in `init --with-skills` to copy workflow and research skills into repository `.agents/skills`, preserving existing files and reporting skipped paths. Reject escaping destinations and use exclusive creation to preserve dangling symlinks/concurrent files.
 - Verify skill delivery through package contents and the installed tarball CLI; document installation and manual update of project-owned copies.
