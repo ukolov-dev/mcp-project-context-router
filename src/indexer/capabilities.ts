@@ -2,13 +2,14 @@ import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { resolve } from 'node:path';
 import fg from 'fast-glob';
+import { extractLanguageCapabilities } from './languages.js';
 import { loadProjectConfig, type ProjectConfig } from '../storage/config.js';
 import { inferModulesFromPath, sourceGlobMayMatchPath, sourceGlobsForModule } from '../storage/inference.js';
 import type { Capability, Endpoint } from '../storage/types.js';
 import { repoPaths } from '../storage/repo.js';
 
 // Bump when discovery rules change so existing consumer indexes are rebuilt.
-const capabilityDiscoveryVersion = 'csharp-v1';
+const capabilityDiscoveryVersion = 'native-languages-v1';
 
 export function isCapabilitySourcePath(filePath: string): boolean {
   const config = loadProjectConfig();
@@ -36,6 +37,8 @@ export function discoverCapabilities(): { capabilities: Capability[]; endpoints:
     const lines = text.split(/\r?\n/);
     if (filePath.endsWith('.cs')) {
       extractCSharpCapabilities(filePath, module, text, capabilities, endpoints);
+    } else if (/\.(?:py|go|rs)$/.test(filePath)) {
+      for (const capability of extractLanguageCapabilities(filePath, module, text)) push(capabilities, capability);
     } else {
       extractTsCapabilities(filePath, module, lines, capabilities);
       extractJavaCapabilities(filePath, module, lines, capabilities, endpoints);
