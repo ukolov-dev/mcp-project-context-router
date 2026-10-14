@@ -1,3 +1,4 @@
+import { retiredRecordTypes } from '../storage/record-types.js';
 import { moduleSearchNames, resolveModuleName } from '../storage/inference.js';
 import { createHash } from 'node:crypto';
 import { mkdirSync, rmSync, statSync } from 'node:fs';
@@ -502,7 +503,7 @@ export function searchFtsRecords(query: string, options: {
   const scope = `(? = 1 OR records.archived = 0) ${recordModuleFilter(modules)}
     ${options.excludeDrafts ? "AND instr(records.path, '/drafts/') = 0" : ''}
     ${options.includeHistory === false ? `AND records.status NOT IN ('superseded', 'cancelled', 'canceled', 'retired', 'archived')
-      AND records.type NOT IN ('run-summary', 'verification-evidence', 'refactor', 'agent-run', 'acceptance-review')
+      AND records.type NOT IN (${[...retiredRecordTypes, 'verification-evidence', 'agent-run', 'acceptance-review'].map((type) => `'${type}'`).join(', ')})
       AND NOT (records.type = 'research' AND records.status = 'closed')
       AND NOT (records.type IN ('task', 'backlog') AND records.status = 'done')` : ''}`;
   const bindings = [options.includeArchive ? 1 : 0, ...modules];

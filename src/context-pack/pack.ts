@@ -1,3 +1,4 @@
+import { isRetiredRecordType } from '../storage/record-types.js';
 import { recordProvenance } from '../storage/lifecycle.js';
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
@@ -62,7 +63,7 @@ export type ContextPack = {
 };
 
 type CachedContextPack = {
-  version: 6;
+  version: 7;
   state: string;
   pack: Omit<ContextPack, 'cache'>;
 };
@@ -278,7 +279,7 @@ function readCachedContextPack(input: ContextPackInput): ContextPack | undefined
   try {
     if (!existsSync(descriptor.absolutePath)) return undefined;
     const cached = JSON.parse(readFileSync(descriptor.absolutePath, 'utf8')) as CachedContextPack;
-    if (cached.version !== 6 || cached.state !== buildCacheState(input)) return undefined;
+    if (cached.version !== 7 || cached.state !== buildCacheState(input)) return undefined;
     return {
       ...cached.pack,
       cache: {
@@ -297,7 +298,7 @@ function writeCachedContextPack(input: ContextPackInput, pack: Omit<ContextPack,
   try {
     mkdirSync(descriptor.dir, { recursive: true });
     const cached: CachedContextPack = {
-      version: 6,
+      version: 7,
       state: buildCacheState(input),
       pack,
     };
@@ -484,7 +485,7 @@ export function isDefaultHiddenHistory(record: { id: string; type: string; statu
   if (input.includeHistory) return false;
   if (record.id === input.taskId) return false;
   if (['superseded', 'cancelled', 'canceled', 'retired', 'archived'].includes(record.status)) return true;
-  if (['run-summary', 'verification-evidence', 'refactor', 'agent-run', 'acceptance-review'].includes(record.type)) return true;
+  if (isRetiredRecordType(record.type) || ['verification-evidence', 'agent-run', 'acceptance-review'].includes(record.type)) return true;
   if (record.type === 'research' && record.status === 'closed') return true;
   if (record.type === 'task' && record.status === 'done') return true;
   if (record.type === 'backlog' && (record.status === 'done' || record.status === 'cancelled')) return true;
@@ -509,15 +510,9 @@ function rankRetrievedRecords(records: ContextRecord[], query: string, modules: 
     task: 2,
     backlog: 2,
     decision: 12,
-    pattern: 6,
-    runbook: 5,
-    api: 4,
-    integration: 4,
-    data_entity: 4,
     requirement: 2,
     source: -4,
     source_chunk: -8,
-    acceptance_check: -4,
   };
   return records
     .map((record) => {

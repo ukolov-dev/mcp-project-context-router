@@ -52,8 +52,6 @@ const developerToolNames = [
 const analystToolNames = [
   ...researchToolNames,
   'search_project_context',
-  'find_integrations',
-  'find_data_entities',
   'get_decisions',
   'build_project_context_pack',
   'propose_context_update',

@@ -686,7 +686,7 @@ function createBacklogTaskDraft(backlog: BacklogItem, contract: TaskFromBacklogR
     updated_at: timestamp,
     confirmed_by_human: false,
     source: { kind: 'backlog', backlog_id: backlog.id, path: backlog.path },
-    related: { bugs: [], decisions: [], refactors: [] },
+    related: { bugs: [], decisions: [] },
     modules: contract.modules,
     files: contract.files,
     tags: contract.tags,

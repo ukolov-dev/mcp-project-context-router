@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { existsSync, readdirSync, readFileSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { loadHookContextConfig } from './context-config.js';
@@ -23,7 +23,7 @@ if (!confirmedTaskId) {
   process.exit(0);
 }
 
-if (hasRecentFinalizeDraft(root, changedFiles, state.updatedAt)) {
+if (hasRecentTaskResult(root, confirmedTaskId, state.updatedAt)) {
   cleanupState(statePath);
   process.exit(0);
 }
@@ -34,7 +34,7 @@ process.stdout.write(
   JSON.stringify({
     decision: 'block',
     reason:
-      `${context.logoText} Confirmed task ${confirmedTaskId} has changed files. Call ${context.mcpServerName}.finalize_work before final response, or explain why no context finalize draft is needed.`,
+      `${context.logoText} Confirmed task ${confirmedTaskId} has changed files. Call ${context.mcpServerName}.finalize_work before final response to save the result on the task.`,
   }),
 );
 
@@ -50,27 +50,17 @@ function gitRoot(cwd) {
   }
 }
 
-function hasRecentFinalizeDraft(root, changedFiles, updatedAt) {
-  const changed = changedFiles.filter((path) => !path.startsWith('.project-context/indexes/'));
-  if (changed.length === 0) return true;
-
-  const draftDir = resolve(root, '.project-context', 'drafts', 'run-summaries');
-  if (!existsSync(draftDir)) return false;
-
+function hasRecentTaskResult(root, taskId, updatedAt) {
+  const taskDir = resolve(root, '.project-context', 'active', 'tasks');
   const updatedAtMs = Date.parse(updatedAt ?? '');
-  if (Number.isNaN(updatedAtMs)) return false;
-
-  for (const entry of readdirSync(draftDir)) {
+  if (!existsSync(taskDir) || Number.isNaN(updatedAtMs)) return false;
+  for (const entry of readdirSync(taskDir)) {
     if (!entry.endsWith('.md')) continue;
-    const path = join(draftDir, entry);
-    const stat = statSync(path);
-    if (stat.mtimeMs + 1000 < updatedAtMs) continue;
-    const raw = readFileSync(path, 'utf8');
-    if (changed.some((file) => raw.includes(file))) {
-      return true;
-    }
+    const raw = readFileSync(join(taskDir, entry), 'utf8');
+    const id = raw.match(/^id:\s*['"]?([^'"\n]+)['"]?\s*$/m)?.[1]?.trim();
+    const finalizedAt = raw.match(/^finalized_at:\s*['"]?([^'"\n]+)['"]?\s*$/m)?.[1];
+    if (id === taskId && Date.parse(finalizedAt ?? '') >= updatedAtMs) return true;
   }
-
   return false;
 }
 

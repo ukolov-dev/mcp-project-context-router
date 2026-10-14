@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { findRecordPath, parseRecord, readRecords, writeMarkdown } from '../storage/markdown.js';
 import { relPath, repoPaths } from '../storage/repo.js';
 import { nowIso } from '../storage/time.js';
-import { segmentForRecordType } from '../storage/record-types.js';
+import { isRetiredRecordType, segmentForRecordType } from '../storage/record-types.js';
 
 export const promoteDraftInputSchema = z.object({
   recordId: z.string(),
@@ -60,6 +60,7 @@ export function promoteDraft(input: z.infer<typeof promoteDraftInputSchema>): Pr
     throw new Error(`Context record not found: ${parsed.recordId}`);
   }
   const record = parseRecord(sourcePath);
+  if (isRetiredRecordType(record.type)) throw new Error(`Record type ${record.type} is retired; existing records can be read or archived, but not promoted.`);
   if (!record.path.includes('/drafts/')) {
     throw new Error(`Record is not a draft: ${record.id} (${record.path})`);
   }
@@ -79,9 +80,7 @@ export function promoteDraft(input: z.infer<typeof promoteDraftInputSchema>): Pr
     promoted_at: parsed.apply ? nowIso() : '<promotion timestamp>',
     updated_at: parsed.apply ? nowIso() : '<promotion timestamp>',
   };
-  const warnings = record.type === 'run-summary'
-    ? ['Run summaries are review artifacts; promote only summaries that should become durable project memory.']
-    : [];
+  const warnings: string[] = [];
 
   if (!parsed.apply) {
     return {
@@ -186,21 +185,12 @@ function promotedStatus(type: string, current: string): string {
   if (type === 'backlog') return current;
   if (type === 'task') return current;
   if (type === 'decision') return 'active';
-  if (type === 'runbook') return 'active';
-  if (type === 'pattern') return 'active';
-  if (type === 'run-summary') return 'reviewed';
-  if (type === 'refactor') return current === 'draft' ? 'proposed' : current;
   if (type === 'bug') return current === 'draft' ? 'confirmed' : current;
   if (type === 'project') return 'active';
-  if (type === 'integration') return 'active';
-  if (type === 'data_entity') return 'active';
-  if (type === 'api') return 'active';
   if (type === 'requirement') return current === 'draft' ? 'proposed' : current;
   if (type === 'open_question') return current === 'draft' ? 'open' : current;
-  if (type === 'meeting_draft') return 'reviewed';
   if (type === 'source') return 'active';
   if (type === 'source_chunk') return 'active';
-  if (type === 'acceptance_check') return current === 'draft' ? 'proposed' : current;
   return current;
 }
 

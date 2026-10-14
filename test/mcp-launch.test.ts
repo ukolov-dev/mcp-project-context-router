@@ -98,10 +98,13 @@ describe('Codex project-context MCP launch config', () => {
     const tools = responseResult(responses, 2).tools as McpTool[];
     const toolNames = tools.map((tool) => tool.name);
 
-    expect(toolNames).toHaveLength(53 + executionToolNames.length + researchToolNames.length);
+    expect(toolNames).toHaveLength(51 + executionToolNames.length + researchToolNames.length);
     expect(toolNames).toEqual(expect.arrayContaining([...executionToolNames]));
     expect(toolNames).toContain('retrieve_project_context');
     expect(toolNames).toContain('search_project_context');
+    expect(toolNames).not.toContain('find_integrations');
+    expect(toolNames).not.toContain('find_data_entities');
+    expect(tools.find((tool) => tool.name === 'propose_context_update')?.inputSchema?.properties?.type?.enum).toEqual(['project', 'decision', 'requirement', 'open_question', 'source', 'source_chunk']);
     expect(toolNames).toContain('promote_drafts_batch');
     expect(toolNames).toContain('archive_records');
     expect(toolNames).toContain('plan_confluence_publish');

@@ -18,8 +18,6 @@ import {
 } from '../src/project-context/analytics.js';
 import {
   buildProjectContextPack,
-  findDataEntities,
-  findIntegrations,
   getDecisions,
   proposeContextUpdate,
   searchProjectContext,
@@ -347,16 +345,6 @@ describe('high-priority context workflows', () => {
     expect(result.records.every((record) => record.sources.length > 0)).toBe(true);
   });
 
-  it('finds integration and data entity records from frontmatter fields', () => {
-    const integrations = findIntegrations({ systems: ['SAP'] });
-    const entities = findDataEntities({ fields: ['sapCode'] });
-
-    expect(integrations.records[0]?.id).toBe('INTEGRATION-20260514-001');
-    expect(integrations.sources[0]?.type).toBe('integration');
-    expect(entities.records[0]?.id).toBe('DATA-ENTITY-20260514-001');
-    expect(entities.sources[0]?.type).toBe('data_entity');
-  });
-
   it('returns reviewed decisions with provenance by default', () => {
     const result = getDecisions({ query: 'Markdown frontmatter' });
 
@@ -378,8 +366,8 @@ describe('high-priority context workflows', () => {
 
   it('proposes context updates as draft Markdown with YAML frontmatter', () => {
     const result = proposeContextUpdate({
-      type: 'integration',
-      title: 'Kafka order status integration',
+      type: 'project',
+      title: 'Kafka order status project',
       summary: 'PPM publishes order status events to Kafka after review.',
       modules: ['backend'],
       tags: ['kafka', 'orders'],
@@ -391,9 +379,9 @@ describe('high-priority context workflows', () => {
 
     expect(result.status).toBe('DRAFT_CREATED');
     expect(result.requiresHumanReview).toBe(true);
-    expect(result.draftPath).toMatch(/^\.project-context\/drafts\/integrations\/INTEGRATION-\d{8}-\d{6}-\d{3}\.md$/);
+    expect(result.draftPath).toMatch(/^\.project-context\/drafts\/projects\/PROJECT-\d{8}-\d{6}-\d{3}\.md$/);
     const content = readFileSync(resolve(tempDir, result.draftPath), 'utf8');
-    expect(content).toContain('type: integration');
+    expect(content).toContain('type: project');
     expect(content).toContain('systems:');
     expect(content).toContain('## Source References');
     expect(result.sources[0]).toEqual(expect.objectContaining({
@@ -464,7 +452,7 @@ describe('high-priority context workflows', () => {
     expect(imported.records.some((record) => record.type === 'source')).toBe(true);
     expect(imported.records.some((record) => record.type === 'source_chunk')).toBe(true);
     expect(imported.records.some((record) => record.type === 'requirement')).toBe(true);
-    expect(imported.records.some((record) => record.type === 'acceptance_check')).toBe(true);
+    expect(imported.records.some((record) => record.type === 'acceptance_check')).toBe(false);
     expect(imported.records.some((record) => record.type === 'open_question')).toBe(true);
     expect(lintContext(false).errors).toEqual([]);
 
@@ -478,7 +466,7 @@ describe('high-priority context workflows', () => {
     const trace = traceRequirement({ requirementKey: 'REQ-RPL-001' });
     expect(trace.traces[0]?.sources[0]?.title).toContain('SRC-48');
     expect(trace.traces[0]?.chunks[0]?.title).toContain('CH-SRC-48-01');
-    expect(trace.traces[0]?.acceptanceChecks[0]?.title).toContain('AC-TASK-022');
+    expect(trace.traces[0]).not.toHaveProperty('acceptanceChecks');
 
     const conflicts = getConflicts({ query: 'бюджет' });
     expect(conflicts.records.some((record) => record.title.includes('Версии бюджета'))).toBe(true);

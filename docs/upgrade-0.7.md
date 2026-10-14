@@ -63,7 +63,7 @@ Doctor also reports untracked durable Markdown, stale open tasks, contradictory 
 - `boundaries`: `codeState`, `runtime`, `environment`, and optional `limitations`. Legacy callers retain explicit `unspecified` boundaries; no environment validation is claimed.
 - `runId` and `expectedCodeDigest`: route core evidence through existing execution snapshot validation. Execution-backed evidence uses its frozen contract rather than inferred global defaults.
 
-A passed verification record is not acceptance of the task. `finalize-work` / `finalize_work` still create a reviewable summary by default, now marked partial. Explicit `completion: partial` keeps a confirmed task in progress; `blocked` records a blocker. Explicit `complete` requires `runId` for a fresh `ready_to_merge` execution with independent acceptance. It then marks the owning task done. Changed code, changed contracts, wrong-task evidence and incomplete acceptance are rejected. See [execution workflow](execution.md).
+A passed verification record is not acceptance of the task. In current source, `finalize-work` / `finalize_work` save `last_result` on the confirmed task instead of creating a separate summary. See [record model migration](record-model.md). Explicit `completion: partial` keeps a confirmed task in progress; `blocked` records a blocker. Explicit `complete` requires `runId` for a fresh `ready_to_merge` execution with independent acceptance. It then marks the owning task done. Changed code, changed contracts, wrong-task evidence and incomplete acceptance are rejected. See [execution workflow](execution.md).
 
 Review legacy evidence before recording a replacement or closing a task. The release neither rewrites historical claims nor infers acceptance from a passed test.
 

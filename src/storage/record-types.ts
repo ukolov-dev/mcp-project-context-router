@@ -2,42 +2,27 @@ export const recordTypes = [
   'task',
   'bug',
   'decision',
-  'refactor',
-  'module',
-  'run-summary',
-  'pattern',
-  'runbook',
   'backlog',
   'research',
   'verification-evidence',
   'agent-run',
   'acceptance-review',
   'project',
-  'integration',
-  'data_entity',
-  'api',
   'requirement',
   'open_question',
-  'meeting_draft',
   'source',
   'source_chunk',
-  'acceptance_check',
 ] as const;
 
 export type RecordType = (typeof recordTypes)[number];
 
 export const projectKnowledgeRecordTypes = [
   'project',
-  'integration',
-  'data_entity',
-  'api',
   'decision',
   'requirement',
   'open_question',
-  'meeting_draft',
   'source',
   'source_chunk',
-  'acceptance_check',
 ] as const;
 
 export type ProjectKnowledgeRecordType = (typeof projectKnowledgeRecordTypes)[number];
@@ -46,40 +31,25 @@ const recordTypeSegments: Record<string, string> = {
   task: 'tasks',
   bug: 'bugs',
   decision: 'decisions',
-  refactor: 'refactors',
-  module: 'modules',
-  'run-summary': 'run-summaries',
-  pattern: 'patterns',
-  runbook: 'runbooks',
   backlog: 'backlog',
   research: 'research',
   'verification-evidence': 'verification',
   'agent-run': 'agent-runs',
   'acceptance-review': 'acceptance-reviews',
   project: 'projects',
-  integration: 'integrations',
-  data_entity: 'data-entities',
-  api: 'apis',
   requirement: 'requirements',
   open_question: 'open-questions',
-  meeting_draft: 'meeting-drafts',
   source: 'sources',
   source_chunk: 'source-chunks',
-  acceptance_check: 'acceptance-checks',
 };
 
 const recordTypeIdPrefixes: Record<ProjectKnowledgeRecordType, string> = {
   project: 'PROJECT',
-  integration: 'INTEGRATION',
-  data_entity: 'DATA-ENTITY',
-  api: 'API',
   decision: 'DECISION',
   requirement: 'REQUIREMENT',
   open_question: 'OPEN-QUESTION',
-  meeting_draft: 'MEETING-DRAFT',
   source: 'SOURCE',
   source_chunk: 'SOURCE-CHUNK',
-  acceptance_check: 'ACCEPTANCE-CHECK',
 };
 
 export function isProjectKnowledgeRecordType(type: string): type is ProjectKnowledgeRecordType {
@@ -100,4 +70,21 @@ export function generatedIdPattern(prefix: string): RegExp {
 
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+export const retiredRecordTypes = [
+  'integration',
+  'api',
+  'data_entity',
+  'meeting_draft',
+  'acceptance_check',
+  'module',
+  'pattern',
+  'runbook',
+  'refactor',
+  'run-summary',
+] as const;
+
+export function isRetiredRecordType(type: string): boolean {
+  return (retiredRecordTypes as readonly string[]).includes(type);
 }

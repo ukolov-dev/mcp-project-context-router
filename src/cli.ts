@@ -75,10 +75,6 @@ import {
 import {
   buildProjectContextPack,
   buildProjectContextPackInputSchema,
-  findDataEntities,
-  findDataEntitiesInputSchema,
-  findIntegrations,
-  findIntegrationsInputSchema,
   getDecisions,
   getDecisionsInputSchema,
   proposeContextUpdate,
@@ -260,48 +256,6 @@ program
   }))));
 
 program
-  .command('find-integrations')
-  .argument('[query]', 'query text')
-  .description('Find integration records with mandatory sources')
-  .option('--systems <systems>', 'comma-separated systems')
-  .option('--statuses <statuses>', 'comma-separated statuses')
-  .option('--modules <modules>', 'comma-separated modules')
-  .option('--include-drafts')
-  .option('--include-archive')
-  .option('--limit <number>', 'maximum result count', '10')
-  .action((query, options) => emit(findIntegrations(findIntegrationsInputSchema.parse({
-    query,
-    systems: splitCsv(options.systems),
-    statuses: splitCsv(options.statuses),
-    modules: splitCsv(options.modules),
-    includeDrafts: Boolean(options.includeDrafts),
-    includeArchive: Boolean(options.includeArchive),
-    limit: Number(options.limit),
-  }))));
-
-program
-  .command('find-data-entities')
-  .argument('[query]', 'query text')
-  .description('Find data entity records with mandatory sources')
-  .option('--entity-names <names>', 'comma-separated entity names')
-  .option('--fields <fields>', 'comma-separated fields')
-  .option('--statuses <statuses>', 'comma-separated statuses')
-  .option('--modules <modules>', 'comma-separated modules')
-  .option('--include-drafts')
-  .option('--include-archive')
-  .option('--limit <number>', 'maximum result count', '10')
-  .action((query, options) => emit(findDataEntities(findDataEntitiesInputSchema.parse({
-    query,
-    entityNames: splitCsv(options.entityNames),
-    fields: splitCsv(options.fields),
-    statuses: splitCsv(options.statuses),
-    modules: splitCsv(options.modules),
-    includeDrafts: Boolean(options.includeDrafts),
-    includeArchive: Boolean(options.includeArchive),
-    limit: Number(options.limit),
-  }))));
-
-program
   .command('get-decisions')
   .argument('[query]', 'query text')
   .description('Return decision records with mandatory sources')
@@ -459,7 +413,7 @@ program
   .option('--no-drafts', 'exclude draft records')
   .option('--include-archive')
   .option('--limit <number>', 'maximum requirement count', '5')
-  .description('Trace requirement to sources, chunks, tasks, and acceptance checks')
+  .description('Trace requirement to sources, chunks, and tasks with exact keys')
   .action((requirementKey, options) => emit(traceRequirement(traceRequirementInputSchema.parse({
     requirementKey,
     query: options.query,
@@ -683,7 +637,7 @@ program
 program
   .command('finalize-work')
   .argument('[taskId]')
-  .description('Create a draft run summary after implementation')
+  .description('Save implementation results on the owning task')
   .option('--input <jsonFile>', 'JSON payload')
   .option('--auto-fill', 'infer changed files from git diff and untracked files')
   .action((taskId, options) => {

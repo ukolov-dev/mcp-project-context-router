@@ -79,10 +79,10 @@ materialize('context-README.md', '.project-context/README.md', (content) => cont
 materialize('testing-playbook.md', 'playbooks/testing.md');
 
 for (const relative of [
-  'active/modules', 'active/tasks', 'active/bugs', 'active/decisions', 'active/runbooks',
-  'active/refactors', 'active/patterns', 'active/backlog', 'active/verification',
-  'drafts/tasks', 'drafts/backlog', 'drafts/bugs', 'drafts/decisions', 'drafts/refactors',
-  'drafts/run-summaries', 'archive', 'trash', 'indexes', 'schemas', 'templates',
+  'active/tasks', 'active/bugs', 'active/decisions',
+  'active/backlog', 'active/verification',
+  'drafts/tasks', 'drafts/backlog', 'drafts/bugs', 'drafts/decisions',
+  'archive', 'trash', 'indexes', 'schemas', 'templates',
 ]) {
   mkdirSync(resolve(destination, '.project-context', relative), { recursive: true });
 }

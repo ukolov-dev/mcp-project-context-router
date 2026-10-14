@@ -5,6 +5,12 @@ Notable changes to Project Context Router are recorded here. Versions before
 
 ## Unreleased
 
+- Preserve optional portal work-item source document, revision and task-code fields, including older responses with missing fields.
+- Trace requirement tasks only through exact record IDs or explicit `task_key`/`task_keys`; prefixes and prose mentions no longer create links.
+- Retire ten unused memory types and remove their proposal/promotion/restore support, specialized integration/data-entity CLI and MCP searches, scaffold directories, refactor draft writer and standalone acceptance-check import.
+- Save finalization results on the confirmed task as `last_result` instead of generating run-summary drafts. Retain independent acceptance gates and adapt the optional Stop hook.
+- Keep old records readable/archivable; exclude retired types from default packs in both search engines and invalidate previous pack caches. See [migration](docs/record-model.md).
+
 ## [0.8.0] - 2026-10-13
 
 - Validate Node 22.13.0 current/fallback compatibility and Node 22.23.2 FTS5 support separately; older official runtimes lack the compiled FTS5 module.

@@ -51,27 +51,6 @@ export const searchProjectContextInputSchema = z.object({
   limit: z.number().int().positive().max(50).default(10),
 });
 
-export const findIntegrationsInputSchema = z.object({
-  query: z.string().optional(),
-  systems: z.array(z.string()).default([]),
-  statuses: z.array(z.string()).default([]),
-  modules: z.array(z.string()).default([]),
-  includeDrafts: z.boolean().default(false),
-  includeArchive: z.boolean().default(false),
-  limit: z.number().int().positive().max(50).default(10),
-});
-
-export const findDataEntitiesInputSchema = z.object({
-  query: z.string().optional(),
-  entityNames: z.array(z.string()).default([]),
-  fields: z.array(z.string()).default([]),
-  statuses: z.array(z.string()).default([]),
-  modules: z.array(z.string()).default([]),
-  includeDrafts: z.boolean().default(false),
-  includeArchive: z.boolean().default(false),
-  limit: z.number().int().positive().max(50).default(10),
-});
-
 export const getDecisionsInputSchema = z.object({
   query: z.string().optional(),
   statuses: z.array(z.string()).default(['active']),
@@ -112,8 +91,6 @@ export const proposeContextUpdateInputSchema = z.object({
   })).default([]),
 });
 
-type SearchInput = z.infer<typeof searchProjectContextInputSchema>;
-
 export function searchProjectContext(input: z.input<typeof searchProjectContextInputSchema>): ProjectContextSearchResult {
   const parsed = searchProjectContextInputSchema.parse(input);
   const terms = tokenize(parsed.query);
@@ -131,32 +108,6 @@ export function searchProjectContext(input: z.input<typeof searchProjectContextI
     .slice(0, parsed.limit);
 
   return recordsToSearchResult(scored.map(({ record }) => record), terms, 'Matched project context query and filters.');
-}
-
-export function findIntegrations(input: z.input<typeof findIntegrationsInputSchema>): ProjectContextSearchResult {
-  const parsed = findIntegrationsInputSchema.parse(input);
-  return searchProjectContext({
-    query: compactQuery([parsed.query, ...parsed.systems]),
-    types: ['integration'],
-    statuses: parsed.statuses,
-    modules: parsed.modules,
-    includeDrafts: parsed.includeDrafts,
-    includeArchive: parsed.includeArchive,
-    limit: parsed.limit,
-  });
-}
-
-export function findDataEntities(input: z.input<typeof findDataEntitiesInputSchema>): ProjectContextSearchResult {
-  const parsed = findDataEntitiesInputSchema.parse(input);
-  return searchProjectContext({
-    query: compactQuery([parsed.query, ...parsed.entityNames, ...parsed.fields]),
-    types: ['data_entity'],
-    statuses: parsed.statuses,
-    modules: parsed.modules,
-    includeDrafts: parsed.includeDrafts,
-    includeArchive: parsed.includeArchive,
-    limit: parsed.limit,
-  });
 }
 
 export function getDecisions(input: z.input<typeof getDecisionsInputSchema>): ProjectContextSearchResult {
@@ -326,10 +277,6 @@ function tokenize(query: string): string[] {
   return [...new Set(query.toLowerCase().split(/[^\p{L}\p{N}_-]+/u).filter((word) => word.length > 1))];
 }
 
-function compactQuery(parts: Array<string | undefined>): string {
-  return parts.map((part) => part?.trim()).filter(Boolean).join(' ');
-}
-
 function stripReservedFrontmatter(frontmatter: Record<string, unknown>): Record<string, unknown> {
   const reserved = new Set(['id', 'type', 'status', 'title', 'created_at', 'updated_at', 'modules', 'files', 'tags', 'source_refs', 'retention']);
   return Object.fromEntries(Object.entries(frontmatter).filter(([key]) => !reserved.has(key)));
@@ -344,11 +291,6 @@ function withKnowledgeDefaults(type: ProjectKnowledgeRecordType, frontmatter: Re
   if (type === 'source_chunk') {
     output.chunk_id ??= frontmatter.id;
     output.source_id ??= 'unassigned';
-  }
-  if (type === 'acceptance_check') {
-    output.acceptance_id ??= frontmatter.id;
-    output.requirement_keys ??= [];
-    output.task_keys ??= [];
   }
   return output;
 }

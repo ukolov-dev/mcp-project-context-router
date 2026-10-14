@@ -49,6 +49,44 @@ files:
     expect(output.reason).toContain('TASK-CONTEXT-001');
   });
 
+  it('accepts a recent task result instead of requiring a summary draft', () => {
+    const statePath = writeState('finalized-session', ['src/a.ts']);
+    const taskDir = resolve(tempDir, '.project-context/active/tasks');
+    mkdirSync(taskDir, { recursive: true });
+    writeFileSync(resolve(taskDir, 'TASK-RESULT.md'), `---
+id: TASK-RESULT
+type: task
+status: confirmed
+title: Task result
+finalized_at: '${new Date(Date.now() + 1000).toISOString()}'
+files:
+  - src/a.ts
+---
+`, 'utf8');
+    expect(runHook('finalized-session').stdout).toBe('');
+    expect(existsSync(statePath)).toBe(false);
+  });
+
+  it('does not accept an old task result or a legacy summary for new changes', () => {
+    writeState('stale-session', ['src/a.ts']);
+    const taskDir = resolve(tempDir, '.project-context/active/tasks');
+    mkdirSync(taskDir, { recursive: true });
+    writeFileSync(resolve(taskDir, 'TASK-RESULT.md'), `---
+id: TASK-RESULT
+type: task
+status: confirmed
+title: Task result
+finalized_at: '2026-01-01T00:00:00Z'
+files:
+  - src/a.ts
+---
+`, 'utf8');
+    const summaryDir = resolve(tempDir, '.project-context/drafts/run-summaries');
+    mkdirSync(summaryDir, { recursive: true });
+    writeFileSync(resolve(summaryDir, 'RUN-OLD.md'), 'src/a.ts', 'utf8');
+    expect(JSON.parse(runHook('stale-session').stdout).decision).toBe('block');
+  });
+
   it('uses project-configured branding and MCP server names', () => {
     writeState('custom-session', ['src/context-pack/pack.ts']);
     const taskDir = resolve(tempDir, '.project-context/active/tasks');
