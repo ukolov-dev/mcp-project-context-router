@@ -1,6 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { load } from 'js-yaml';
+import { loadYaml as load } from '../dist/storage/yaml.js';
 
 const defaults = {
   logoText: '[Project Context]',

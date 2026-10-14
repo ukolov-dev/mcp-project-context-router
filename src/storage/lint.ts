@@ -3,7 +3,7 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import fg from 'fast-glob';
-import { load } from 'js-yaml';
+import { loadYaml as load } from './yaml.js';
 import { z } from 'zod';
 import { discoverRecordFiles, parseRecord, readRecords } from './markdown.js';
 import { repoPaths } from './repo.js';

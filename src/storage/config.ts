@@ -1,6 +1,7 @@
 import { existsSync, lstatSync, readFileSync, renameSync, statSync, writeFileSync } from 'node:fs';
 import { basename, resolve } from 'node:path';
-import { dump, load } from 'js-yaml';
+import { dump } from 'js-yaml';
+import { loadYaml as load } from './yaml.js';
 import { repoPaths } from './repo.js';
 
 export type ProjectMetadataConfig = {

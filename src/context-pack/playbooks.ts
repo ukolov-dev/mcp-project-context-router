@@ -1,6 +1,6 @@
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { load } from 'js-yaml';
+import { loadYaml as load } from '../storage/yaml.js';
 import type { ProjectConfig } from '../storage/config.js';
 import { classifyFileReference } from '../storage/file-references.js';
 import { repoPaths } from '../storage/repo.js';

@@ -50,15 +50,17 @@ describe('UserPromptSubmit hook draft inbox reminder', () => {
     expect(output.hookSpecificOutput.additionalContext).not.toContain('Draft inbox');
   });
 
-  it('uses project-configured branding and MCP names', () => {
+  it('uses merged project-configured branding and MCP names', () => {
     const configDir = resolve(tempDir, '.project-context');
     mkdirSync(configDir, { recursive: true });
-    writeFileSync(resolve(configDir, 'project.yaml'), `context_router:
+    writeFileSync(resolve(configDir, 'project.yaml'), `router_defaults: &router_defaults
   cli_command: custom-context
   mcp_server_name: custom_context
   resource_scheme: custom-context
   brand:
     logo_text: "[Custom Context]"
+context_router:
+  <<: *router_defaults
 `, 'utf8');
 
     const output = runHook({ prompt: 'добавь context workflow', cwd: tempDir });

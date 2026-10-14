@@ -72,7 +72,10 @@ try {
   checked('Installed init --with-skills copies both bundled skills and preserves customized files');
   // A small consumer policy isolates install/retrieval correctness from guidance-size limits.
   writeFileSync(join(consumer, 'AGENTS.md'), '# Clean consumer\nUse scoped project context.\n');
-  writeFileSync(join(consumer, '.project-context/project.yaml'), 'project:\n  name: Clean consumer\nmodules:\n  app:\n    path: src\nrouting:\n  default_modules: [app]\ncommands: {}\n');
+  writeFileSync(join(consumer, '.project-context/project.yaml'), 'project:\n  name: Clean consumer\nmodule_defaults: &module_defaults\n  path: src\nmodules:\n  app:\n    <<: *module_defaults\nrouting:\n  default_modules: [app]\ncontext_router:\n  mcp_server_name: clean_context\ncommands: {}\n');
+  const { loadHookContextConfig } = await import(pathToFileURL(join(installed, 'hooks/context-config.js')).href);
+  assert.equal(loadHookContextConfig(consumer).mcpServerName, 'clean_context');
+  checked('Installed CLI reads merged YAML modules; installed hooks resolve the packaged YAML loader');
   const records = join(consumer, '.project-context/active/decisions');
   mkdirSync(records, { recursive: true });
   for (const [id, body] of [['DIRECT', 'quick_valid direct evidence'], ['RESERVE', 'quick_validation reserve evidence']]) {
