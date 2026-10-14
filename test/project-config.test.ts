@@ -1,6 +1,6 @@
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { resolve } from 'node:path';
+import { basename, resolve } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { loadProjectConfig, writeConfluenceIntegration, writePortalIntegration } from '../src/storage/config.js';
 
@@ -20,6 +20,38 @@ afterEach(() => {
 });
 
 describe('project context config', () => {
+  it('keeps merged module defaults when reading and rewriting configuration', () => {
+    const file = resolve(tempDir, '.project-context/project.yaml');
+    writeFileSync(file, `defaults: &defaults
+  path: src
+  aliases: [on, yes]
+  source_globs: ["src/**/*.ts"]
+modules:
+  app:
+    <<: *defaults
+    stack: TypeScript
+retention:
+  checkpoint:
+    recorded_at: 2026-10-14
+`, 'utf8');
+    expect(loadProjectConfig().modules.app).toMatchObject({ path: 'src', aliases: ['on', 'yes'], sourceGlobs: ['src/**/*.ts'] });
+    expect(loadProjectConfig().retention.checkpoint.recorded_at).toEqual(new Date('2026-10-14T00:00:00.000Z'));
+    writeConfluenceIntegration({ schemaVersion: 1, baseUrl: 'https://docs.example.test', rootPageId: '123', rootPageUrl: 'https://docs.example.test/pages/123', writeScope: 'root-and-descendants', includeRoot: true, credentialRef: 'env:CONFLUENCE_TOKEN' });
+    expect(loadProjectConfig().modules.app).toMatchObject({ path: 'src', aliases: ['on', 'yes'], sourceGlobs: ['src/**/*.ts'] });
+    expect(loadProjectConfig().retention.checkpoint.recorded_at).toEqual(new Date('2026-10-14T00:00:00.000Z'));
+  });
+
+  it.each(['', '  \n', '# No configuration yet\n'])('preserves empty configuration defaults for %j', (source) => {
+    writeFileSync(resolve(tempDir, '.project-context/project.yaml'), source, 'utf8');
+    expect(loadProjectConfig().modules).toEqual({});
+    expect(loadProjectConfig().project.name).toBe(basename(tempDir));
+  });
+
+  it('rejects multiple YAML configuration documents', () => {
+    writeFileSync(resolve(tempDir, '.project-context/project.yaml'), 'project: {name: First}\n---\nproject: {name: Second}\n');
+    expect(() => loadProjectConfig()).toThrow();
+  });
+
   it('reads portable project metadata, routing, modules, and command metadata blocks', () => {
     writeFileSync(
       resolve(tempDir, '.project-context/project.yaml'),

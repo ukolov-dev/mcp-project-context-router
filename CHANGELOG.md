@@ -5,6 +5,11 @@ Notable changes to Project Context Router are recorded here. Versions before
 
 ## Unreleased
 
+- Update runtime and development dependencies to latest stable npm releases verified on 2026-10-14, including MCP SDK 1.32.1, Commander 15.0.0, js-yaml 5.4.3, Zod 4.6.7, TypeScript 7.0.2, Vite 8.3.4 and Vitest 5.0.4; refresh compatible transitive dependencies and keep exact direct pins.
+- Remove unused `simple-git` and redundant `@types/js-yaml` (js-yaml now bundles types). Preserve Node.js 22.13+ support.
+- Preserve YAML merge keys, timestamps, YAML 1.2 scalar rules and empty configuration defaults after the js-yaml upgrade; continue rejecting multiple documents. Share the loader with configuration, playbooks, lint and hooks, with regression and installed-package checks.
+- Latest `fast-glob` and `gray-matter` still bring unresolved transitive npm advisories; dependency updates do not claim a clean security audit.
+
 - Publish a bilingual English/Russian project website and documentation on GitHub Pages, with topic-preserving language links, copyable commands and responsive navigation. Check generated links and translations in CI.
 
 - Bundle a portable `project-context-workflow` skill for confirmed tasks, scoped context, verification and task finalization.

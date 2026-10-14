@@ -60,22 +60,20 @@
     "site:preview": "vite site/dist --host 127.0.0.1 --port 4179 --strictPort"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "1.29.0",
-    "commander": "14.0.3",
+    "@modelcontextprotocol/sdk": "1.32.1",
+    "commander": "15.0.0",
     "fast-glob": "3.3.3",
     "gray-matter": "4.0.3",
-    "js-yaml": "4.3.1",
-    "simple-git": "3.36.0",
-    "zod": "4.4.3"
+    "js-yaml": "5.4.3",
+    "zod": "4.6.7"
   },
   "devDependencies": {
-    "@types/js-yaml": "4.0.9",
-    "@types/node": "24.12.4",
+    "@types/node": "26.6.5",
     "marked": "18.1.1",
-    "tsx": "4.23.12",
-    "typescript": "5.9.3",
-    "vite": "6.4.3",
-    "vitest": "4.1.10"
+    "tsx": "4.23.15",
+    "typescript": "7.0.2",
+    "vite": "8.3.4",
+    "vitest": "5.0.4"
   },
   "publishConfig": {
     "tag": "dev"

@@ -1,7 +1,8 @@
 import { execFileSync } from 'node:child_process';
 import { chmodSync, existsSync, lstatSync, mkdirSync, readFileSync, renameSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, isAbsolute, relative, resolve, sep } from 'node:path';
-import { dump, load } from 'js-yaml';
+import { dump } from 'js-yaml';
+import { loadYaml as load } from '../storage/yaml.js';
 import { contextCliCommand, loadProjectConfig } from '../storage/config.js';
 import { classifyFileReference } from '../storage/file-references.js';
 import { repoPaths } from '../storage/repo.js';
