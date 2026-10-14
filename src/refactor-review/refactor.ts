@@ -1,9 +1,6 @@
 import { execFileSync } from 'node:child_process';
-import { resolve } from 'node:path';
-import { z } from 'zod';
-import { nextRecordId, writeMarkdown, findRecordPath, parseRecord } from '../storage/markdown.js';
-import { repoPaths, relPath } from '../storage/repo.js';
-import { nowIso } from '../storage/time.js';
+import { findRecordPath, parseRecord } from '../storage/markdown.js';
+import { repoPaths } from '../storage/repo.js';
 import { inferModule } from '../indexer/capabilities.js';
 import { loadProjectConfig } from '../storage/config.js';
 
@@ -64,54 +61,4 @@ export function reviewDiffForRefactor(taskId?: string, options: { files?: string
 
   }
   return { candidates, scope, files: changed, warnings, heuristic: true };
-}
-
-export const refactorDraftInputSchema = z.object({
-  sourceTask: z.string().optional(),
-  title: z.string(),
-  problem: z.string(),
-  proposedChange: z.string(),
-  files: z.array(z.string()).default([]),
-  risk: z.enum(['low', 'medium', 'high']).default('medium'),
-  modules: z.array(z.string()).default([]),
-});
-
-export function createRefactorDraft(sourceTask: string | undefined, candidate: RefactorCandidate): string {
-  const paths = repoPaths();
-  const id = nextRecordId('REFACTOR');
-  const timestamp = nowIso();
-  const modules = [...new Set(candidate.files.map(inferModule).filter((module) => module !== 'unknown'))];
-  const frontmatter = {
-    id,
-    type: 'refactor',
-    status: 'proposed',
-    title: candidate.title,
-    created_at: timestamp,
-    source_task: sourceTask ?? null,
-    risk: candidate.risk,
-    modules,
-    files: candidate.files,
-    retention: 'normal',
-  };
-  const body = `# ${id}: ${candidate.title}
-
-## Problem
-
-${candidate.reason}
-
-## Evidence
-
-${candidate.files.map((file) => `- ${file}`).join('\n') || 'Нет.'}
-
-## Proposed Change
-
-Review and confirm as a separate refactor task before implementation.
-
-## Do Now?
-
-${candidate.doNow ? 'Да, если локально и покрыто тестами.' : 'Нет. Требуется отдельное подтверждение.'}
-`;
-  const target = resolve(paths.draftsDir, 'refactors', `${id}.md`);
-  writeMarkdown(target, frontmatter, body);
-  return relPath(paths.root, target);
 }

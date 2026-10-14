@@ -12,7 +12,7 @@ import { classifyFileReference, collectFileReferenceIssues } from '../storage/fi
 import { contextCliCommand, loadProjectConfig, retentionNumber, type ProjectConfig } from '../storage/config.js';
 import { lintContext } from '../storage/lint.js';
 import { repoPaths } from '../storage/repo.js';
-import { discoverRecordFiles, findRecordPath, parseRecord, readRecords } from '../storage/markdown.js';
+import { discoverRecordFiles, parseRecord, readRecords } from '../storage/markdown.js';
 
 export type DoctorDiagnostic = {
   id: string;
@@ -65,7 +65,7 @@ export function contextDoctor(options: ContextDoctorOptions = {}): ContextDoctor
   diagnostics.push(checkHooksJson(paths.root, config));
   diagnostics.push(checkGitHooksPath(paths.root, config));
   diagnostics.push(checkGitIgnore(paths.root, '.project-context/indexes/context.sqlite', 'sqlite-ignore', 'SQLite context index is ignored.', 'SQLite context index is not ignored by git.'));
-  diagnostics.push(checkGitIgnore(paths.root, '.project-context/drafts/run-summaries/.doctor-probe.md', 'draft-ignore', 'Draft run summaries are ignored.', 'Draft run summaries are not ignored by git.'));
+  diagnostics.push(checkGitIgnore(paths.root, '.project-context/drafts/tasks/.doctor-probe.md', 'draft-ignore', 'Context drafts are ignored.', 'Context drafts are not ignored by git.'));
   diagnostics.push(checkIndex(records, config));
   diagnostics.push(checkSearchImplementation());
   diagnostics.push(checkRecordIds(records));
@@ -77,7 +77,6 @@ export function contextDoctor(options: ContextDoctorOptions = {}): ContextDoctor
   diagnostics.push(checkBacklog(activeRecords));
   diagnostics.push(checkLint());
   diagnostics.push(checkOldHookState());
-  diagnostics.push(checkOrphanFinalizeDrafts(records));
   diagnostics.push(checkPackCacheRetention());
 
   const summary = {
@@ -349,23 +348,6 @@ function checkOldHookState(): DoctorDiagnostic {
     };
 }
 
-function checkOrphanFinalizeDrafts(records: ReturnType<typeof readRecords>): DoctorDiagnostic {
-  const recordIds = new Set(records.map((record) => record.id));
-  const orphans = records.filter((record) => {
-    if (record.type !== 'run-summary' || !record.path.includes('/drafts/')) return false;
-    const sourceTask = typeof record.frontmatter.source_task === 'string' ? record.frontmatter.source_task : '';
-    return !sourceTask || !recordIds.has(sourceTask);
-  });
-  return orphans.length === 0
-    ? { id: 'orphan-finalize-drafts', status: 'ok', message: 'Draft run summaries are linked to valid tasks.' }
-    : {
-      id: 'orphan-finalize-drafts',
-      status: 'warn',
-      message: `${orphans.length} draft run-summary file(s) have no valid source_task.`,
-      details: orphans.slice(0, 10).map((record) => record.path),
-    };
-}
-
 function checkPackCacheRetention(): DoctorDiagnostic {
   const paths = repoPaths();
   const retentionDays = retentionNumber(loadProjectConfig(), 'context_packs', 'delete_after_days', 30);
@@ -396,7 +378,6 @@ function buildFixProposals(diagnostics: DoctorDiagnostic[], config: ProjectConfi
     ...missingReferenceFixes(),
     ...staleIndexFixes(diagnostics, config),
     ...oldHookStateFixes(),
-    ...orphanFinalizeDraftFixes(),
   ];
 }
 
@@ -494,28 +475,5 @@ function oldHookStateFixes(): DoctorFixProposal[] {
     reason: `${oldFiles.length} ignored hook-state file(s) are older than 7 days.`,
     action: 'Remove stale ignored session-state files after confirming no active Codex run uses them.',
     files: oldFiles.slice(0, 20),
-  }];
-}
-
-function orphanFinalizeDraftFixes(): DoctorFixProposal[] {
-  const paths = repoPaths();
-  const orphanFiles = fg.sync('.project-context/drafts/run-summaries/*.md', { cwd: paths.root })
-    .filter((file) => {
-      try {
-        const record = parseRecord(resolve(paths.root, file));
-        const sourceTask = typeof record.frontmatter.source_task === 'string' ? record.frontmatter.source_task : '';
-        return !sourceTask || !findRecordPath(sourceTask);
-      } catch {
-        return false;
-      }
-    });
-  if (orphanFiles.length === 0) return [];
-  return [{
-    id: 'orphan-finalize-drafts',
-    title: 'Review orphan finalize drafts',
-    risk: 'low' as const,
-    reason: `${orphanFiles.length} draft run-summary file(s) have no valid source_task.`,
-    action: 'Attach each draft to a task, promote reviewed knowledge, archive stale drafts, or leave intentionally local.',
-    files: orphanFiles.slice(0, 20),
   }];
 }

@@ -4,7 +4,7 @@ import { moveToArchive, readRecords } from '../storage/markdown.js';
 import { loadProjectConfig, retentionNumber } from '../storage/config.js';
 import { gitIgnoredPaths, repoPaths, relPath } from '../storage/repo.js';
 import { daysOld, durationToDays } from '../storage/time.js';
-import { segmentForRecordType } from '../storage/record-types.js';
+import { isRetiredRecordType, segmentForRecordType } from '../storage/record-types.js';
 import { classifyFileReference } from '../storage/file-references.js';
 
 export type GcCandidate = {
@@ -143,6 +143,7 @@ export function restore(recordId: string): { restoredPath: string } {
   const paths = repoPaths();
   const archived = readRecords(true).find((record) => record.id === recordId && record.archived);
   if (!archived) throw new Error(`Archived record not found: ${recordId}`);
+  if (isRetiredRecordType(archived.type)) throw new Error(`Record type ${archived.type} is retired; keep it archived or migrate it to a supported type.`);
   const segment = segmentForRecordType(archived.type);
   const target = resolve(paths.activeDir, segment, `${archived.id}.md`);
   const archivedReference = classifyFileReference(archived.path);

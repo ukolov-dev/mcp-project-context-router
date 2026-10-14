@@ -225,7 +225,8 @@ retention: normal
     expect(result.warnings).toEqual([]);
   });
 
-  it('records skipped verification checks with reasons in finalize drafts', () => {
+  it('records skipped checks on the confirmed task without a summary draft', () => {
+    confirmTaskContract({ taskId: 'TASK-20260514-999', goal: 'Finalize work' });
     const result = finalizeWork({
       taskId: 'TASK-20260514-999',
       summary: 'Implemented context verification planning.',
@@ -234,14 +235,16 @@ retention: normal
       skippedChecks: [{ command: 'cd ppm-backend && ./gradlew test', reason: 'Backend code was not changed.' }],
     });
 
-    expect(result.status).toBe('CREATED');
+    expect(result.status).toBe('FINALIZED');
     if (result.status === 'SKIPPED') throw new Error(result.reason);
-    const content = readFileSync(resolve(tempDir, result.draftPath), 'utf8');
-    expect(content).toContain('## Skipped Checks');
+    const content = readFileSync(resolve(tempDir, result.taskPath), 'utf8');
+    expect(content).toContain('skipped_checks:');
+    expect(existsSync(resolve(tempDir, '.project-context/drafts/run-summaries'))).toBe(false);
     expect(content).toContain('Backend code was not changed.');
   });
 
   it('autofills finalize changed files from git without inventing tests', () => {
+    confirmTaskContract({ taskId: 'TASK-20260514-999', goal: 'Finalize work' });
     execFileSync('git', ['init'], { cwd: tempDir, stdio: 'ignore' });
     execFileSync('git', ['config', 'user.email', 'test@example.com'], { cwd: tempDir, stdio: 'ignore' });
     execFileSync('git', ['config', 'user.name', 'Test User'], { cwd: tempDir, stdio: 'ignore' });
@@ -257,12 +260,11 @@ retention: normal
       autoFill: true,
     });
 
-    expect(result.status).toBe('CREATED');
+    expect(result.status).toBe('FINALIZED');
     if (result.status === 'SKIPPED') throw new Error(result.reason);
-    const content = readFileSync(resolve(tempDir, result.draftPath), 'utf8');
+    const content = readFileSync(resolve(tempDir, result.taskPath), 'utf8');
     expect(content).toContain('tools/ppm-context/src/task-validation.ts');
-    expect(content).toContain('## Tests');
-    expect(content).toContain('Нет.');
+    expect(content).toContain('tests: []');
   });
 
   it('skips taskless git-only finalization instead of creating an orphan draft', () => {
@@ -278,7 +280,8 @@ retention: normal
     expect(existsSync(resolve(tempDir, '.project-context/drafts/run-summaries'))).toBe(false);
   });
 
-  it('reuses a finalize draft for the same task and commit', () => {
+  it('updates the same task result on repeated finalization', () => {
+    confirmTaskContract({ taskId: 'TASK-20260514-999', goal: 'Finalize work' });
     execFileSync('git', ['init'], { cwd: tempDir, stdio: 'ignore' });
     execFileSync('git', ['config', 'user.email', 'test@example.com'], { cwd: tempDir, stdio: 'ignore' });
     execFileSync('git', ['config', 'user.name', 'Test User'], { cwd: tempDir, stdio: 'ignore' });
@@ -297,9 +300,9 @@ retention: normal
       changedFiles: ['README.md'],
     });
 
-    expect(first.status).toBe('CREATED');
-    expect(second.status).toBe('UPDATED');
+    expect(first.status).toBe('FINALIZED');
+    expect(second.status).toBe('FINALIZED');
     if (first.status === 'SKIPPED' || second.status === 'SKIPPED') throw new Error('Expected a task-linked draft.');
-    expect(second.draftPath).toBe(first.draftPath);
+    expect(second.taskPath).toBe(first.taskPath);
   });
 });

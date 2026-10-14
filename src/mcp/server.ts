@@ -51,12 +51,9 @@ import {
 import {
   buildProjectContextPack,
   buildProjectContextPackInputSchema,
-  findDataEntities,
-  findDataEntitiesInputSchema,
-  findIntegrations,
-  findIntegrationsInputSchema,
   getDecisions,
   getDecisionsInputSchema,
+  projectKnowledgeRecordTypeSchema,
   proposeContextUpdate,
   proposeContextUpdateInputSchema,
   searchProjectContext,
@@ -455,43 +452,6 @@ server.registerTool(
 );
 
 server.registerTool(
-  'find_integrations',
-  {
-    title: 'Find integrations',
-    description: 'Find integration records from Markdown project context and include sources[].',
-    inputSchema: {
-      query: z.string().optional(),
-      systems: z.array(z.string()).default([]),
-      statuses: z.array(z.string()).default([]),
-      modules: z.array(z.string()).default([]),
-      includeDrafts: z.boolean().default(false),
-      includeArchive: z.boolean().default(false),
-      limit: z.number().default(10),
-    },
-  },
-  async (args) => json(findIntegrations(findIntegrationsInputSchema.parse(args))),
-);
-
-server.registerTool(
-  'find_data_entities',
-  {
-    title: 'Find data entities',
-    description: 'Find data entity records from Markdown project context and include sources[].',
-    inputSchema: {
-      query: z.string().optional(),
-      entityNames: z.array(z.string()).default([]),
-      fields: z.array(z.string()).default([]),
-      statuses: z.array(z.string()).default([]),
-      modules: z.array(z.string()).default([]),
-      includeDrafts: z.boolean().default(false),
-      includeArchive: z.boolean().default(false),
-      limit: z.number().default(10),
-    },
-  },
-  async (args) => json(findDataEntities(findDataEntitiesInputSchema.parse(args))),
-);
-
-server.registerTool(
   'get_decisions',
   {
     title: 'Get decisions',
@@ -537,7 +497,7 @@ server.registerTool(
     title: 'Propose context update',
     description: 'Create a reviewable draft Markdown project context record with YAML frontmatter.',
     inputSchema: {
-      type: z.enum(['project', 'integration', 'data_entity', 'api', 'decision', 'requirement', 'open_question', 'meeting_draft', 'source', 'source_chunk', 'acceptance_check']),
+      type: projectKnowledgeRecordTypeSchema,
       title: z.string(),
       summary: z.string(),
       modules: z.array(z.string()).default(['doc']),
@@ -642,7 +602,7 @@ server.registerTool(
   'trace_requirement',
   {
     title: 'Trace requirement',
-    description: 'Trace a requirement to source records, chunks, linked tasks, and acceptance checks.',
+    description: 'Trace a requirement to source records, chunks, and tasks linked by exact IDs or task_key/task_keys metadata.',
     inputSchema: {
       requirementKey: z.string().optional(),
       query: z.string().optional(),
@@ -1107,7 +1067,7 @@ server.registerTool(
   'finalize_work',
   {
     title: 'Finalize work',
-    description: 'Create or reuse a task-linked draft run summary; taskless git-only work is skipped.',
+    description: 'Save implementation results on the owning confirmed task; taskless work is skipped. Complete requires fresh independent acceptance.',
     inputSchema: finalizeWorkInputSchema.shape,
   },
   async (args) => json(finalizeWork(finalizeWorkInputSchema.parse(args))),

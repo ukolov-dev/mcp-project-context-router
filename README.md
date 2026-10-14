@@ -487,6 +487,22 @@ configuration routes queries to modules and playbooks; the index adds fast
 retrieval; the CLI and MCP server apply the same workflow and repository-boundary
 checks.
 
+## Supported memory records
+
+The router supports 13 record types: `task`, `bug`, `decision`, `backlog`,
+`research`, `verification-evidence`, `agent-run`, `acceptance-review`, `project`,
+`requirement`, `open_question`, `source`, and `source_chunk`.
+
+Task acceptance criteria stay inside the Task Contract. `finalize_work` saves
+`last_result` on that same task; it no longer creates a separate run summary.
+Requirement traces match exact task IDs or explicit `task_key` / `task_keys`
+metadata. Portal work preserves its source document, revision and task code.
+
+Current source retires the unused integration/API/data-entity/meeting/acceptance
+and module/pattern/runbook/refactor/summary record types. Existing files remain
+readable and archivable. Module routing and playbooks are project configuration.
+See [migration and removed commands](docs/record-model.md) before updating consumers.
+
 ## Task execution
 
 Confirmed tasks can have execution manifests, evidence-gated states, and a

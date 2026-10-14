@@ -341,57 +341,7 @@ Imported from RP traceability as a draft. Confirm current scope before promotion
 `,
     });
   });
-  const acceptanceRecords = buildAcceptanceRecords(requirementTable.rows, rpPath, timestamp, requirementRecords.length + 1);
-  return [...requirementRecords, ...acceptanceRecords];
-}
-
-function buildAcceptanceRecords(rows: string[][], rpPath: string, timestamp: string, offset: number): ImportRecord[] {
-  const byAcceptanceId = new Map<string, { requirements: Set<string>; tasks: Set<string> }>();
-  for (const row of rows) {
-    const requirementKey = clean(row[0]);
-    const taskKeys = extractRefs(clean(row[4]), /TASK-[A-Z0-9-]+/g);
-    const acceptanceIds = extractRefs(clean(row[5]), /AC-TASK-[A-Z0-9-]+/g);
-    for (const acceptanceId of acceptanceIds) {
-      const item = byAcceptanceId.get(acceptanceId) ?? { requirements: new Set<string>(), tasks: new Set<string>() };
-      item.requirements.add(requirementKey);
-      for (const taskKey of taskKeys) item.tasks.add(taskKey);
-      byAcceptanceId.set(acceptanceId, item);
-    }
-  }
-  return [...byAcceptanceId.entries()].map(([acceptanceId, links], index) => {
-    const requirementKeys = [...links.requirements].sort();
-    const taskKeys = [...links.tasks].sort();
-    return makeRecord({
-      id: stableId('ACCEPTANCE-CHECK', offset + index),
-      type: 'acceptance_check',
-      title: `${acceptanceId}: RP acceptance trace`,
-      status: 'draft',
-      timestamp,
-      modules: ['doc', 'analysis'],
-      files: [`${rpPath}/database/13_requirement_traceability.md`],
-      tags: ['rp', 'acceptance', 'traceability'],
-      sourceRefs: [`${rpPath}/database/13_requirement_traceability.md`],
-      frontmatter: {
-        acceptance_id: acceptanceId,
-        requirement_keys: requirementKeys,
-        task_keys: taskKeys,
-      },
-      body: `# ${acceptanceId}: RP acceptance trace
-
-## Linked Requirements
-
-${listOrNone(requirementKeys)}
-
-## Linked Tasks
-
-${listOrNone(taskKeys)}
-
-## Review
-
-Imported as an acceptance trace placeholder. Fill detailed check steps from the linked task/checklist before promotion.
-`,
-    });
-  });
+  return requirementRecords;
 }
 
 function buildDecisionRecords(rpRoot: string, rpPath: string, timestamp: string): ImportRecord[] {

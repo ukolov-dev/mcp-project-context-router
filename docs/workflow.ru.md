@@ -27,17 +27,15 @@ flowchart TD
     L --> M[record_verification_evidence]
     M --> N[Verification Evidence<br/>active/verification]
     J --> O[review_diff_for_refactor]
-    O --> P[Ответ MCP и иногда<br/>drafts/refactors]
+    O --> P[Ответ MCP без новой записи]
     N --> Q[finalize_work]
     P --> Q
-    Q --> R[Run Summary<br/>drafts/run-summaries]
-    R --> S{Human review}
-    S -- одобрено --> T[Reviewed Run Summary<br/>active/run-summaries]
+    Q --> R[Результат и статус<br/>в существующем Task Contract]
 ```
 
 Главный принцип: сначала появляется подтверждённый контракт задачи, затем агент
 получает ограниченный и объяснимый набор контекста, после реализации сохраняются
-факты проверки и черновик итогового отчёта.
+факты проверки и результат в самом контракте задачи.
 
 ## Четыре типа артефактов
 
@@ -72,8 +70,8 @@ flowchart TD
 | Реализация | Обычные ответы агента и terminal output | Git diff, исходные файлы и тесты проекта |
 | `get_verification_plan` | Required/optional checks, старые evidence и warnings | Ничего |
 | `record_verification_evidence` | ID, статус и путь записи | `active/verification/VERIFY-....md` |
-| `review_diff_for_refactor` | Кандидаты, риск, `doNow`, файлы | Иногда `drafts/refactors/REFACTOR-....md` |
-| `finalize_work` | Статус, путь и признак необходимости review | `drafts/run-summaries/....md` |
+| `review_diff_for_refactor` | Кандидаты, риск, `doNow`, файлы | Ничего |
+| `finalize_work` | `FINALIZED`, `taskPath`, completion и статус задачи | Обновление `active/tasks/TASK-....md` |
 | `promote_draft` | Preview или результат promotion | Reviewed-запись в `active/`; исходный draft перемещается в `trash/` |
 
 ## Этап 0. Инициализация проекта
@@ -232,7 +230,7 @@ confirm_task_contract({
 - риски;
 - ожидаемые команды проверки;
 - модули и при необходимости конкретные файлы;
-- связи с bugs, decisions и refactors.
+- связи с bugs и decisions.
 
 Это первый долговечный артефакт конкретной задачи и главная граница для агента.
 Подтверждение само по себе не строит context pack: это отдельный следующий вызов.
@@ -524,85 +522,26 @@ Verification Evidence сразу записывается в `active/`, а не 
 
 ## Этап 8. Refactor review
 
-Вызов:
-
-```text
-review_diff_for_refactor({ taskId: "TASK-..." })
-```
-
-анализирует текущий Git diff и возвращает candidates с:
-
-- названием;
-- риском `low`, `medium` или `high`;
-- признаком `doNow`;
-- причиной;
-- затронутыми файлами.
-
-Если изменено несколько файлов одного модуля, может появиться рекомендация на
-локальное низкорисковое улучшение без отдельного файла. Если diff пересекает
-несколько модулей и передан `taskId`, дополнительно создаётся:
-
-```text
-.project-context/drafts/refactors/REFACTOR-YYYYMMDD-HHMMSS-001.md
-```
-
-В нём фиксируются проблема, evidence в виде файлов, предлагаемое изменение,
-риск, исходная задача и правило не выполнять широкий refactor без отдельного
-подтверждения.
+`review_diff_for_refactor({ taskId: "TASK-..." })` возвращает кандидаты, риск,
+файлы и причину. Это эвристика по файлам и модулям: агент читает настоящий diff.
+Новые записи `refactor` не создаются. Согласованную отдельную работу оформляют
+обычной задачей или backlog item.
 
 ## Этап 9. Финализация работы
 
-Агент передаёт в `finalize_work` только факты:
+`finalize_work` сохраняет summary, результат, changedFiles, tests, skippedChecks
+и decisions в `last_result` существующего подтверждённого Task Contract.
+Обновляются `updated_at` и `finalized_at`. Ответ содержит `status: FINALIZED`,
+`taskPath`, `completion`, `taskStatus`, `requiresHumanReview: false`.
 
-```text
-finalize_work({
-  taskId: "TASK-...",
-  summary: "Добавлен экспорт CSV",
-  changedFiles: ["src/export/csv.ts"],
-  tests: [{ command: "npm test", status: "passed" }],
-  skippedChecks: [],
-  decisions: [],
-  result: "implemented"
-})
-```
+Новый итог заменяет `last_result`; история отдельных проверок остаётся в
+Verification Evidence. Без явного completion состояние задачи сохраняется.
+`completion: partial` переводит её в `in_progress`, `blocked` — в `blocked`.
+`complete` требует свежего `ready_to_merge` запуска с независимой приёмкой
+и переводит задачу в `done`. См. [execution](execution.md).
 
-Создаётся или обновляется черновик:
-
-```text
-.project-context/drafts/run-summaries/YYYYMMDD-HHMMSS-001.md
-```
-
-Внутри находятся:
-
-- `source_task` и текущий `source_commit`;
-- modules и changed files;
-- итоговое summary и `result`;
-- выполненные тесты со статусами;
-- пропущенные проверки с обязательными причинами;
-- решения, принятые по ходу работы;
-- явная пометка о необходимости human review.
-
-Повторная финализация той же задачи на том же commit обновляет существующий
-черновик, а не создаёт дубликат. Если нет связанного подтверждённого Task
-Contract, `finalize_work` возвращает `SKIPPED` и не создаёт сиротский run summary.
-
-После ревью черновик можно предварительно просмотреть и затем продвинуть в
-активную память через `promote_draft`. Применение требует имени одобрившего:
-
-```bash
-npx project-context promote-draft RUN-YYYYMMDD-HHMMSS-001
-npx project-context promote-draft RUN-YYYYMMDD-HHMMSS-001 \
-  --apply --approved-by "Reviewer Name"
-```
-
-После применения появляется `.project-context/active/run-summaries/RUN-....md`
-со статусом `reviewed`, а исходный draft перемещается в `trash/`. Инструмент
-`promote_draft` доступен в MCP-профиле `admin`; при профиле `core` используйте
-CLI или временно переключите профиль после осознанного решения.
-
-`finalize_work` не переводит сам Task Contract в `done`: он создаёт итоговый
-черновик. Это отдельное состояние, которое текущая реализация не изменяет
-автоматически.
+Без задачи, владеющей изменёнными файлами, возвращается `SKIPPED`.
+Отдельные `run-summary` и их продвижение больше не используются.
 
 ## Если задача пришла из backlog
 
@@ -632,30 +571,17 @@ dependencies, files, acceptance criteria и checks. `pick_next_task` выбир�
 .project-context/
 ├── project.yaml
 ├── active/
-│   ├── tasks/
-│   │   └── TASK-....md              # подтверждённая граница задачи
-│   ├── verification/
-│   │   └── VERIFY-....md            # факты выполненных проверок
-│   ├── decisions/
-│   │   └── DECISION-....md          # только после отдельного ревью/продвижения
-│   └── run-summaries/
-│       └── RUN-....md               # только если summary был одобрен
-├── drafts/
-│   ├── refactors/
-│   │   └── REFACTOR-....md          # отложенное предложение
-│   └── run-summaries/
-│       └── ....md                    # итог ещё ожидает ревью
-├── indexes/
-│   ├── context.sqlite               # пересоздаваемый поиск
-│   └── pack-cache/
-│       └── <key>.json                # кэш ответа context pack
-└── trash/
-    └── TASK-....draft.md             # предыдущая версия подтверждённого draft
+│   ├── tasks/TASK-....md           # контракт и last_result
+│   ├── verification/VERIFY-....md  # факты проверок
+│   └── decisions/DECISION-....md   # согласованные решения
+├── drafts/                        # предложения поддерживаемых типов
+├── indexes/                       # пересоздаваемые индексы и cache
+└── trash/                         # предыдущие версии подтверждённых drafts
 ```
 
-Не каждый файл появляется в каждой задаче. Минимальный нормальный след —
-подтверждённый Task Contract, изменения кода, Verification Evidence и черновик
-Run Summary.
+Запуски и независимые приёмки сохраняются в `agent-runs/` и `acceptance-reviews/`.
+Список поддерживаемых типов и переход со старых записей описаны в
+[инструкции обновления](record-model.md).
 
 ## Рекомендуемый промпт для OpenCode
 

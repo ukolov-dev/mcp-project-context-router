@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { PortalClient, normalizePortalBaseUrl, sha256 } from '../src/portal/client.js';
+import { PortalClient, portalWorkItemSchema, normalizePortalBaseUrl, sha256 } from '../src/portal/client.js';
 
 const projectId = '00000000-0000-4000-8000-000000000001';
 const snapshotId = '00000000-0000-4000-8000-000000000002';
@@ -97,6 +97,9 @@ describe('Portal client', () => {
       snapshotDigest,
       handoffId,
       handoffDigest,
+      sourceDocumentId: documentId,
+      sourceRevisionId: revisionId,
+      sourceTaskCode: 'DEV-123',
       title: 'Implement exact scope',
       description: 'Use only the assigned snapshot.',
       status: 'IN_PROGRESS',
@@ -111,8 +114,22 @@ describe('Portal client', () => {
     });
 
     await expect(client.getAssignedWork(projectId)).resolves.toEqual([
-      expect.objectContaining({ handoffId, handoffDigest, snapshotDigest }),
+      expect.objectContaining({ handoffId, handoffDigest, snapshotDigest, sourceDocumentId: documentId, sourceRevisionId: revisionId, sourceTaskCode: 'DEV-123' }),
     ]);
+  });
+
+  it('accepts optional/null source fields and rejects malformed source IDs', () => {
+    const work = {
+      id: workItemId, projectId, snapshotId, snapshotDigest,
+      handoffId, handoffDigest, title: 'Task', description: 'Scope', status: 'ASSIGNED',
+      assignedSubjectId: 'developer', assignedSubjectName: null, version: 1,
+      updatedAt: '2026-10-14T12:00:00Z',
+    };
+    expect(portalWorkItemSchema.parse(work)).not.toHaveProperty('sourceDocumentId');
+    expect(portalWorkItemSchema.parse({ ...work, sourceDocumentId: null, sourceRevisionId: null, sourceTaskCode: null }))
+      .toMatchObject({ sourceDocumentId: null, sourceRevisionId: null, sourceTaskCode: null });
+    expect(portalWorkItemSchema.safeParse({ ...work, sourceDocumentId: 'bad-uuid' }).success).toBe(false);
+    expect(portalWorkItemSchema.safeParse({ ...work, sourceRevisionId: 'bad-uuid' }).success).toBe(false);
   });
 
   it('requires explicit developer acceptance before implementation starts', async () => {

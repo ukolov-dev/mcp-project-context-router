@@ -63,15 +63,6 @@ const typeSchemas: Record<string, z.ZodTypeAny> = {
     modules: z.array(z.string()).default([]),
     retention: z.string().default('keep'),
   }).passthrough(),
-  refactor: z.object({
-    id: z.string().regex(generatedIdPattern('REFACTOR')),
-    type: z.literal('refactor'),
-    status: z.string(),
-    title: z.string(),
-    risk: z.string(),
-    modules: z.array(z.string()).default([]),
-    retention: z.string().default('normal'),
-  }).passthrough(),
   backlog: z.object({
     id: z.string().regex(/^BACKLOG-[A-Z0-9-]+$/),
     type: z.literal('backlog'),
@@ -106,25 +97,6 @@ const typeSchemas: Record<string, z.ZodTypeAny> = {
     type: z.literal('project'),
     ...knowledgeRecordBase,
   }).passthrough(),
-  integration: z.object({
-    id: z.string().regex(generatedIdPattern('INTEGRATION')),
-    type: z.literal('integration'),
-    ...knowledgeRecordBase,
-    systems: z.array(z.string()).default([]),
-  }).passthrough(),
-  data_entity: z.object({
-    id: z.string().regex(generatedIdPattern('DATA-ENTITY')),
-    type: z.literal('data_entity'),
-    ...knowledgeRecordBase,
-    entity_name: z.string().optional(),
-    fields: z.array(z.string()).default([]),
-  }).passthrough(),
-  api: z.object({
-    id: z.string().regex(generatedIdPattern('API')),
-    type: z.literal('api'),
-    ...knowledgeRecordBase,
-    endpoints: z.array(z.string()).default([]),
-  }).passthrough(),
   requirement: z.object({
     id: z.string().regex(generatedIdPattern('REQUIREMENT')),
     type: z.literal('requirement'),
@@ -136,13 +108,6 @@ const typeSchemas: Record<string, z.ZodTypeAny> = {
     ...knowledgeRecordBase,
     owner: z.string().optional(),
     due_at: z.string().optional(),
-  }).passthrough(),
-  meeting_draft: z.object({
-    id: z.string().regex(generatedIdPattern('MEETING-DRAFT')),
-    type: z.literal('meeting_draft'),
-    ...knowledgeRecordBase,
-    meeting_at: z.string().optional(),
-    participants: z.array(z.string()).default([]),
   }).passthrough(),
   source: z.object({
     id: z.string().regex(generatedIdPattern('SOURCE')),
@@ -163,14 +128,6 @@ const typeSchemas: Record<string, z.ZodTypeAny> = {
     system_area: z.string().optional(),
     information_type: z.string().optional(),
     knowledge_status: z.string().optional(),
-  }).passthrough(),
-  acceptance_check: z.object({
-    id: z.string().regex(generatedIdPattern('ACCEPTANCE-CHECK')),
-    type: z.literal('acceptance_check'),
-    ...knowledgeRecordBase,
-    acceptance_id: z.string(),
-    requirement_keys: z.array(z.string()).default([]),
-    task_keys: z.array(z.string()).default([]),
   }).passthrough(),
 };
 

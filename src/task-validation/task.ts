@@ -4,7 +4,6 @@ import { existsSync, mkdirSync, renameSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { z } from 'zod';
 import { buildContextPack } from '../context-pack/pack.js';
-import { inferModule } from '../indexer/capabilities.js';
 import { findRecordPath, nextRecordId, parseRecord, readRecords, updateRecord, writeMarkdown, createTaskDraft, inferTags } from '../storage/markdown.js';
 import { repoPaths, relPath } from '../storage/repo.js';
 import { nowIso } from '../storage/time.js';
@@ -108,7 +107,7 @@ export function confirmTaskContract(input: z.infer<typeof confirmTaskInputSchema
     confirmed_at: timestamp,
     confirmed_by_human: true,
     source: { kind: 'user_prompt' },
-    related: { bugs: [], decisions: [], refactors: [] },
+    related: { bugs: [], decisions: [] },
     modules,
     files,
     tags,
@@ -195,7 +194,7 @@ export const finalizeWorkInputSchema = z.object({
 });
 
 export type FinalizeWorkResult =
-  | { status: 'CREATED' | 'UPDATED'; draftPath: string; requiresHumanReview: true; completion?: string; taskStatus?: string }
+  | { status: 'FINALIZED'; taskPath: string; requiresHumanReview: false; completion: string; taskStatus: string }
   | { status: 'SKIPPED'; reason: string; requiresHumanReview: false };
 
 export function finalizeWork(input: z.infer<typeof finalizeWorkInputSchema>): FinalizeWorkResult {
@@ -203,81 +202,34 @@ export function finalizeWork(input: z.infer<typeof finalizeWorkInputSchema>): Fi
   const parsed = finalizeWorkInputSchema.parse(input);
   const changedFiles = parsed.autoFill ? mergeChangedFiles(parsed.changedFiles, gitChangedFiles(paths.root)) : parsed.changedFiles;
   const sourceTask = parsed.taskId ?? inferTaskIdFromChangedFiles(changedFiles);
-  if (!sourceTask) {
-    return {
-      status: 'SKIPPED',
-      reason: 'No confirmed task owns the changed files; taskless or git-only work does not create a run-summary draft.',
-      requiresHumanReview: false,
-    };
-  }
+  if (!sourceTask) return { status: 'SKIPPED', reason: 'No confirmed task owns the changed files.', requiresHumanReview: false };
   const taskPath = findRecordPath(sourceTask);
   const task = taskPath ? parseRecord(taskPath) : undefined;
-  if (parsed.completion && (!task || task.type !== 'task' || task.frontmatter.confirmed_by_human !== true)) throw new Error('Lifecycle finalization requires a confirmed task.');
+  if (!taskPath || !task || task.type !== 'task' || task.frontmatter.confirmed_by_human !== true) throw new Error('Lifecycle finalization requires a confirmed task.');
   if (parsed.completion === 'complete') {
     if (!parsed.runId) throw new Error('Complete finalization requires an execution run with independent acceptance; a passed check alone is insufficient.');
     assertReadyForCompletion(parsed.runId, sourceTask);
   }
-  if (parsed.completion && task?.status === 'done' && parsed.completion !== 'complete') throw new Error('A completed task cannot be reopened by finalization.');
-  const sourceCommit = gitValue(paths.root, ['rev-parse', 'HEAD']);
-  const existing = sourceCommit ? findFinalizeDraft(sourceTask, sourceCommit) : undefined;
-  const id = existing?.id ?? nextRecordId('RUN');
+  if (task.status === 'done' && parsed.completion !== 'complete') throw new Error('A completed task cannot be reopened by finalization.');
   const timestamp = nowIso();
-  const fileName = `${id.replace('RUN-', '')}.md`;
-  const frontmatter = {
-    id,
-    type: 'run-summary',
-    status: 'draft',
-    title: `Run summary for ${sourceTask}`,
-    created_at: existing?.createdAt ?? timestamp,
-    updated_at: timestamp,
-    source_task: sourceTask,
-    completion: parsed.completion ?? 'partial',
-    execution_run: parsed.runId ?? null,
-    source_commit: sourceCommit ?? null,
-    modules: [...new Set(changedFiles.map(inferModule))].filter((module) => module !== 'unknown'),
-    files: changedFiles,
-    tags: ['run-summary'],
-    retention: 'normal',
-  };
-  const body = `# ${frontmatter.title}
-
-## Summary
-
-${parsed.summary}
-
-## Result
-
-${parsed.result}
-
-## Changed Files
-
-${listOrNone(changedFiles)}
-
-## Tests
-
-${parsed.tests.length > 0 ? parsed.tests.map((test) => `- ${test.status}: \`${test.command}\``).join('\n') : 'Нет.'}
-
-## Skipped Checks
-
-${parsed.skippedChecks.length > 0 ? parsed.skippedChecks.map((check) => `- \`${check.command}\` - ${check.reason}`).join('\n') : 'Нет.'}
-
-## Decisions
-
-${listOrNone(parsed.decisions)}
-
-## Review
-
-Requires human review before promotion to active context.
-`;
-  const target = existing ? resolve(paths.root, existing.path) : resolve(paths.draftsDir, 'run-summaries', fileName);
-  writeMarkdown(target, frontmatter, body);
-  if (parsed.completion && taskPath) updateRecord(taskPath, (data) => {
-    data.status = parsed.completion === 'complete' ? 'done' : parsed.completion === 'blocked' ? 'blocked' : 'in_progress';
+  const taskStatus = parsed.completion === 'complete' ? 'done' : parsed.completion === 'blocked' ? 'blocked' : parsed.completion === 'partial' ? 'in_progress' : task.status;
+  updateRecord(taskPath, (data) => {
+    data.status = taskStatus;
     data.updated_at = timestamp;
-    data.completion = parsed.completion;
+    data.finalized_at = timestamp;
+    data.completion = parsed.completion ?? 'partial';
     if (parsed.runId) data.execution_run = parsed.runId;
+    data.last_result = {
+      source_commit: gitValue(paths.root, ['rev-parse', 'HEAD']) ?? null,
+      summary: parsed.summary,
+      result: parsed.result,
+      changed_files: changedFiles,
+      tests: parsed.tests,
+      skipped_checks: parsed.skippedChecks,
+      decisions: parsed.decisions,
+    };
   });
-  return { status: existing ? 'UPDATED' : 'CREATED', draftPath: relPath(paths.root, target), requiresHumanReview: true, completion: parsed.completion ?? 'partial', taskStatus: parsed.completion === 'complete' ? 'done' : parsed.completion === 'blocked' ? 'blocked' : task?.status };
+  return { status: 'FINALIZED', taskPath: relPath(paths.root, taskPath), requiresHumanReview: false, completion: parsed.completion ?? 'partial', taskStatus };
 }
 
 function inferTaskIdFromChangedFiles(changedFiles: string[]): string | undefined {
@@ -287,14 +239,6 @@ function inferTaskIdFromChangedFiles(changedFiles: string[]): string | undefined
     .filter((record) => record.type === 'task' && (record.status === 'confirmed' || record.status === 'in_progress'))
     .find((record) => record.files.some((file) => changed.has(file)))
     ?.id;
-}
-
-function findFinalizeDraft(taskId: string, commitSha: string) {
-  return readRecords(false)
-    .find((record) => record.type === 'run-summary'
-      && record.status === 'draft'
-      && record.frontmatter.source_task === taskId
-      && record.frontmatter.source_commit === commitSha);
 }
 
 function mergeChangedFiles(explicit: string[], inferred: string[]): string[] {

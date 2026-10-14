@@ -181,13 +181,11 @@ export function traceRequirement(input: z.input<typeof traceRequirementInputSche
     const sourceIds = stringValues(record?.frontmatter.source_ids);
     const chunkIds = stringValues(record?.frontmatter.chunk_ids);
     const taskKeys = stringValues(record?.frontmatter.task_keys);
-    const acceptanceIds = stringValues(record?.frontmatter.acceptance_ids);
     return {
       requirement,
       sources: toResults(records.filter((candidate) => candidate.type === 'source' && sourceIds.includes(String(candidate.frontmatter.source_id))), 'Source linked from requirement traceability.'),
       chunks: toResults(records.filter((candidate) => candidate.type === 'source_chunk' && chunkIds.includes(String(candidate.frontmatter.chunk_id))), 'Chunk linked from requirement traceability.'),
-      tasks: toResults(records.filter((candidate) => (candidate.type === 'task' || candidate.type === 'backlog') && taskKeys.some((task) => recordContains(candidate, task))), 'Task or backlog item linked from requirement traceability.'),
-      acceptanceChecks: toResults(records.filter((candidate) => candidate.type === 'acceptance_check' && acceptanceIds.includes(String(candidate.frontmatter.acceptance_id))), 'Acceptance check linked from requirement traceability.'),
+      tasks: toResults(records.filter((candidate) => (candidate.type === 'task' || candidate.type === 'backlog') && taskKeys.some((task) => matchesTaskKey(candidate, task))), 'Task or backlog item linked from requirement traceability.'),
     };
   });
   return {
@@ -197,7 +195,6 @@ export function traceRequirement(input: z.input<typeof traceRequirementInputSche
       ...trace.sources.flatMap((record) => record.sources),
       ...trace.chunks.flatMap((record) => record.sources),
       ...trace.tasks.flatMap((record) => record.sources),
-      ...trace.acceptanceChecks.flatMap((record) => record.sources),
     ])),
   };
 }
@@ -379,8 +376,10 @@ function stringValues(value: unknown): string[] {
   return [String(value)];
 }
 
-function recordContains(record: ContextRecord, value: string): boolean {
-  return `${record.id}\n${record.title}\n${JSON.stringify(record.frontmatter)}\n${record.body}`.includes(value);
+function matchesTaskKey(record: ContextRecord, value: string): boolean {
+  return record.id === value
+    || stringValues(record.frontmatter.task_key).includes(value)
+    || stringValues(record.frontmatter.task_keys).includes(value);
 }
 
 function uniqueSources(sources: ProjectContextSource[]): ProjectContextSource[] {

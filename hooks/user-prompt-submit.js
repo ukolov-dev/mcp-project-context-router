@@ -56,13 +56,11 @@ function buildDraftInboxReminder(root) {
 function reviewableDraftCounts(root) {
   const draftTypes = [
     ['projects', 'project'],
-    ['integrations', 'integration'],
-    ['data-entities', 'data_entity'],
-    ['apis', 'api'],
+    ['sources', 'source'],
+    ['source-chunks', 'source_chunk'],
     ['decisions', 'decision'],
     ['requirements', 'requirement'],
     ['open-questions', 'open_question'],
-    ['meeting-drafts', 'meeting_draft'],
   ];
   const draftsRoot = resolve(root, '.project-context', 'drafts');
   return draftTypes
