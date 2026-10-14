@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { basename, dirname, isAbsolute, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { repoPaths } from '../storage/repo.js';
+import { isRepositoryPath } from '../storage/file-references.js';
 
 export type ProjectModuleSeed = {
   name: string;
@@ -11,6 +12,7 @@ export type ProjectModuleSeed = {
 export type InitializeProjectContextOptions = {
   name?: string;
   modules?: ProjectModuleSeed[];
+  withSkills?: boolean;
 };
 
 export type InitializeProjectContextResult = {
@@ -19,6 +21,8 @@ export type InitializeProjectContextResult = {
   created: string[];
   skipped: string[];
 };
+
+const bundledSkills = ['project-context-workflow', 'context-research'] as const;
 
 const contextDirectories = [
   'active/tasks',
@@ -78,6 +82,13 @@ export function initializeProjectContext(options: InitializeProjectContextOption
   const modules = uniqueModules(options.modules ?? []);
   const projectName = options.name?.trim() || humanizeRepositoryName(basename(paths.root));
 
+  if (options.withSkills) {
+    for (const name of bundledSkills) {
+      const relative = `.agents/skills/${name}/SKILL.md`;
+      if (!isRepositoryPath(relative)) throw new Error(`Skill destination must stay inside the repository: ${relative}`);
+    }
+  }
+
   for (const relative of contextDirectories) {
     mkdirSync(resolve(paths.contextDir, relative), { recursive: true });
   }
@@ -97,9 +108,14 @@ export function initializeProjectContext(options: InitializeProjectContextOption
     skipped,
   );
 
-  copyWorkflowTemplate('task-contract.md', 'TASK-CONTRACT.md', created, skipped);
-  copyWorkflowTemplate('task-contract.full.md', 'TASK-CONTRACT.full.md', created, skipped);
-  copyWorkflowTemplate('verification-record.md', 'VERIFICATION-RECORD.md', created, skipped);
+  copyTemplate('portable-workflow/task-contract.md', '.project-context/templates/TASK-CONTRACT.md', created, skipped);
+  copyTemplate('portable-workflow/task-contract.full.md', '.project-context/templates/TASK-CONTRACT.full.md', created, skipped);
+  copyTemplate('portable-workflow/verification-record.md', '.project-context/templates/VERIFICATION-RECORD.md', created, skipped);
+  if (options.withSkills) {
+    for (const name of bundledSkills) {
+      copyTemplate(`skills/${name}/SKILL.md`, `.agents/skills/${name}/SKILL.md`, created, skipped);
+    }
+  }
   updateGitignore(paths.root, created, skipped);
 
   return { status: 'OK', contextDir: paths.contextDir, created, skipped };
@@ -126,14 +142,18 @@ function writeIfMissing(
     return;
   }
   mkdirSync(dirname(absolutePath), { recursive: true });
-  writeFileSync(absolutePath, content, 'utf8');
-  created.push(relativePath);
+  try {
+    writeFileSync(absolutePath, content, { encoding: 'utf8', flag: 'wx' });
+    created.push(relativePath);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error;
+    skipped.push(relativePath);
+  }
 }
 
-function copyWorkflowTemplate(sourceName: string, destinationName: string, created: string[], skipped: string[]): void {
+function copyTemplate(sourceName: string, relative: string, created: string[], skipped: string[]): void {
   const paths = repoPaths();
-  const source = fileURLToPath(new URL(`../../templates/portable-workflow/${sourceName}`, import.meta.url));
-  const relative = `.project-context/templates/${destinationName}`;
+  const source = fileURLToPath(new URL(`../../templates/${sourceName}`, import.meta.url));
   writeIfMissing(resolve(paths.root, relative), readFileSync(source, 'utf8'), relative, created, skipped);
 }
 

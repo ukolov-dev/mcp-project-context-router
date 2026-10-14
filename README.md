@@ -44,6 +44,25 @@ npx project-context hooks install
 ```
 
 `init` is non-destructive: it does not overwrite an existing configuration.
+To install the bundled agent skills as well, add `--with-skills`:
+
+```bash
+npx project-context init --with-skills
+```
+
+This works for an already initialized project. It copies `project-context-workflow`
+and `context-research` into `.agents/skills/<name>/SKILL.md` for repository-scoped
+Codex discovery. Plain `init` installs no skills. Existing files are preserved and
+listed in `skipped`; review the output and commit the shared skills if your team
+wants them. Updating the npm package does not replace installed skill copies.
+
+`project-context-workflow` guides task contracts, scoped context, reuse checks,
+verification and finalization. `context-research` guides idea exploration and
+backlog handoff. Skills provide instructions; connect the MCP server separately
+and select the tool profile needed by the task. See the
+[workflow skill](templates/skills/project-context-workflow/SKILL.md) and
+[Codex setup](docs/install/codex.md).
+
 Review `.project-context/project.yaml` after generation and replace the example
 modules, source globs, playbooks, and verification commands with real project
 values.

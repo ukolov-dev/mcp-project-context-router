@@ -5,6 +5,10 @@ Notable changes to Project Context Router are recorded here. Versions before
 
 ## Unreleased
 
+- Bundle a portable `project-context-workflow` skill for confirmed tasks, scoped context, verification and task finalization.
+- Add opt-in `init --with-skills` to copy workflow and research skills into repository `.agents/skills`, preserving existing files and reporting skipped paths. Reject escaping destinations and use exclusive creation to preserve dangling symlinks/concurrent files.
+- Verify skill delivery through package contents and the installed tarball CLI; document installation and manual update of project-owned copies.
+
 - Preserve optional portal work-item source document, revision and task-code fields, including older responses with missing fields.
 - Trace requirement tasks only through exact record IDs or explicit `task_key`/`task_keys`; prefixes and prose mentions no longer create links.
 - Retire ten unused memory types and remove their proposal/promotion/restore support, specialized integration/data-entity CLI and MCP searches, scaffold directories, refactor draft writer and standalone acceptance-check import.
