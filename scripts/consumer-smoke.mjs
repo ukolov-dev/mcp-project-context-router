@@ -57,6 +57,19 @@ try {
   mkdirSync(join(consumer, 'src'));
   writeFileSync(join(consumer, 'src/example.ts'), 'export function example() { return true; }\n');
   json('init', '--name', 'Clean consumer', '--module', 'app:src');
+  assert(!existsSync(join(consumer, '.agents')));
+  const skillInit = json('init', '--with-skills');
+  for (const name of ['project-context-workflow', 'context-research']) {
+    const relativePath = `.agents/skills/${name}/SKILL.md`;
+    assert(skillInit.created.includes(relativePath));
+    assert.equal(readFileSync(join(consumer, relativePath), 'utf8'),
+      readFileSync(join(installed, 'templates/skills', name, 'SKILL.md'), 'utf8'));
+  }
+  const customizedSkill = '.agents/skills/project-context-workflow/SKILL.md';
+  writeFileSync(join(consumer, customizedSkill), 'User customized workflow\n');
+  assert(json('init', '--with-skills').skipped.includes(customizedSkill));
+  assert.equal(readFileSync(join(consumer, customizedSkill), 'utf8'), 'User customized workflow\n');
+  checked('Installed init --with-skills copies both bundled skills and preserves customized files');
   // A small consumer policy isolates install/retrieval correctness from guidance-size limits.
   writeFileSync(join(consumer, 'AGENTS.md'), '# Clean consumer\nUse scoped project context.\n');
   writeFileSync(join(consumer, '.project-context/project.yaml'), 'project:\n  name: Clean consumer\nmodules:\n  app:\n    path: src\nrouting:\n  default_modules: [app]\ncommands: {}\n');

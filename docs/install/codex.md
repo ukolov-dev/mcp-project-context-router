@@ -16,7 +16,7 @@ Run these commands from the repository that should own the project context:
 
 ```bash
 npm install --save-dev --save-exact github:ukolov-dev/mcp-project-context-router
-npx project-context init --name "Example Project" --module app:src
+npx project-context init --name "Example Project" --module app:src --with-skills
 npx project-context index
 npx project-context doctor --json
 ```
@@ -29,6 +29,19 @@ repository's default branch.
 
 Review `.project-context/project.yaml` before continuing. The generated config
 is intentionally generic and `init` never overwrites an existing file.
+
+`--with-skills` copies the bundled `project-context-workflow` and `context-research`
+skills into `.agents/skills/` in this repository. Omit the flag for configuration
+only. You can run `npx project-context init --with-skills` later; existing skill
+files and project configuration are never replaced, and skipped paths are reported.
+Installed copies are project files: npm updates do not update them automatically.
+Review differences before replacing a customized copy. Codex discovers skills
+from `.agents/skills`; see the official [skills guide](https://learn.chatgpt.com/docs/build-skills).
+
+The workflow skill uses the ordinary task tools in `core`. Research needs a
+profile with research tools, such as `planning`; installing skills does not change
+the MCP profile or establish a connection. Other clients may require their own
+skill discovery location.
 
 ## 2. Add the project-scoped Codex configuration
 

@@ -38,7 +38,11 @@ env = { PROJECT_CONTEXT_TOOL_PROFILE = "planning" }
 
 Переносимый Codex skill находится в
 [`templates/skills/context-research/SKILL.md`](../templates/skills/context-research/SKILL.md).
-Скопируйте каталог `context-research` в каталог skills вашей установки Codex.
+В корне проекта выполните `npx project-context init --with-skills`, чтобы
+установить его и `project-context-workflow` в `.agents/skills/`. Команда подходит
+и для уже инициализированного проекта; существующие файлы пропускаются.
+При ручной установке скопируйте каталог `context-research` в каталог skills
+вашего клиента.
 Skill помогает вести обсуждение и сохранять его итоги через MCP; он не получает
 автоматически историю всех чатов и не устанавливается в личную конфигурацию при
 обновлении npm-пакета.

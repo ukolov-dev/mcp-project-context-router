@@ -40,6 +40,7 @@ const required = [
   'docs/research.ru.md',
   'dist/research/research.js',
   'templates/skills/context-research/SKILL.md',
+  'templates/skills/project-context-workflow/SKILL.md',
   'CHANGELOG.md',
   'templates/portable-workflow/execution-adapter.example.json',
   'docs/install/codex.md',
