@@ -116,6 +116,151 @@ or pass `searchEngine: "fts5"` to `build_context_pack`. See the
 [SQLite search modes](docs/sqlite-index.md#optional-fts5-search-mode) and
 [evaluation](docs/search-evaluation.md).
 
+## Configure your project stack
+
+There is no language switch: discovery runs automatically for files selected by
+`modules.*.source_globs` in `.project-context/project.yaml`. Project memory, task
+contracts and context packs work independently of the application stack. The
+router itself requires Node.js 22.13+ and npm, including in .NET and Java projects.
+
+After installing the router, initialize from the consumer repository root:
+
+```bash
+npx project-context init --name "My Project" --module backend:src
+```
+
+For Java or frontend-only projects, use `--module backend:backend` or
+`--module frontend:frontend` instead. `init` preserves existing configuration.
+Add or update the relevant blocks below in `.project-context/project.yaml`; keep
+other project settings and replace example paths and commands with your own.
+Explicit `source_globs` replace the module's defaults, so include every source
+path you need. Choose `routing.default_modules` for your project's default area.
+
+### C# / .NET
+
+The default globs already include `.cs`. This example assumes solution projects
+under `src/` and a solution at the repository root:
+
+```yaml
+routing:
+  default_modules: [backend]
+modules:
+  backend:
+    path: src
+    aliases: [backend, api, csharp, dotnet]
+    source_globs:
+      - "src/**/*.cs"
+      - "!src/**/obj/**"
+      - "!src/**/bin/**"
+    playbooks: [AGENTS.md]
+commands:
+  backend_build:
+    run: dotnet build
+    required_for: [backend]
+    context_pack: true
+  backend_tests:
+    run: dotnet test
+    required_for: [backend]
+    context_pack: true
+```
+
+Discovery recognizes common class, struct, record, interface and enum
+declarations, constructors, methods and properties, including multiline
+declarations. ASP.NET Core controller routes support literal `Route`, `HttpGet`,
+`HttpPost`, `HttpPut`, `HttpPatch`, `HttpDelete`, `HttpHead` and `HttpOptions`
+attributes, `[controller]` / `[action]` tokens, and absolute action routes.
+Computed templates and non-public, static or `NonAction` methods are skipped.
+
+This is a text heuristic, not Roslyn. It does not resolve inheritance,
+conditional compilation, custom routing conventions, every C# declaration form,
+or Minimal API endpoints. Raw/interpolated route strings and complex attribute
+combinations are outside this basic coverage.
+
+### Java / Spring
+
+This example assumes a Maven application under `backend/` and a Maven wrapper
+at the repository root:
+
+```yaml
+routing:
+  default_modules: [backend]
+modules:
+  backend:
+    path: backend
+    aliases: [backend, api, java, spring]
+    source_globs:
+      - "backend/src/**/*.java"
+    playbooks: [AGENTS.md]
+commands:
+  backend_verify:
+    run: ./mvnw -f backend/pom.xml verify
+    required_for: [backend]
+    context_pack: true
+```
+
+For Gradle, replace the command with your wrapper's build command, for example
+`./gradlew -p backend build`. Match wrapper locations to your repository.
+Discovery recognizes class, record, interface and enum declarations, plus simple
+Spring MVC `RequestMapping` and `Get/Post/Put/Patch/DeleteMapping` annotations
+with literal routes. It does not provide Java method discovery, compiler-level
+analysis, or complete Spring routing resolution.
+
+### Frontend / TypeScript / JavaScript
+
+This example assumes a frontend package under `frontend/` with `build` and
+`test` scripts. It includes `src/` and root-level Next.js `app/` or `pages/`
+directories when present:
+
+```yaml
+routing:
+  default_modules: [frontend]
+modules:
+  frontend:
+    path: frontend
+    aliases: [frontend, web, react, next, ui]
+    source_globs:
+      - "frontend/src/**/*.{ts,tsx,js,jsx,mjs,cjs,mts,cts}"
+      - "frontend/{app,pages}/**/*.{ts,tsx,js,jsx}"
+    playbooks: [AGENTS.md]
+commands:
+  frontend_build:
+    run: npm --prefix frontend run build
+    required_for: [frontend]
+    context_pack: true
+  frontend_tests:
+    run: npm --prefix frontend test
+    required_for: [frontend]
+    context_pack: true
+```
+
+Use your project's non-interactive test command and package manager. Discovery
+recognizes function, constant, type and interface declarations using text rules;
+it classifies common `use*` functions as hooks and capitalized functions as
+components. It does not resolve imports, infer framework routes, or fully parse
+JSX, Vue/Svelte components or TypeScript semantics.
+
+For a monorepo, combine the backend and frontend module/command blocks under one
+`modules` and one `commands` mapping. Add a separate module or globs for tests and
+documentation if they live outside the selected source paths. Use `AGENTS.md`
+in `playbooks` only when that file exists in the consumer repository; otherwise
+use your actual instruction files or `playbooks: []`.
+
+### Index and check the configuration
+
+From the consumer repository root, after editing the configuration:
+
+```bash
+npx project-context index
+npx project-context doctor --json
+npx project-context reuse-scan "CustomerService" --modules backend
+npx project-context pack "Update customer API" --modules backend
+```
+
+For frontend-only projects, use `--modules frontend` and a component or hook
+name. Source edits and discovery-rule upgrades refresh the index automatically;
+`index` also lets you rebuild it explicitly. Configured build/test commands are
+verification guidance; indexing does not compile or execute the application.
+
 ## How data is laid out
 
 ```text
