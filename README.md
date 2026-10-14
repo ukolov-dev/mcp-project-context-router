@@ -123,6 +123,21 @@ There is no language switch: discovery runs automatically for files selected by
 contracts and context packs work independently of the application stack. The
 router itself requires Node.js 22.13+ and npm, including in .NET and Java projects.
 
+For a .NET or Java repository without `package.json`, run `npm init -y` before
+the install command in Quick start. This adds the router's Node tooling beside
+your existing application build; keep the resulting package manifest and lockfile
+in the consumer repository.
+
+To update an existing GitHub installation to the current `main` code:
+
+```bash
+npm install --save-dev --save-exact github:ukolov-dev/mcp-project-context-router#main
+```
+
+Review the changed lockfile and restart any running router MCP server so it loads
+the updated package. Versioned release tarballs contain the code from their tag;
+updating to `main` may include changes published after the latest release.
+
 After installing the router, initialize from the consumer repository root:
 
 ```bash
