@@ -1,5 +1,5 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { basename, dirname, isAbsolute, resolve } from 'node:path';
+import { basename, dirname, isAbsolute, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { repoPaths } from '../storage/repo.js';
 import { isRepositoryPath } from '../storage/file-references.js';
@@ -13,6 +13,7 @@ export type InitializeProjectContextOptions = {
   name?: string;
   modules?: ProjectModuleSeed[];
   withSkills?: boolean;
+  withHooks?: boolean;
 };
 
 export type InitializeProjectContextResult = {
@@ -89,13 +90,17 @@ export function initializeProjectContext(options: InitializeProjectContextOption
     }
   }
 
+  if (options.withHooks && !isRepositoryPath('.codex/hooks.json')) {
+    throw new Error('Hook destination must stay inside the repository: .codex/hooks.json');
+  }
+
   for (const relative of contextDirectories) {
     mkdirSync(resolve(paths.contextDir, relative), { recursive: true });
   }
 
   writeIfMissing(
     resolve(paths.contextDir, 'project.yaml'),
-    renderProjectConfig(projectName, basename(paths.root), modules),
+    renderProjectConfig(projectName, basename(paths.root), modules, Boolean(options.withHooks)),
     '.project-context/project.yaml',
     created,
     skipped,
@@ -115,6 +120,15 @@ export function initializeProjectContext(options: InitializeProjectContextOption
     for (const name of bundledSkills) {
       copyTemplate(`skills/${name}/SKILL.md`, `.agents/skills/${name}/SKILL.md`, created, skipped);
     }
+  }
+  if (options.withHooks) {
+    const template = readFileSync(fileURLToPath(new URL('../../templates/client-configs/codex-hooks.json', import.meta.url)), 'utf8');
+    const packageRoot = fileURLToPath(new URL('../../', import.meta.url));
+    const local = relative(paths.root, packageRoot).replaceAll('\\', '/');
+    const prefix = local === '' ? '' : !isAbsolute(local) && local !== '..' && !local.startsWith('../') ? `${local}/` : 'node_modules/mcp-project-context-router/';
+    if (/["'$`\r\n]/.test(prefix)) throw new Error('Hook package path contains unsupported shell characters.');
+    const content = template.replaceAll('node_modules/mcp-project-context-router/', prefix);
+    writeIfMissing(resolve(paths.root, '.codex/hooks.json'), content, '.codex/hooks.json', created, skipped);
   }
   updateGitignore(paths.root, created, skipped);
 
@@ -171,7 +185,7 @@ function updateGitignore(root: string, created: string[], skipped: string[]): vo
   created.push('.gitignore');
 }
 
-function renderProjectConfig(projectName: string, repository: string, modules: ProjectModuleSeed[]): string {
+function renderProjectConfig(projectName: string, repository: string, modules: ProjectModuleSeed[], withHooks: boolean): string {
   const defaultModules = modules.length > 0 ? [modules[0].name] : [];
   const documentationModules = modules
     .filter((module) => ['doc', 'docs', 'documentation'].includes(module.name))
@@ -199,7 +213,7 @@ context_router:
   mcp_server_name: project_context
   resource_scheme: project-context
   codex_config_path: false
-  codex_hooks_path: false
+  codex_hooks_path: ${withHooks ? ".codex/hooks.json\n  required_hook_events: [UserPromptSubmit, PostToolUse, Stop]" : "false"}
   git_hooks_path: false
   brand:
     name: Project Context Router

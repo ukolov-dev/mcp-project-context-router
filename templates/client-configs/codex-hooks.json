@@ -1,0 +1,41 @@
+{
+  "description": "Optional Project Context Router lifecycle hooks. Review and trust in Codex before use.",
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$(git rev-parse --show-toplevel)/node_modules/mcp-project-context-router/hooks/user-prompt-submit.js\"",
+            "commandWindows": "powershell -NoProfile -Command \"& node (Join-Path (git rev-parse --show-toplevel) 'node_modules/mcp-project-context-router/hooks/user-prompt-submit.js')\"",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$(git rev-parse --show-toplevel)/node_modules/mcp-project-context-router/hooks/post-tool-use.js\"",
+            "commandWindows": "powershell -NoProfile -Command \"& node (Join-Path (git rev-parse --show-toplevel) 'node_modules/mcp-project-context-router/hooks/post-tool-use.js')\"",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$(git rev-parse --show-toplevel)/node_modules/mcp-project-context-router/hooks/stop-capture.js\"",
+            "commandWindows": "powershell -NoProfile -Command \"& node (Join-Path (git rev-parse --show-toplevel) 'node_modules/mcp-project-context-router/hooks/stop-capture.js')\"",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,132 +1,145 @@
-import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { execFileSync, spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, unlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { renderMarkdown } from '../src/storage/markdown.js';
 
-const here = dirname(fileURLToPath(import.meta.url));
-const hookPath = resolve(here, '../hooks/stop-capture.js');
-
-let tempDir: string;
-
-beforeEach(() => {
-  tempDir = mkdtempSync(resolve(tmpdir(), 'ppm-context-stop-hook-test-'));
-});
-
-afterEach(() => {
-  rmSync(tempDir, { recursive: true, force: true });
-});
-
-describe('Stop hook task boundary', () => {
-  it('does not block changes that are not linked to a confirmed task', () => {
-    const statePath = writeState('quiet-session', ['doc/unrelated.md']);
-
-    const result = runHook('quiet-session');
-
-    expect(result.stdout).toBe('');
-    expect(existsSync(statePath)).toBe(false);
+const hooks = resolve(dirname(fileURLToPath(import.meta.url)), '../hooks');
+let root: string;
+const session = 'test-session';
+const stateFile = () => resolve(root, '.project-context/indexes/hook-state', `${createHash('sha256').update(session).digest('hex')}.json`);
+const git = (...args: string[]) => execFileSync('git', args, { cwd: root, stdio: 'pipe' });
+const write = (file: string, text: string) => { mkdirSync(dirname(resolve(root, file)), { recursive: true }); writeFileSync(resolve(root, file), text); };
+function hook(script = 'stop-capture.js', input: Record<string, unknown> = {}) {
+  const result = spawnSync(process.execPath, [resolve(hooks, script)], {
+    cwd: resolve(root, 'src'), encoding: 'utf8', input: JSON.stringify({ cwd: resolve(root, 'src'), session_id: session, ...input }),
   });
-
-  it('blocks when a confirmed task explicitly owns a changed file', () => {
-    writeState('task-session', ['tools/ppm-context/src/context-pack/pack.ts']);
-    const taskDir = resolve(tempDir, '.project-context/active/tasks');
-    mkdirSync(taskDir, { recursive: true });
-    writeFileSync(resolve(taskDir, 'TASK-CONTEXT-001.md'), `---
-id: TASK-CONTEXT-001
-type: task
-status: confirmed
-title: Improve context pack
-files:
-  - tools/ppm-context/src/context-pack/pack.ts
----
-`, 'utf8');
-
-    const result = runHook('task-session');
-    const output = JSON.parse(result.stdout);
-
-    expect(output.decision).toBe('block');
-    expect(output.reason).toContain('TASK-CONTEXT-001');
-  });
-
-  it('accepts a recent task result instead of requiring a summary draft', () => {
-    const statePath = writeState('finalized-session', ['src/a.ts']);
-    const taskDir = resolve(tempDir, '.project-context/active/tasks');
-    mkdirSync(taskDir, { recursive: true });
-    writeFileSync(resolve(taskDir, 'TASK-RESULT.md'), `---
-id: TASK-RESULT
-type: task
-status: confirmed
-title: Task result
-finalized_at: '${new Date(Date.now() + 1000).toISOString()}'
-files:
-  - src/a.ts
----
-`, 'utf8');
-    expect(runHook('finalized-session').stdout).toBe('');
-    expect(existsSync(statePath)).toBe(false);
-  });
-
-  it('does not accept an old task result or a legacy summary for new changes', () => {
-    writeState('stale-session', ['src/a.ts']);
-    const taskDir = resolve(tempDir, '.project-context/active/tasks');
-    mkdirSync(taskDir, { recursive: true });
-    writeFileSync(resolve(taskDir, 'TASK-RESULT.md'), `---
-id: TASK-RESULT
-type: task
-status: confirmed
-title: Task result
-finalized_at: '2026-01-01T00:00:00Z'
-files:
-  - src/a.ts
----
-`, 'utf8');
-    const summaryDir = resolve(tempDir, '.project-context/drafts/run-summaries');
-    mkdirSync(summaryDir, { recursive: true });
-    writeFileSync(resolve(summaryDir, 'RUN-OLD.md'), 'src/a.ts', 'utf8');
-    expect(JSON.parse(runHook('stale-session').stdout).decision).toBe('block');
-  });
-
-  it('uses project-configured branding and MCP server names', () => {
-    writeState('custom-session', ['src/context-pack/pack.ts']);
-    const taskDir = resolve(tempDir, '.project-context/active/tasks');
-    mkdirSync(taskDir, { recursive: true });
-    writeFileSync(resolve(taskDir, 'TASK-CONTEXT-002.md'), `---
-id: TASK-CONTEXT-002
-type: task
-status: confirmed
-title: Improve context pack
-files:
-  - src/context-pack/pack.ts
----
-`, 'utf8');
-    writeFileSync(resolve(tempDir, '.project-context/project.yaml'), `context_router:
-  mcp_server_name: custom_context
-  brand:
-    logo_text: "[Custom Context]"
-`, 'utf8');
-
-    const output = JSON.parse(runHook('custom-session').stdout);
-
-    expect(output.reason).toContain('[Custom Context]');
-    expect(output.reason).toContain('custom_context.finalize_work');
-  });
-});
-
-function writeState(sessionId: string, changedFiles: string[]): string {
-  const statePath = resolve(tempDir, '.project-context/indexes/hook-state', `${sessionId}.json`);
-  mkdirSync(resolve(statePath, '..'), { recursive: true });
-  writeFileSync(statePath, JSON.stringify({ changedFiles, updatedAt: new Date().toISOString() }), 'utf8');
-  return statePath;
-}
-
-function runHook(sessionId: string) {
-  const result = spawnSync(process.execPath, [hookPath], {
-    cwd: tempDir,
-    input: JSON.stringify({ cwd: tempDir, session_id: sessionId }),
-    encoding: 'utf8',
-  });
-  expect(result.status).toBe(0);
+  expect(result.status, result.stderr).toBe(0);
   expect(result.stderr).toBe('');
-  return result;
+  return result.stdout ? JSON.parse(result.stdout) : undefined;
 }
+function task(id = 'TASK-ONE', extra: Record<string, unknown> = {}, files = ['src/a.ts']) {
+  write(`.project-context/active/tasks/${id}.md`, renderMarkdown({ id, type: 'task', title: id, status: 'confirmed', confirmed_by_human: true, modules: ['app'], files, ...extra }, '## Verification Plan\n\n- `npm test`'));
+}
+function finish(checks: unknown[] = [{ command: 'npm test', status: 'passed' }], extra: Record<string, unknown> = {}) {
+  const timestamp = new Date().toISOString();
+  write('.project-context/active/verification/VERIFY-ONE.md', renderMarkdown({
+    id: 'VERIFY-ONE', type: 'verification-evidence', title: 'Checks', status: 'passed', created_at: timestamp, target_id: 'TASK-ONE', checks: [...checks, { command: 'project-context lint', status: 'passed' }, { command: 'project-context index --check', status: 'passed' }],
+  }, 'Verification'));
+  task('TASK-ONE', { finalized_at: timestamp, completion: 'partial', last_result: { summary: 'Implemented', skipped_checks: [] }, ...extra });
+}
+beforeEach(() => {
+  root = mkdtempSync(resolve(tmpdir(), 'router-hook-test-'));
+  git('init', '-q');
+  write('.gitignore', '.project-context/indexes/\nnode_modules/\n');
+  write('src/a.ts', 'export const a = 1;\n');
+  write('.project-context/project.yaml', 'project:\n  name: Test\nmodules:\n  app:\n    path: src\ncommands: {}\n');
+  git('add', '.');
+  git('-c', 'user.name=Test', '-c', 'user.email=test@example.invalid', 'commit', '-qm', 'Initial');
+  write('src/a.ts', 'export const a = 2;\n');
+});
+afterEach(() => rmSync(root, { recursive: true, force: true }));
+
+describe('lifecycle verification boundary', () => {
+  it('uses exact declared files and explicit human confirmation', () => {
+    task('TASK-PROSE', {}, ['src/another.ts']);
+    task('TASK-DRAFT', { confirmed_by_human: false });
+    expect(hook()).toBeUndefined();
+    task();
+    expect(hook().reason).toContain('TASK-ONE');
+  });
+  it('keeps blocking repeated Stops, including continuation turns', () => {
+    task();
+    expect(hook().decision).toBe('block');
+    expect(hook('stop-capture.js', { stop_hook_active: true }).decision).toBe('block');
+  });
+  it('requires real evidence as well as a finalization timestamp', () => {
+    task('TASK-ONE', { finalized_at: new Date().toISOString(), last_result: { summary: 'Done' } });
+    expect(hook().decision).toBe('block');
+    finish();
+    expect(hook()).toBeUndefined();
+  });
+  it('does not invalidate checks on reads, task records or finalization calls', () => {
+    task(); hook('post-tool-use.js'); finish();
+    const before = readFileSync(stateFile(), 'utf8');
+    hook('post-tool-use.js', { tool_name: 'mcp__project_context__finalize_work' });
+    expect(readFileSync(stateFile(), 'utf8')).toBe(before);
+    expect(hook()).toBeUndefined();
+    expect(hook()).toBeUndefined();
+    expect(existsSync(stateFile())).toBe(true);
+  });
+  it('invalidates evidence when file contents change after finalization', () => {
+    task(); hook('post-tool-use.js'); finish();
+    expect(hook()).toBeUndefined();
+    write('src/a.ts', 'export const a = 3;\n');
+    expect(hook().decision).toBe('block');
+  });
+  it('invalidates a task completed during the session without reopening historical tasks', () => {
+    task('TASK-HISTORICAL', { status: 'done', finalized_at: '2000-01-01T00:00:00Z' });
+    task(); hook('post-tool-use.js'); finish();
+    const taskFile = resolve(root, '.project-context/active/tasks/TASK-ONE.md');
+    writeFileSync(taskFile, readFileSync(taskFile, 'utf8').replace('status: confirmed', 'status: done'));
+    expect(hook()).toBeUndefined();
+    write('src/a.ts', 'export const a = 4;\n');
+    const result = hook();
+    expect(result.reason).toContain('TASK-ONE');
+    expect(result.reason).not.toContain('TASK-HISTORICAL');
+  });
+  it('does not let one finalized task hide another matching task', () => {
+    task(); task('TASK-TWO'); hook('post-tool-use.js'); finish();
+    expect(hook().reason).toContain('TASK-TWO');
+  });
+  it('requires a reason for unresolved required checks even with default partial', () => {
+    task(); hook('post-tool-use.js');
+    finish([{ command: 'npm test', status: 'not_run', reason: 'Required by verification plan; no evidence supplied.' }]);
+    expect(hook().decision).toBe('block');
+    finish([{ command: 'npm test', status: 'failed', reason: 'Test database is unavailable.' }], { completion: 'blocked' });
+    expect(hook()).toBeUndefined();
+  });
+  it('accepts explicit skippedChecks from the finalize_work schema', () => {
+    task(); hook('post-tool-use.js');
+    finish([], { last_result: { summary: 'Partial implementation', skipped_checks: [{ command: 'npm test', reason: 'Database offline' }] } });
+    expect(hook()).toBeUndefined();
+    task('TASK-ONE', { finalized_at: new Date().toISOString(), completion: 'partial', last_result: { summary: 'Partial', skipped_checks: [{ command: 'other check', reason: 'offline' }] } });
+    expect(hook().decision).toBe('block');
+  });
+  it('captures staged files, untracked files, deletion and patch paths together', () => {
+    git('add', 'src/a.ts'); write('src/new.py', 'def example(): pass\n');
+    write('src/deleted.ts', 'gone'); git('add', 'src/deleted.ts'); unlinkSync(resolve(root, 'src/deleted.ts'));
+    hook('post-tool-use.js', { tool_input: { patch: '*** Begin Patch\n*** Update File: src/a.ts\n*** End Patch' } });
+    const state = JSON.parse(readFileSync(stateFile(), 'utf8'));
+    expect(state.changedFiles).toEqual(['src/a.ts', 'src/deleted.ts', 'src/new.py']);
+    expect(state.fingerprints['src/deleted.ts']).toBe('deleted');
+  });
+  it('rejects stale or wrong-target evidence and results saved before verification', () => {
+    task(); hook('post-tool-use.js'); finish();
+    const evidence = resolve(root, '.project-context/active/verification/VERIFY-ONE.md');
+    writeFileSync(evidence, readFileSync(evidence, 'utf8').replace('target_id: TASK-ONE', 'target_id: TASK-TWO'));
+    expect(hook().decision).toBe('block');
+    finish(); task('TASK-ONE', { finalized_at: '2000-01-01T00:00:00Z', last_result: { summary: 'Old' } });
+    expect(hook().decision).toBe('block');
+  });
+  it('hashes untrusted session IDs and rejects symlinked hook storage', () => {
+    hook('post-tool-use.js', { session_id: '../../escape' });
+    expect(existsSync(resolve(root, '.project-context/escape.json'))).toBe(false);
+    rmSync(resolve(root, '.project-context/indexes/hook-state'), { recursive: true });
+    const external = mkdtempSync(resolve(tmpdir(), 'router-hook-outside-'));
+    try {
+      symlinkSync(external, resolve(root, '.project-context/indexes/hook-state'), 'junction');
+      expect(hook().decision).toBe('block');
+      expect(existsSync(resolve(external, `${session}.json`))).toBe(false);
+    } finally { rmSync(external, { recursive: true, force: true }); }
+  });
+  it('recovers corrupt state conservatively and uses configured tool names', () => {
+    task(); hook('post-tool-use.js');
+    writeFileSync(stateFile(), '{broken');
+    write('.project-context/project.yaml', 'context_router:\n  mcp_server_name: custom_context\n  brand:\n    logo_text: "[Custom]"\n');
+    const result = hook();
+    expect(result.decision).toBe('block');
+    expect(result.reason).toContain('custom_context.finalize_work');
+    expect(result.reason).toContain('[Custom]');
+  });
+});

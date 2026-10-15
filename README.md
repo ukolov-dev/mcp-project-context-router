@@ -13,7 +13,7 @@ consumer repository. A disposable SQLite index makes retrieval fast without
 turning an external service into the source of truth.
 
 > Status: active development. The current package is
-> `mcp-project-context-router@0.8.0`, requires Node.js 22.13 or newer, and is distributed
+> `mcp-project-context-router@0.9.0`, requires Node.js 22.13 or newer, and is distributed
 > from source or a versioned tarball. It is not currently published to an npm
 > registry.
 
@@ -94,6 +94,22 @@ clone's `core.hooksPath`, and records that wiring in `project.yaml`. The hook ru
 invalid or context records reference missing, non-file, or out-of-repository
 paths. Existing custom pre-commit hooks are never overwritten; merge the doctor
 command manually when one is already present.
+
+## Optional Codex lifecycle hooks
+
+```bash
+npx project-context init --with-hooks --with-skills
+```
+
+`--with-hooks` creates repository-local `.codex/hooks.json` with `UserPromptSubmit`, `PostToolUse` and `Stop`. Plain `init` installs no lifecycle hooks. Existing hook files and project configuration are preserved and reported in `skipped`; merge the [bundled template](https://github.com/ukolov-dev/mcp-project-context-router/blob/main/templates/client-configs/codex-hooks.json) manually if you already have hooks. Keep the package installed locally and use a Git checkout; commands resolve the repository root even when Codex works in a subdirectory. Standalone exports use their own `hooks/` directory.
+
+Review the commands, trust the project, and review/trust the exact hook definitions in Codex (`/hooks` in the CLI). Restart or reconnect the client as needed. Installation does not grant trust or prove hooks are active; see the official [Codex hooks guide](https://learn.chatgpt.com/docs/hooks).
+
+The prompt hook supplies workflow hints. The tool hook fingerprints staged, unstaged, untracked and deleted files. The Stop hook checks every confirmed task whose declared `files` overlap changes: save fresh `record_verification_evidence`, then call `finalize_work`. All required checks must pass, or the result must explicitly be `partial`/`blocked` with a reason for every unresolved check (`checks[].reason` in evidence or `skippedChecks: [{command, reason}]` in finalization). A bare finalization timestamp is insufficient. New source edits invalidate evidence; reading tools and generated task/evidence/index records do not. Repeated Stop events continue to block missing evidence.
+
+Hooks validate reported evidence; they do not run tests, independently accept work, close tasks, or intercept every possible client operation. `completion: "complete"` still requires an independently accepted execution run. An explained partial result permits a final response without claiming completion. The Git pre-commit check remains a separate `npx project-context hooks install` command.
+
+Hook state is disposable under ignored `.project-context/indexes/hook-state/`; inactive session files expire after seven days. For a storage/configuration error, repair the reported path and retry. Existing installed hook copies/configuration are never silently upgraded; compare them with the bundled template after package updates.
 
 A typical agent workflow then looks like this:
 
