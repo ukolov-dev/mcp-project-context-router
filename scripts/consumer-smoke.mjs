@@ -28,6 +28,7 @@ try {
   report.sourceCommit = run('git', ['rev-parse', 'HEAD'], root).trim();
   report.sourceDirty = Boolean(run('git', ['status', '--porcelain'], root).trim());
   mkdirSync(consumer);
+  run('git', ['init', '-q']);
   writeFileSync(userconfig, '');
   writeFileSync(join(consumer, 'package.json'), '{"name":"clean-context-consumer","version":"1.0.0","private":true}\n');
   assert(!existsSync(join(consumer, 'node_modules')));
@@ -58,6 +59,7 @@ try {
   writeFileSync(join(consumer, 'src/example.ts'), 'export function example() { return true; }\n');
   json('init', '--name', 'Clean consumer', '--module', 'app:src');
   assert(!existsSync(join(consumer, '.agents')));
+  assert(!existsSync(join(consumer, '.codex')));
   const skillInit = json('init', '--with-skills');
   for (const name of ['project-context-workflow', 'context-research']) {
     const relativePath = `.agents/skills/${name}/SKILL.md`;
@@ -70,12 +72,45 @@ try {
   assert(json('init', '--with-skills').skipped.includes(customizedSkill));
   assert.equal(readFileSync(join(consumer, customizedSkill), 'utf8'), 'User customized workflow\n');
   checked('Installed init --with-skills copies both bundled skills and preserves customized files');
+  const beforeHooks = readFileSync(join(consumer, '.project-context/project.yaml'), 'utf8');
+  assert(json('init', '--with-hooks').created.includes('.codex/hooks.json'));
+  assert.equal(readFileSync(join(consumer, '.project-context/project.yaml'), 'utf8'), beforeHooks);
+  const hookConfig = JSON.parse(readFileSync(join(consumer, '.codex/hooks.json'), 'utf8'));
+  assert.deepEqual(Object.keys(hookConfig.hooks), ['UserPromptSubmit', 'PostToolUse', 'Stop']);
+  for (const event of ['UserPromptSubmit', 'PostToolUse', 'Stop']) {
+    const command = hookConfig.hooks[event][0].hooks[0];
+    const input = JSON.stringify({ cwd: join(consumer, 'src'), session_id: 'installed-consumer' });
+    const output = execFileSync(command.command, { cwd: join(consumer, 'src'), shell: true, input, env, encoding: 'utf8', timeout: 30000 });
+    if (event === 'Stop') assert.equal(output, '');
+  }
+  writeFileSync(join(consumer, '.codex/hooks.json'), '{"custom": true}');
+  assert(json('init', '--with-hooks').skipped.includes('.codex/hooks.json'));
+  assert.equal(readFileSync(join(consumer, '.codex/hooks.json'), 'utf8'), '{"custom": true}');
+  checked('Installed optional hooks execute from a subdirectory and preserve custom hook/project configuration');
   // A small consumer policy isolates install/retrieval correctness from guidance-size limits.
   writeFileSync(join(consumer, 'AGENTS.md'), '# Clean consumer\nUse scoped project context.\n');
   writeFileSync(join(consumer, '.project-context/project.yaml'), 'project:\n  name: Clean consumer\nmodule_defaults: &module_defaults\n  path: src\nmodules:\n  app:\n    <<: *module_defaults\nrouting:\n  default_modules: [app]\ncontext_router:\n  mcp_server_name: clean_context\ncommands: {}\n');
   const { loadHookContextConfig } = await import(pathToFileURL(join(installed, 'hooks/context-config.js')).href);
   assert.equal(loadHookContextConfig(consumer).mcpServerName, 'clean_context');
   checked('Installed CLI reads merged YAML modules; installed hooks resolve the packaged YAML loader');
+  const taskPath = join(consumer, '.project-context/active/tasks/TASK-HOOK.md');
+  writeFileSync(taskPath, '---\nid: TASK-HOOK\ntype: task\nstatus: confirmed\ntitle: Installed hook fixture\nconfirmed_by_human: true\nmodules: [app]\nfiles: [src/example.ts]\n---\n## Verification Plan\n\n- `node --version`\n');
+  const runInstalledStop = () => execFileSync(hookConfig.hooks.Stop[0].hooks[0].command, {
+    cwd: join(consumer, 'src'), shell: true, input: JSON.stringify({ cwd: join(consumer, 'src'), session_id: 'installed-consumer' }), env, encoding: 'utf8', timeout: 30000,
+  });
+  assert.equal(JSON.parse(runInstalledStop()).decision, 'block');
+  const evidencePayload = '.project-context/indexes/hook-evidence.json';
+  writeFileSync(join(consumer, evidencePayload), JSON.stringify({ targetId: 'TASK-HOOK', summary: 'Synthetic installed-hook fixture',
+    checks: json('verify-task', 'TASK-HOOK').required.map(({ command }) => ({ command, status: 'passed' })), changedFiles: ['src/example.ts'] }));
+  json('record-verification', '--input', evidencePayload);
+  const resultPayload = '.project-context/indexes/hook-result.json';
+  writeFileSync(join(consumer, resultPayload), JSON.stringify({ summary: 'Installed-hook fixture finalized', changedFiles: ['src/example.ts'], completion: 'partial' }));
+  assert.equal(json('finalize-work', 'TASK-HOOK', '--input', resultPayload).status, 'FINALIZED');
+  assert.equal(runInstalledStop(), '');
+  rmSync(taskPath);
+  const verification = json('verification-evidence', 'TASK-HOOK');
+  for (const item of verification.items) rmSync(join(consumer, item.path));
+  checked('Installed Stop blocks a confirmed task and accepts fresh fixture evidence produced by the real CLI finalization flow');
   const records = join(consumer, '.project-context/active/decisions');
   mkdirSync(records, { recursive: true });
   for (const [id, body] of [['DIRECT', 'quick_valid direct evidence'], ['RESERVE', 'quick_validation reserve evidence']]) {

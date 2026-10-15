@@ -211,7 +211,7 @@ export function finalizeWork(input: z.infer<typeof finalizeWorkInputSchema>): Fi
     assertReadyForCompletion(parsed.runId, sourceTask);
   }
   if (task.status === 'done' && parsed.completion !== 'complete') throw new Error('A completed task cannot be reopened by finalization.');
-  const timestamp = nowIso();
+  const timestamp = new Date().toISOString();
   const taskStatus = parsed.completion === 'complete' ? 'done' : parsed.completion === 'blocked' ? 'blocked' : parsed.completion === 'partial' ? 'in_progress' : task.status;
   updateRecord(taskPath, (data) => {
     data.status = taskStatus;

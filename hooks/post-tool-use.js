@@ -1,43 +1,13 @@
 #!/usr/bin/env node
-import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
-import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
-import { execFileSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
+import { isAbsolute, relative } from 'node:path';
+import { findRepoRoot } from '../dist/storage/repo.js';
+import { captureChanges } from './state.js';
 
 const input = JSON.parse(readFileSync(0, 'utf8') || '{}');
-const root = gitRoot(input.cwd ?? process.cwd());
-pruneOldHookState(root);
-const statePath = resolve(root, '.project-context', 'indexes', 'hook-state', `${input.session_id ?? 'unknown'}.json`);
-const state = readState(statePath);
-const patchText = extractPatchText(input);
-const patchFiles = patchText ? parseApplyPatchFiles(root, patchText) : [];
-const changed = patchFiles.length > 0 ? patchFiles : gitChangedFiles(root);
-
-state.changedFiles = [...new Set([...(state.changedFiles ?? []), ...changed])];
-state.lastTool = input.tool_name ?? 'unknown';
-state.changedFilesSource = patchFiles.length > 0 ? 'apply_patch' : 'git-diff-fallback';
-state.updatedAt = new Date().toISOString();
-
-mkdirSync(dirname(statePath), { recursive: true });
-writeFileSync(statePath, JSON.stringify(state, null, 2), 'utf8');
-
-function gitRoot(cwd) {
-  try {
-    return execFileSync('git', ['rev-parse', '--show-toplevel'], { cwd, encoding: 'utf8' }).trim();
-  } catch {
-    return cwd;
-  }
-}
-
-function gitChangedFiles(root) {
-  try {
-    return execFileSync('git', ['diff', '--name-only'], { cwd: root, encoding: 'utf8' })
-      .split(/\r?\n/)
-      .filter(Boolean)
-      .filter((path) => !path.startsWith('.project-context/indexes/'));
-  } catch {
-    return [];
-  }
-}
+const root = findRepoRoot(input.cwd ?? process.cwd());
+const patch = extractPatchText(input);
+captureChanges(input, patch ? parseApplyPatchFiles(root, patch) : []);
 
 function extractPatchText(value, depth = 0) {
   if (depth > 6 || value == null) return null;
@@ -87,28 +57,4 @@ function normalizeRepoPath(root, path) {
   if (!isAbsolute(cleaned)) return cleaned;
   const relativePath = relative(root, cleaned);
   return relativePath.startsWith('..') ? null : relativePath;
-}
-
-function readState(path) {
-  if (!existsSync(path)) return {};
-  try {
-    return JSON.parse(readFileSync(path, 'utf8'));
-  } catch {
-    return {};
-  }
-}
-
-function pruneOldHookState(root) {
-  const stateDir = resolve(root, '.project-context', 'indexes', 'hook-state');
-  if (!existsSync(stateDir)) return;
-  const cutoffMs = Date.now() - 7 * 24 * 60 * 60 * 1000;
-  for (const entry of readdirSync(stateDir)) {
-    if (!entry.endsWith('.json')) continue;
-    const path = join(stateDir, entry);
-    try {
-      if (statSync(path).mtimeMs < cutoffMs) unlinkSync(path);
-    } catch {
-      // Best-effort cleanup must never break the tool lifecycle.
-    }
-  }
 }

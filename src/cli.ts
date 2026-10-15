@@ -125,11 +125,13 @@ program
   .command('init')
   .description('Create a generic project-context scaffold without overwriting existing configuration')
   .option('--name <name>', 'project name; defaults to the repository directory name')
+  .option('--with-hooks', 'install optional Codex lifecycle hooks without overwriting .codex/hooks.json')
   .option('--with-skills', 'install bundled workflow and research skills into .agents/skills without overwriting existing files')
   .option('--module <name:path>', 'seed a project module; repeat for multiple modules', collectValues, [])
   .action((options) => emit(initializeProjectContext({
     name: options.name,
     withSkills: Boolean(options.withSkills),
+    withHooks: Boolean(options.withHooks),
     modules: (options.module as string[]).map(parseModuleSeed),
   })));
 

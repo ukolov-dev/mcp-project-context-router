@@ -7,7 +7,6 @@ import { findRecordPath, nextRecordId, parseRecord, readRecords, writeMarkdown }
 import { contextCliCommand, contextPackCommandsForModules, loadProjectConfig, type ProjectConfig } from '../storage/config.js';
 import { relPath, repoPaths } from '../storage/repo.js';
 import { inferModulesFromPath, inferModulesFromSignals, resolveModuleName } from '../storage/inference.js';
-import { nowIso } from '../storage/time.js';
 import type { ContextRecord } from '../storage/types.js';
 
 export const verificationPlanInputSchema = z.object({
@@ -169,7 +168,7 @@ export function recordVerificationEvidence(input: z.infer<typeof verificationEvi
   if (completion === 'complete' && status !== 'passed') throw new Error('Complete verification requires every required check to pass.');
   const paths = repoPaths();
   const id = nextRecordId('VERIFY');
-  const timestamp = nowIso();
+  const timestamp = new Date().toISOString();
   const modules = parsed.modules ?? inferModulesFromSignals({
     query: `${parsed.targetId} ${parsed.summary}`,
     changedFiles: parsed.changedFiles,

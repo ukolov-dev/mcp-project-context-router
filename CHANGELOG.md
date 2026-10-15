@@ -3,7 +3,14 @@
 Notable changes to Project Context Router are recorded here. Versions before
 1.0 are under active development. The package requires Node.js 22.13 or newer.
 
-## Unreleased
+## [0.9.0] - 2026-10-15
+
+- Add optional `init --with-hooks` for repository-local Codex prompt/tool/Stop hooks, preserving custom configuration and supporting package installations and standalone exports.
+- Track source-content fingerprints, including staged, untracked and deleted files, without invalidating verification on reads or generated memory updates. Guard hook state paths and expire inactive sessions after seven days.
+- Preserve millisecond timestamps in verification evidence and finalization so real CLI results satisfy source-freshness checks.
+- Require fresh task-scoped verification and finalization at Stop; keep blocking repeated incomplete attempts and permit honest partial/blocked results with per-check reasons. Hooks do not run checks or grant independent acceptance.
+- Document lifecycle setup, client trust and verification boundaries in the README, Codex guide and English/Russian website. Verify installation and execution from a clean package consumer.
+
 
 - Update runtime and development dependencies to latest stable npm releases verified on 2026-10-14, including MCP SDK 1.32.1, Commander 15.0.0, js-yaml 5.4.3, Zod 4.6.7, TypeScript 7.0.2, Vite 8.3.4 and Vitest 5.0.4; refresh compatible transitive dependencies and keep exact direct pins.
 - Remove unused `simple-git` and redundant `@types/js-yaml` (js-yaml now bundles types). Preserve Node.js 22.13+ support.

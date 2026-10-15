@@ -1,99 +1,17 @@
 #!/usr/bin/env node
-import { existsSync, readdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
-import { join, resolve } from 'node:path';
-import { execFileSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
+import { unfinishedTasks } from '../dist/hooks/stop.js';
 import { loadHookContextConfig } from './context-config.js';
+import { captureChanges } from './state.js';
 
-const input = JSON.parse(readFileSync(0, 'utf8') || '{}');
-if (input.stop_hook_active) process.exit(0);
-
-const root = gitRoot(input.cwd ?? process.cwd());
-const context = loadHookContextConfig(root);
-const statePath = resolve(root, '.project-context', 'indexes', 'hook-state', `${input.session_id ?? 'unknown'}.json`);
-const state = readState(statePath);
-const changedFiles = state.changedFiles ?? [];
-
-if (changedFiles.length === 0 || state.finalizeReminderShown) {
-  process.exit(0);
-}
-
-const confirmedTaskId = findConfirmedTaskForChanges(root, changedFiles);
-if (!confirmedTaskId) {
-  cleanupState(statePath);
-  process.exit(0);
-}
-
-if (hasRecentTaskResult(root, confirmedTaskId, state.updatedAt)) {
-  cleanupState(statePath);
-  process.exit(0);
-}
-
-state.finalizeReminderShown = true;
-writeFileSync(statePath, JSON.stringify(state, null, 2), 'utf8');
-process.stdout.write(
-  JSON.stringify({
-    decision: 'block',
-    reason:
-      `${context.logoText} Confirmed task ${confirmedTaskId} has changed files. Call ${context.mcpServerName}.finalize_work before final response to save the result on the task.`,
-  }),
-);
-
-function gitRoot(cwd) {
-  try {
-    return execFileSync('git', ['rev-parse', '--show-toplevel'], {
-      cwd,
-      encoding: 'utf8',
-      stdio: ['ignore', 'pipe', 'ignore'],
-    }).trim();
-  } catch {
-    return cwd;
+try {
+  const input = JSON.parse(readFileSync(0, 'utf8') || '{}');
+  const state = captureChanges(input);
+  const problems = unfinishedTasks(state.changedFiles, state.updatedAt, state.startedAt);
+  if (problems.length) {
+    const context = loadHookContextConfig(state.root);
+    process.stdout.write(JSON.stringify({ decision: 'block', reason: `${context.logoText} ${problems.join(' ')} Use ${context.mcpServerName}.record_verification_evidence and ${context.mcpServerName}.finalize_work. Report unresolved checks honestly as partial/blocked with reasons.` }));
   }
-}
-
-function hasRecentTaskResult(root, taskId, updatedAt) {
-  const taskDir = resolve(root, '.project-context', 'active', 'tasks');
-  const updatedAtMs = Date.parse(updatedAt ?? '');
-  if (!existsSync(taskDir) || Number.isNaN(updatedAtMs)) return false;
-  for (const entry of readdirSync(taskDir)) {
-    if (!entry.endsWith('.md')) continue;
-    const raw = readFileSync(join(taskDir, entry), 'utf8');
-    const id = raw.match(/^id:\s*['"]?([^'"\n]+)['"]?\s*$/m)?.[1]?.trim();
-    const finalizedAt = raw.match(/^finalized_at:\s*['"]?([^'"\n]+)['"]?\s*$/m)?.[1];
-    if (id === taskId && Date.parse(finalizedAt ?? '') >= updatedAtMs) return true;
-  }
-  return false;
-}
-
-function findConfirmedTaskForChanges(root, changedFiles) {
-  const taskDir = resolve(root, '.project-context', 'active', 'tasks');
-  if (!existsSync(taskDir)) return null;
-  for (const entry of readdirSync(taskDir)) {
-    if (!entry.endsWith('.md')) continue;
-    try {
-      const raw = readFileSync(join(taskDir, entry), 'utf8');
-      if (!/^status:\s*(?:confirmed|in_progress)\s*$/m.test(raw)) continue;
-      if (!changedFiles.some((file) => raw.includes(`  - ${file}`))) continue;
-      return raw.match(/^id:\s*['"]?([^'"\n]+)['"]?\s*$/m)?.[1]?.trim() ?? entry.replace(/\.md$/, '');
-    } catch {
-      // Ignore an unreadable task record and continue looking for a valid contract.
-    }
-  }
-  return null;
-}
-
-function cleanupState(path) {
-  try {
-    if (existsSync(path)) unlinkSync(path);
-  } catch {
-    // Session cleanup is best effort.
-  }
-}
-
-function readState(path) {
-  if (!existsSync(path)) return {};
-  try {
-    return JSON.parse(readFileSync(path, 'utf8'));
-  } catch {
-    return {};
-  }
+} catch (error) {
+  process.stdout.write(JSON.stringify({ decision: 'block', reason: `Project Context Router could not verify task finalization: ${error.message}. Repair the configuration or hook state before retrying.` }));
 }

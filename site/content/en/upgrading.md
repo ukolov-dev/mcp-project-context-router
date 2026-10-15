@@ -36,3 +36,7 @@ CLI `find-integrations` / `find-data-entities` and MCP `find_integrations` / `fi
 A successful build or fixture test does not prove deployment, authorization in a live service, or current client attachment. Record commands and environments explicitly. Indexes and pack caches are disposable; durable Markdown is the source of truth.
 
 For bugs, include the router Git commit, Node version, exact command, sanitized output and a minimal reproduction in [GitHub Issues](https://github.com/ukolov-dev/mcp-project-context-router/issues). Never include credentials or private project material.
+
+## Release 0.9.0
+
+[Release notes and migration](https://github.com/ukolov-dev/mcp-project-context-router/blob/v0.9.0/docs/release-0.9.md). Add missing lifecycle hooks with `init --with-hooks`; review and trust them in Codex. Existing hook configuration is preserved.

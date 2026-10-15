@@ -30,6 +30,7 @@ describe('project-context scaffold', () => {
     expect(result.created).toContain('.project-context/project.yaml');
     expect(result.created).toContain('.project-context/templates/TASK-CONTRACT.md');
     expect(existsSync(resolve(tempDir, '.agents'))).toBe(false);
+    expect(existsSync(resolve(tempDir, '.codex'))).toBe(false);
     const projectYaml = readFileSync(resolve(tempDir, '.project-context/project.yaml'), 'utf8');
     expect(projectYaml).toContain('name: "Example Workspace"');
     expect(projectYaml).toContain('default_modules: ["api"]');
@@ -83,6 +84,43 @@ describe('project-context scaffold', () => {
     expect(result.skipped).toContain('.agents/skills/project-context-workflow/SKILL.md');
     expect(existsSync(resolve(tempDir, 'missing-user-skill.md'))).toBe(false);
     expect(result.created).toContain('.agents/skills/context-research/SKILL.md');
+  });
+
+  it('installs optional lifecycle hooks together with skills and registers fresh config diagnostics', () => {
+    const result = initializeProjectContext({ withHooks: true, withSkills: true });
+    expect(result.created).toContain('.codex/hooks.json');
+    const config = JSON.parse(readFileSync(resolve(tempDir, '.codex/hooks.json'), 'utf8'));
+    expect(Object.keys(config.hooks)).toEqual(['UserPromptSubmit', 'PostToolUse', 'Stop']);
+    expect(config.hooks.Stop[0].hooks[0].command).toContain('node_modules/mcp-project-context-router/hooks/stop-capture.js');
+    expect(config.hooks.Stop[0].hooks[0].commandWindows).toContain('Join-Path');
+    expect(readFileSync(resolve(tempDir, '.project-context/project.yaml'), 'utf8')).toContain('required_hook_events: [UserPromptSubmit, PostToolUse, Stop]');
+    writeFileSync(resolve(tempDir, '.codex/hooks.json'), '{"custom": true}');
+    expect(initializeProjectContext({ withHooks: true }).skipped).toContain('.codex/hooks.json');
+    expect(readFileSync(resolve(tempDir, '.codex/hooks.json'), 'utf8')).toBe('{"custom": true}');
+  });
+
+  it('adds hooks later without replacing project configuration', () => {
+    initializeProjectContext();
+    const before = readFileSync(resolve(tempDir, '.project-context/project.yaml'), 'utf8');
+    expect(initializeProjectContext({ withHooks: true }).created).toContain('.codex/hooks.json');
+    expect(readFileSync(resolve(tempDir, '.project-context/project.yaml'), 'utf8')).toBe(before);
+  });
+
+  it('refuses escaping hook destinations before creating project files', () => {
+    const external = mkdtempSync(resolve(tmpdir(), 'router-hooks-external-'));
+    try {
+      symlinkSync(external, resolve(tempDir, '.codex'), 'junction');
+      expect(() => initializeProjectContext({ withHooks: true })).toThrow('must stay inside the repository');
+      expect(existsSync(resolve(external, 'hooks.json'))).toBe(false);
+      expect(existsSync(resolve(tempDir, '.project-context'))).toBe(false);
+    } finally { rmSync(external, { recursive: true, force: true }); }
+  });
+
+  it('preserves an existing dangling hooks file symlink', () => {
+    mkdirSync(resolve(tempDir, '.codex'));
+    symlinkSync(resolve(tempDir, 'missing-hooks.json'), resolve(tempDir, '.codex/hooks.json'));
+    expect(initializeProjectContext({ withHooks: true }).skipped).toContain('.codex/hooks.json');
+    expect(existsSync(resolve(tempDir, 'missing-hooks.json'))).toBe(false);
   });
 
   it('rejects unsafe or malformed module definitions', () => {
