@@ -1,11 +1,11 @@
 # Upgrading and troubleshooting
 
-The current stable release is **0.10.0**, including ZCode and official DeepSeek Harness. Existing release tags are immutable; review the lockfile when upgrading.
+The current stable release is **0.10.1**, including task-aware routing/ranking fixes, ZCode and official DeepSeek Harness. Existing release tags are immutable; review the lockfile when upgrading.
 
-## Update to 0.10.0
+## Update to 0.10.1
 
 ```bash
-npm install --save-dev --save-exact https://github.com/ukolov-dev/mcp-project-context-router/releases/download/v0.10.0/mcp-project-context-router-0.10.0.tgz
+npm install --save-dev --save-exact https://github.com/ukolov-dev/mcp-project-context-router/releases/download/v0.10.1/mcp-project-context-router-0.10.1.tgz
 npx project-context index
 npx project-context doctor --json
 ```
@@ -40,6 +40,12 @@ For bugs, include the router Git commit, Node version, exact command, sanitized 
 ## Release 0.9.0
 
 [Release notes and migration](https://github.com/ukolov-dev/mcp-project-context-router/blob/v0.9.0/docs/release-0.9.md). Add missing lifecycle hooks with `init --with-hooks`; review and trust them in Codex. Existing hook configuration is preserved.
+
+## Release 0.10.1: task-aware context
+
+Exact work keys route context to the matching task/backlog modules. Explicit scope remains authoritative; default retrieval prioritizes exact keys and supplied files, then compares update instants and task activity for equal relevance. Completed work requested by key retains historical provenance. Malformed optional keys are ignored; old pack caches refresh automatically. Reconnect the MCP client after upgrading.
+
+[Release notes](https://github.com/ukolov-dev/mcp-project-context-router/blob/v0.10.1/docs/release-0.10.1.md).
 
 ## Release 0.10.0: ZCode and DeepSeek Harness
 

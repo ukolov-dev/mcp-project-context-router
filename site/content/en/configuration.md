@@ -28,9 +28,9 @@ Explicit globs replace defaults. Include tests and configuration files when they
 
 ## Route modules and tasks
 
-On `main` after 0.10.0, a query containing an exact work key such as `SD-14` uses matching task/backlog modules before `default_modules`. Keys come from record IDs, titles, tags and `task_key`; prefixes and incidental body mentions do not create matches. Explicit `modules` and file paths retain priority.
+Since 0.10.1, a query containing an exact work key such as `SD-14` uses matching task/backlog modules before `default_modules`. Keys come from record IDs, titles, tags and `task_key`; prefixes and incidental body mentions do not create matches. Explicit `modules` and file paths retain priority.
 
-In the default `current` search, exact keys and links to supplied files improve record ranking. Task activity and update dates break relevance ties. A directly requested completed task can appear with `done` status and `historical` provenance; it does not prove current runtime behavior. General queries still hide history. Experimental FTS5 retains its BM25 ordering. This change is not part of the published 0.10.0 archive.
+In the default `current` search, exact keys and links to supplied files improve record ranking. Task activity and update dates break relevance ties. A directly requested completed task can appear with `done` status and `historical` provenance; it does not prove current runtime behavior. General queries still hide history. Experimental FTS5 retains its BM25 ordering. These changes are included in the 0.10.1 release.
 
 ## Choose your stack
 

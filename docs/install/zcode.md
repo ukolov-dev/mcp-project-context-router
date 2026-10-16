@@ -7,7 +7,7 @@ This guide targets ZCode's built-in agent. Client support is included in release
 From the consumer Git repository root:
 
 ```bash
-npm install --save-dev --save-exact https://github.com/ukolov-dev/mcp-project-context-router/releases/download/v0.10.0/mcp-project-context-router-0.10.0.tgz
+npm install --save-dev --save-exact https://github.com/ukolov-dev/mcp-project-context-router/releases/download/v0.10.1/mcp-project-context-router-0.10.1.tgz
 npx project-context init --client zcode --with-skills --name "My project" --module app:src
 npx project-context index
 npx project-context doctor --json

@@ -1,11 +1,11 @@
 # Обновление и диагностика
 
-Текущий стабильный релиз — **0.10.0**, с поддержкой ZCode и официального DeepSeek Harness. Опубликованные теги не меняются; при обновлении проверяйте lockfile.
+Текущий стабильный релиз — **0.10.1**, с исправлениями контекста задач и поддержкой ZCode и официального DeepSeek Harness. Опубликованные теги не меняются; при обновлении проверяйте lockfile.
 
-## Обновление до 0.10.0
+## Обновление до 0.10.1
 
 ```bash
-npm install --save-dev --save-exact https://github.com/ukolov-dev/mcp-project-context-router/releases/download/v0.10.0/mcp-project-context-router-0.10.0.tgz
+npm install --save-dev --save-exact https://github.com/ukolov-dev/mcp-project-context-router/releases/download/v0.10.1/mcp-project-context-router-0.10.1.tgz
 npx project-context index
 npx project-context doctor --json
 ```
@@ -40,6 +40,12 @@ npx project-context doctor --json
 ## Релиз 0.9.0
 
 [Изменения и миграция](https://github.com/ukolov-dev/mcp-project-context-router/blob/v0.9.0/docs/release-0.9.md). Добавьте хуки через `init --with-hooks`, просмотрите и разрешите их в Codex. Существующий конфиг хуков сохраняется.
+
+## Релиз 0.10.1: контекст по задачам
+
+Точный ключ направляет запрос в модули соответствующих задач и backlog. Явная область сохраняет приоритет; стандартный поиск учитывает точные ключи и переданные файлы, затем даты обновления и состояние задач при равной релевантности. Завершённая работа, запрошенная по ключу, сохраняет исторический статус. Некорректные необязательные ключи игнорируются; старые пакеты кеша обновляются автоматически. После обновления переподключите MCP-клиент.
+
+[Изменения](https://github.com/ukolov-dev/mcp-project-context-router/blob/v0.10.1/docs/release-0.10.1.md).
 
 ## Релиз 0.10.0: ZCode и DeepSeek Harness
 

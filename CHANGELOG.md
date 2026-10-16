@@ -3,11 +3,11 @@
 Notable changes to Project Context Router are recorded here. Versions before
 1.0 are under active development. The package requires Node.js 22.13 or newer.
 
-## Unreleased
+## [0.10.1] - 2026-10-16
 
 - Route context packs and task validation by exact task/backlog keys before module fallback; preserve explicit scope and recognize short aliases in hyphenated words.
 - Prioritize exact keys and scoped files, then use task activity and update dates to break relevance ties. Show directly requested completed work with historical provenance while retaining normal history exclusions.
-- Invalidate previous context-pack caches after the routing and ranking changes.
+- Invalidate previous context-pack caches after the routing and ranking changes. Ignore malformed optional task keys instead of failing context retrieval.
 
 ## [0.10.0] - 2026-10-16
 

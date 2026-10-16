@@ -13,7 +13,7 @@ consumer repository. A disposable SQLite index makes retrieval fast without
 turning an external service into the source of truth.
 
 > Status: active development. The current package is
-> `mcp-project-context-router@0.10.0`, requires Node.js 22.13 or newer, and is distributed
+> `mcp-project-context-router@0.10.1`, requires Node.js 22.13 or newer, and is distributed
 > from source or a versioned tarball. It is not currently published to an npm
 > registry.
 
@@ -57,7 +57,7 @@ Install directly from GitHub in the repository that should own the project
 context:
 
 ```bash
-npm install --save-dev --save-exact https://github.com/ukolov-dev/mcp-project-context-router/releases/download/v0.10.0/mcp-project-context-router-0.10.0.tgz
+npm install --save-dev --save-exact https://github.com/ukolov-dev/mcp-project-context-router/releases/download/v0.10.1/mcp-project-context-router-0.10.1.tgz
 npx project-context init --name "Example Project" --module app:src
 npx project-context index
 npx project-context doctor --json
@@ -135,7 +135,7 @@ templates:
 | DeepSeek Harness (official DSH) | [English](docs/install/deepseek-harness.md) · [Русский](docs/install/deepseek-harness.ru.md) | [`deepseek-harness.cordis.yml`](templates/client-configs/deepseek-harness.cordis.yml) |
 | OpenCode V2 preview | [OpenCode V2 notes](docs/install/opencode.md#opencode-v2-preview) | [`templates/client-configs/opencode-v2.json`](templates/client-configs/opencode-v2.json) |
 
-Release [0.10.0](https://github.com/ukolov-dev/mcp-project-context-router/releases/tag/v0.10.0) includes ZCode and official DeepSeek Harness support. Install the release package above and initialize explicitly:
+Release [0.10.1](https://github.com/ukolov-dev/mcp-project-context-router/releases/tag/v0.10.1) includes ZCode and official DeepSeek Harness support. Install the release package above and initialize explicitly:
 
 ```bash
 npx project-context init --client zcode --with-skills
@@ -182,6 +182,8 @@ Use `project-context pack "quick_valid" --search-engine fts5 --max-tokens 4000`
 or pass `searchEngine: "fts5"` to `build_context_pack`. See the
 [SQLite search modes](docs/sqlite-index.md#optional-fts5-search-mode) and
 [evaluation](docs/search-evaluation.md).
+
+Release 0.10.1 also routes exact task/backlog keys before module fallback and improves task ranking. See the [release notes](docs/release-0.10.1.md).
 
 ## Configure your project stack
 

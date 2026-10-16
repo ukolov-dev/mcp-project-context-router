@@ -7,7 +7,7 @@
 Из корня Git-репозитория вашего проекта:
 
 ```bash
-npm install --save-dev --save-exact https://github.com/ukolov-dev/mcp-project-context-router/releases/download/v0.10.0/mcp-project-context-router-0.10.0.tgz
+npm install --save-dev --save-exact https://github.com/ukolov-dev/mcp-project-context-router/releases/download/v0.10.1/mcp-project-context-router-0.10.1.tgz
 npx project-context init --client deepseek-harness --with-skills
 npx project-context index
 npx project-context doctor --json
