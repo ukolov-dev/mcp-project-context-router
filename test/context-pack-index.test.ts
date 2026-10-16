@@ -110,6 +110,11 @@ describe('context packs backed by the disposable index', () => {
     for (const id of ['DRAFT', 'RETIRED']) expect(pack.records.map(r => r.id)).not.toContain(id);
   });
 
+  it.each([null, [], { toString: 1 }, 14])('ignores a malformed optional task_key: %j', (task_key) => {
+    record('TASK-WRONG', { type: 'task', title: 'Other work', task_key, modules: ['other'] });
+    expect(buildContextPack({ query: 'SD-14' }).routing?.modules).toEqual(['router']);
+  });
+
   it('invalidates pack caches created before task-aware routing', () => {
     record('DECISION');
     const input = { query: 'routing evidence' };
