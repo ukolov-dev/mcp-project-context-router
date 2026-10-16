@@ -8,7 +8,7 @@ import { parseRecord } from '../storage/markdown.js';
 import { contextPackCommandsForModules, loadProjectConfig, retentionNumber, type ProjectConfig } from '../storage/config.js';
 import { classifyFileReference } from '../storage/file-references.js';
 import { relPath, repoPaths } from '../storage/repo.js';
-import { inferModulesFromSignals, resolveModuleName } from '../storage/inference.js';
+import { inferModulesFromSignals, matchesRecordIdentifier, resolveModuleName } from '../storage/inference.js';
 import { redactSecrets } from '../storage/secrets.js';
 import type { ContextRecord } from '../storage/types.js';
 import { allKnownPlaybookPaths, selectPlaybooks, type PlaybookDetail } from './playbooks.js';
@@ -63,7 +63,7 @@ export type ContextPack = {
 };
 
 type CachedContextPack = {
-  version: 7;
+  version: 8;
   state: string;
   pack: Omit<ContextPack, 'cache'>;
 };
@@ -129,13 +129,20 @@ function buildContextPackFresh(input: ContextPackInput, useIndex: boolean): { pa
   const indexedRecordLimit = compact ? 4 : workflow === 'strict' ? 12 : 8;
   const totalRecordLimit = compact ? 5 : workflow === 'strict' ? 12 : 10;
   const totalFileLimit = compact ? 6 : workflow === 'strict' ? 18 : 14;
-  const moduleSet = new Set(inferModulesFromSignals({
+  const routingRecords = readSearchRecords({ includeArchive: false, useIndex }).records;
+  const directModules = inferModulesFromSignals({
+    query: input.query, modules: input.modules, files: input.files, changedFiles: input.changedFiles, fallback: [], config,
+  });
+  const inferredModules = inferModulesFromSignals({
     query: input.query,
     modules: input.modules,
     files: input.files,
     changedFiles: input.changedFiles,
     config,
-  }));
+    records: routingRecords,
+    fallback: [],
+  });
+  const moduleSet = new Set(inferredModules);
   const records = new Map<string, { id: string; path: string; reason: string }>();
   const explicitFiles: Array<{ path: string; reason: string }> = [];
   const pathWarnings: string[] = [];
@@ -148,18 +155,19 @@ function buildContextPackFresh(input: ContextPackInput, useIndex: boolean): { pa
     explicitFiles.push({ path: file.replaceAll('\\', '/'), reason });
   };
 
-  if (input.taskId) {
-    const task = readSearchRecords({ recordId: input.taskId, includeArchive: true, useIndex }).records[0];
-    if (task) {
-      for (const module of task.modules) { const name = resolveModuleName(module, config); if (name) moduleSet.add(name); }
-      for (const file of [...task.files, ...task.deletedFiles]) {
-        for (const module of inferModulesFromSignals({ files: [file], fallback: [], config })) moduleSet.add(module);
-      }
-      for (const file of task.files) {
-        addExplicitFile(file, 'Explicit task file.');
-      }
-      records.set(task.id, { id: task.id, path: task.path, reason: 'Explicit task id.' });
+  const task = input.taskId ? readSearchRecords({ recordId: input.taskId, includeArchive: true, useIndex }).records[0] : undefined;
+  if (task) {
+    for (const module of task.modules) { const name = resolveModuleName(module, config); if (name) moduleSet.add(name); }
+    for (const file of [...task.files, ...task.deletedFiles]) {
+      for (const module of inferModulesFromSignals({ files: [file], fallback: [], config })) moduleSet.add(module);
     }
+    for (const file of task.files) {
+      addExplicitFile(file, 'Explicit task file.');
+    }
+    records.set(task.id, { id: task.id, path: task.path, reason: 'Explicit task id.' });
+  }
+  if (!moduleSet.size) {
+    for (const module of inferModulesFromSignals({ config })) moduleSet.add(module);
   }
 
   for (const file of input.files ?? []) {
@@ -190,7 +198,7 @@ function buildContextPackFresh(input: ContextPackInput, useIndex: boolean): { pa
   const retrieved = fts?.available ? { records: fts.records, source: 'index' as const }
     : readSearchRecords({ includeArchive: input.includeArchive, modules, useIndex });
   const candidateRecords = fts?.available ? retrieved.records
-    : rankRetrievedRecords(matchingPackRecords(retrieved.records, input.query, modules, input), input.query, modules);
+    : rankRetrievedRecords(matchingPackRecords(retrieved.records, input.query, modules, input), input, modules);
   const relevantRecords = candidateRecords
     .filter((record) => !isDraft(record.path) || record.id === input.taskId)
     .filter((record) => !isDefaultHiddenHistory(record, input))
@@ -208,7 +216,7 @@ function buildContextPackFresh(input: ContextPackInput, useIndex: boolean): { pa
         path: record.path,
         reason: fts?.available
           ? fts.identifierIds.includes(record.id) ? 'Matched partial identifier reserve.' : 'Matched FTS5 query (BM25 rank).'
-          : 'Matched query/module; relevance, decision type and explicit confirmation determine rank; date breaks ties only. Status and authority describe claims, not runtime proof.',
+          : 'Matched query/module; exact work keys, file scope, relevance and task activity determine rank; update dates break ties. Status and authority describe claims, not runtime proof.',
       });
     }
   }
@@ -231,12 +239,12 @@ function buildContextPackFresh(input: ContextPackInput, useIndex: boolean): { pa
   const commands = commandsForModules(modules, config);
   const unknownModules = (input.modules ?? []).filter((name) => !resolveModuleName(name, config));
   const unmappedFiles = [...(input.files ?? []), ...(input.changedFiles ?? [])].filter((file) => inferModulesFromSignals({ files: [file], fallback: [], config }).length === 0);
-  const directModules = inferModulesFromSignals({ query: input.query, modules: input.modules, files: input.files, changedFiles: input.changedFiles, fallback: [], config });
-  const routing = { modules, basis: directModules.length ? 'explicit/query/path signals' : 'configured fallback', unknownModules, unmappedFiles };
+  const workSignal = !directModules.length && inferredModules.length > 0;
+  const routing = { modules, basis: task ? 'explicit task id' : workSignal ? 'task/backlog identifier' : directModules.length ? 'explicit/query/path signals' : 'configured fallback', unknownModules, unmappedFiles };
   const warnings: string[] = [...pathWarnings, ...playbookSelection.warnings];
   if (input.searchEngine === 'fts5' && !fts?.available) warnings.push('FTS5 unavailable; used current retrieval. This pack is not cached.');
   if (retrieved.source === 'markdown') warnings.push('Context index unavailable; records were read directly from Markdown. This pack is not cached.');
-  if (!directModules.length) warnings.push('No module signal matched; using configured default_modules. Configure aliases in the languages used by your team.');
+  if (!directModules.length && !workSignal && !task) warnings.push('No module signal matched; using configured default_modules. Configure aliases in the languages used by your team.');
   if (!modules.length) warnings.push('No configured module selected; inspect project.yaml routing and module coverage.');
   if (unknownModules.length) warnings.push(`Unknown or ambiguous module names: ${unknownModules.join(', ')}. Configure reviewed aliases; no implicit spelling migration is applied.`);
   if (unmappedFiles.length) warnings.push(`Files outside configured module coverage: ${unmappedFiles.join(', ')}.`);
@@ -279,7 +287,7 @@ function readCachedContextPack(input: ContextPackInput): ContextPack | undefined
   try {
     if (!existsSync(descriptor.absolutePath)) return undefined;
     const cached = JSON.parse(readFileSync(descriptor.absolutePath, 'utf8')) as CachedContextPack;
-    if (cached.version !== 7 || cached.state !== buildCacheState(input)) return undefined;
+    if (cached.version !== 8 || cached.state !== buildCacheState(input)) return undefined;
     return {
       ...cached.pack,
       cache: {
@@ -298,7 +306,7 @@ function writeCachedContextPack(input: ContextPackInput, pack: Omit<ContextPack,
   try {
     mkdirSync(descriptor.dir, { recursive: true });
     const cached: CachedContextPack = {
-      version: 7,
+      version: 8,
       state: buildCacheState(input),
       pack,
     };
@@ -481,12 +489,13 @@ function isDraft(path: string): boolean {
   return path.includes('/drafts/');
 }
 
-export function isDefaultHiddenHistory(record: { id: string; type: string; status: string }, input: ContextPackInput): boolean {
+export function isDefaultHiddenHistory(record: Pick<ContextRecord, 'id' | 'type' | 'status'> & Partial<ContextRecord>, input: ContextPackInput): boolean {
   if (input.includeHistory) return false;
   if (record.id === input.taskId) return false;
   if (['superseded', 'cancelled', 'canceled', 'retired', 'archived'].includes(record.status)) return true;
   if (isRetiredRecordType(record.type) || ['verification-evidence', 'agent-run', 'acceptance-review'].includes(record.type)) return true;
   if (record.type === 'research' && record.status === 'closed') return true;
+  if (['task', 'backlog'].includes(record.type) && matchesRecordIdentifier(input.query, record)) return false;
   if (record.type === 'task' && record.status === 'done') return true;
   if (record.type === 'backlog' && (record.status === 'done' || record.status === 'cancelled')) return true;
   return false;
@@ -503,8 +512,9 @@ function matchingPackRecords(records: ContextRecord[], query: string, modules: s
     .filter((record) => !isDefaultHiddenHistory(record, input) && !isDraft(record.path));
 }
 
-function rankRetrievedRecords(records: ContextRecord[], query: string, modules: string[]): ContextRecord[] {
-  const terms = query.toLowerCase().split(/[^\p{L}\p{N}_-]+/u).filter((word) => word.length > 1);
+function rankRetrievedRecords(records: ContextRecord[], input: ContextPackInput, modules: string[]): ContextRecord[] {
+  const terms = [...new Set(input.query.toLowerCase().split(/[^\p{L}\p{N}_-]+/u).filter((word) => word.length > 1))];
+  const scopedFiles = new Set([...(input.files ?? []), ...(input.changedFiles ?? [])].map((path) => path.replaceAll('\\', '/')));
   const primaryModule = modules[0];
   const typeWeight: Record<string, number> = {
     task: 2,
@@ -524,9 +534,15 @@ function rankRetrievedRecords(records: ContextRecord[], query: string, modules: 
         + (tags.includes(term) ? 5 : 0)
         + (body.includes(term) ? 1 : 0), 0);
       const moduleScore = primaryModule && record.modules.includes(primaryModule) ? 20 : 0;
-      return { record, score: termScore + moduleScore + (typeWeight[record.type] ?? 0) + (record.frontmatter.confirmed_by_human === true ? 8 : 0) };
+      const working = Number(['task', 'backlog'].includes(record.type) && record.status === 'in_progress');
+      const fileScore = record.files.some((file) => scopedFiles.has(file.replaceAll('\\', '/'))) ? 24 : 0;
+      const updatedAt = Date.parse(record.updatedAt ?? String(record.frontmatter.confirmed_at ?? record.createdAt ?? '')) || 0;
+      return { record, exact: Number(matchesRecordIdentifier(input.query, record)), activity: working, updatedAt,
+        score: termScore + moduleScore + fileScore + (typeWeight[record.type] ?? 0) + (record.frontmatter.confirmed_by_human === true ? 8 : 0) };
     })
-    .sort((left, right) => right.score - left.score || String(right.record.frontmatter.confirmed_at ?? '').localeCompare(String(left.record.frontmatter.confirmed_at ?? '')) || left.record.path.localeCompare(right.record.path))
+    .sort((left, right) => right.exact - left.exact || right.score - left.score
+      || right.updatedAt - left.updatedAt || right.activity - left.activity
+      || left.record.path.localeCompare(right.record.path))
     .map((item) => item.record);
 }
 

@@ -56,11 +56,12 @@ export type ValidateTaskResult = {
 };
 
 export function validateTask(query: string, mode = 'feature'): ValidateTaskResult {
-  const modules = inferModulesFromSignals({ query });
+  const records = readRecords(false);
+  const modules = inferModulesFromSignals({ query, records });
   const workflow = classifyWorkflow(query, mode, modules);
   const questions = blockingQuestions(query, mode);
   const inferred = [...inferStatements(query, modules), `Рекомендуемый workflow: ${workflow}.`];
-  const relatedRecords = readRecords(false)
+  const relatedRecords = records
     .filter((record) => record.type === 'task' || record.type === 'bug' || record.type === 'decision')
     .filter((record) => scoreText(query, `${record.title} ${record.body} ${record.tags.join(' ')}`) > 0)
     .slice(0, 5)
