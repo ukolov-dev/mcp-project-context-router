@@ -1,4 +1,5 @@
 import { loadProjectConfig, type ProjectConfig, type ProjectModuleConfig } from './config.js';
+import type { ContextRecord } from './types.js';
 
 export type ModuleInferenceInput = {
   query?: string;
@@ -7,6 +8,7 @@ export type ModuleInferenceInput = {
   changedFiles?: string[];
   fallback?: string[];
   config?: ProjectConfig;
+  records?: ContextRecord[];
 };
 
 export function inferModulesFromSignals(input: ModuleInferenceInput): string[] {
@@ -23,6 +25,12 @@ export function inferModulesFromSignals(input: ModuleInferenceInput): string[] {
   const documentationModules = new Set(config.routing.documentationModules);
   const hasStrongSignal = [...modules].some((module) => !documentationModules.has(module));
   if (modules.size > 0 && (hasStrongSignal || queryModules.length === 0)) return [...modules];
+  const workModules = (input.records ?? [])
+    .filter((record) => ['task', 'backlog'].includes(record.type) && !record.archived
+      && !record.path.includes('/drafts/') && !['draft', 'superseded', 'retired', 'archived', 'cancelled', 'canceled'].includes(record.status)
+      && matchesRecordIdentifier(input.query ?? '', record))
+    .flatMap((record) => record.modules.flatMap((name) => resolveModuleName(name, config) ?? []));
+  if (workModules.length) return [...new Set([...modules, ...workModules])];
   for (const module of queryModules) modules.add(module);
   if (modules.size > 0) return [...modules];
   return [...new Set((input.fallback ?? config.routing.defaultModules).flatMap((name) => {
@@ -92,7 +100,15 @@ function moduleQuerySignals(name: string, module: ProjectModuleConfig): string[]
 function matchesQuerySignal(signal: string, candidate: string): boolean {
   if (!candidate) return false;
   if (candidate.length > 3 || /[^\p{L}\p{N}_-]/u.test(candidate)) return signal.includes(candidate);
-  return signal.split(/[^\p{L}\p{N}_-]+/u).includes(candidate);
+  return signal.split(/[^\p{L}\p{N}_]+/u).includes(candidate);
+}
+
+/** Work keys match whole tokens, never incidental mentions in a record body. */
+export function matchesRecordIdentifier(query: string, record: Pick<ContextRecord, 'id'> & Partial<Pick<ContextRecord, 'title' | 'tags' | 'frontmatter'>>): boolean {
+  const terms = new Set(query.toLowerCase().split(/[^\p{L}\p{N}_-]+/u));
+  const keys = `${record.title ?? ''} ${(record.tags ?? []).join(' ')} ${record.frontmatter?.task_key ?? ''}`
+    .match(/[\p{L}][\p{L}\p{N}]*(?:[-_][\p{L}\p{N}]+)+/gu) ?? [];
+  return [record.id, ...keys.filter((key) => /\d/.test(key))].some((key) => terms.has(key.toLowerCase()));
 }
 
 function matchesPathPrefix(path: string, prefix: string): boolean {
