@@ -1,13 +1,13 @@
 # Подключение к DeepSeek Harness
 
-Инструкция для официального [deepseek-ai/deepseek-harness](https://github.com/deepseek-ai/deepseek-harness). Другие проекты с похожим названием не подразумеваются. DSH находится в developer preview; соблюдайте его требования к окружению. Поддержка роутера добавлена в Git `main` после 0.9.0.
+Инструкция для официального [deepseek-ai/deepseek-harness](https://github.com/deepseek-ai/deepseek-harness). Другие проекты с похожим названием не подразумеваются. DSH находится в developer preview; соблюдайте его требования к окружению. Поддержка включена в роутер **0.10.0** и новее.
 
 ## Установка и запуск
 
 Из корня Git-репозитория вашего проекта:
 
 ```bash
-npm install --save-dev --save-exact github:ukolov-dev/mcp-project-context-router#main
+npm install --save-dev --save-exact https://github.com/ukolov-dev/mcp-project-context-router/releases/download/v0.10.0/mcp-project-context-router-0.10.0.tgz
 npx project-context init --client deepseek-harness --with-skills
 npx project-context index
 npx project-context doctor --json

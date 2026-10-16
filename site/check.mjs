@@ -3,6 +3,7 @@ import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs';
 import { dirname, join, resolve, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+const version = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version;
 const output = join(dirname(fileURLToPath(import.meta.url)), 'dist');
 const files = readdirSync(output, { recursive: true }).filter(file => file.endsWith('.html'));
 assert.equal(files.length, 13, 'Expected root, two landing pages and ten docs');
@@ -14,6 +15,11 @@ for (const file of files) {
     const lang = file.split(sep)[0];
     assert(html.includes(`<html lang="${lang}">`), `Wrong locale: ${file}`);
     assert.equal((html.match(/<h1[ >]/g) ?? []).length, 1, `Expected one h1: ${file}`);
+    if (file.endsWith(`${sep}index.html`)) {
+      assert(html.includes(`/releases/tag/v${version}`), `Missing current release link: ${file}`);
+      assert(html.includes(`mcp-project-context-router-${version}.tgz`), `Wrong install version: ${file}`);
+      assert(html.includes('ZCode') && html.includes('DeepSeek Harness'), `Missing supported clients: ${file}`);
+    }
     const other = lang === 'en' ? 'ru' : 'en';
     const paired = relative(dirname(join(output, file)), join(output, file.replace(lang + sep, other + sep))).split(sep).join('/');
     assert(html.includes(`hreflang="${other}" href="${paired}"`), `Missing matching translation: ${file}`);

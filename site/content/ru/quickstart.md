@@ -7,13 +7,13 @@
 Нужны Node.js **22.13 или новее** и npm. Если в репозитории нет `package.json`, сначала выполните `npm init -y`.
 
 ```bash
-npm install --save-dev --save-exact github:ukolov-dev/mcp-project-context-router
+npm install --save-dev --save-exact https://github.com/ukolov-dev/mcp-project-context-router/releases/download/v0.10.0/mcp-project-context-router-0.10.0.tgz
 npx project-context init --name "My project" --module app:src --with-skills
 npx project-context index
 npx project-context doctor --json
 ```
 
-Замените имя проекта и путь к исходникам. Проверьте `.project-context/project.yaml`: маски файлов, плейбуки и команды проверки должны соответствовать репозиторию. Сохраните манифест и lockfile в Git: установка из GitHub закрепляет точный коммит.
+Замените имя проекта и путь к исходникам. Проверьте `.project-context/project.yaml`: маски файлов, плейбуки и команды проверки должны соответствовать репозиторию. Сохраните манифест и lockfile в Git. URL закрепляет готовый релиз 0.10.0; публикация в npm registry не требуется.
 
 `--with-skills` устанавливает `project-context-workflow` и `context-research` в `.agents/skills/`. Подходит и для уже настроенного проекта; пользовательские файлы не перезаписываются. Без флага skills не устанавливаются. Обновление npm-пакета не заменяет установленные копии skills.
 
@@ -53,7 +53,7 @@ env = { PROJECT_CONTEXT_TOOL_PROFILE = "core" }
 
 ## ZCode и DeepSeek Harness
 
-Поддержка добавлена после релиза 0.9.0 — устанавливайте пакет из Git `main`:
+Оба клиента поддерживаются в релизе **0.10.0**. Установите пакет командой выше и выберите свой клиент:
 
 ```bash
 npx project-context init --client zcode --with-skills

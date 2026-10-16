@@ -1,13 +1,13 @@
 # Подключение к ZCode (Z.ai)
 
-Инструкция для встроенного агента ZCode. Поддержка добавлена в Git `main` после 0.9.0: до следующего релиза устанавливайте из Git. Роутеру нужен Node.js 22.13+; требования самого ZCode проверяйте отдельно.
+Инструкция для встроенного агента ZCode. Поддержка включена в релиз **0.10.0** и новее. Роутеру нужен Node.js 22.13+; требования самого ZCode проверяйте отдельно.
 
 ## Установка и подключение
 
 Из корня Git-репозитория вашего проекта:
 
 ```bash
-npm install --save-dev --save-exact github:ukolov-dev/mcp-project-context-router#main
+npm install --save-dev --save-exact https://github.com/ukolov-dev/mcp-project-context-router/releases/download/v0.10.0/mcp-project-context-router-0.10.0.tgz
 npx project-context init --client zcode --with-skills --name "My project" --module app:src
 npx project-context index
 npx project-context doctor --json

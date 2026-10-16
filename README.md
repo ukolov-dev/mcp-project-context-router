@@ -13,7 +13,7 @@ consumer repository. A disposable SQLite index makes retrieval fast without
 turning an external service into the source of truth.
 
 > Status: active development. The current package is
-> `mcp-project-context-router@0.9.0`, requires Node.js 22.13 or newer, and is distributed
+> `mcp-project-context-router@0.10.0`, requires Node.js 22.13 or newer, and is distributed
 > from source or a versioned tarball. It is not currently published to an npm
 > registry.
 
@@ -57,7 +57,7 @@ Install directly from GitHub in the repository that should own the project
 context:
 
 ```bash
-npm install --save-dev --save-exact github:ukolov-dev/mcp-project-context-router
+npm install --save-dev --save-exact https://github.com/ukolov-dev/mcp-project-context-router/releases/download/v0.10.0/mcp-project-context-router-0.10.0.tgz
 npx project-context init --name "Example Project" --module app:src
 npx project-context index
 npx project-context doctor --json
@@ -135,7 +135,7 @@ templates:
 | DeepSeek Harness (official DSH) | [English](docs/install/deepseek-harness.md) · [Русский](docs/install/deepseek-harness.ru.md) | [`deepseek-harness.cordis.yml`](templates/client-configs/deepseek-harness.cordis.yml) |
 | OpenCode V2 preview | [OpenCode V2 notes](docs/install/opencode.md#opencode-v2-preview) | [`templates/client-configs/opencode-v2.json`](templates/client-configs/opencode-v2.json) |
 
-For client support added after release 0.9.0, install from Git `main` and initialize explicitly:
+Release [0.10.0](https://github.com/ukolov-dev/mcp-project-context-router/releases/tag/v0.10.0) includes ZCode and official DeepSeek Harness support. Install the release package above and initialize explicitly:
 
 ```bash
 npx project-context init --client zcode --with-skills

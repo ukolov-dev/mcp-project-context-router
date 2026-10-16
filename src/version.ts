@@ -1,1 +1,1 @@
-export const projectContextVersion = '0.9.0';
+export const projectContextVersion = '0.10.0';
