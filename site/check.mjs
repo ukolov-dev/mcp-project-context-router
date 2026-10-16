@@ -19,6 +19,10 @@ for (const file of files) {
       assert(html.includes(`/releases/tag/v${version}`), `Missing current release link: ${file}`);
       assert(html.includes(`mcp-project-context-router-${version}.tgz`), `Wrong install version: ${file}`);
       assert(html.includes('ZCode') && html.includes('DeepSeek Harness'), `Missing supported clients: ${file}`);
+      assert.equal((html.match(/class="doc-row"/g) ?? []).length, 5, `Missing documentation entry points: ${file}`);
+      assert(html.includes('href="#workflow"') && html.includes('id="workflow"'), `Missing workflow navigation: ${file}`);
+      assert(html.includes('src/auth/session.ts') && html.includes('<dl>'), `Missing readable context example: ${file}`);
+      assert(html.includes('JavaScript'), `Missing JavaScript support: ${file}`);
     }
     const other = lang === 'en' ? 'ru' : 'en';
     const paired = relative(dirname(join(output, file)), join(output, file.replace(lang + sep, other + sep))).split(sep).join('/');
