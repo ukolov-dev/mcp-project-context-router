@@ -1,0 +1,13 @@
+# Launch DSH from the consumer repository root with --patch pointing at this file.
+- insert:
+    - id: project-context-mcp
+      name: '@deepseek-ai/dsh-mcp-client'
+      config:
+        serverName: project_context
+        transport: stdio
+        command: node
+        args: ["node_modules/mcp-project-context-router/bin/project-context-mcp"]
+        cwd: .
+        env:
+          PROJECT_CONTEXT_TOOL_PROFILE: core
+        toolCallTimeoutMs: 60000

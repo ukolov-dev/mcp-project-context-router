@@ -1,0 +1,5 @@
+- insert:
+    - id: project-context-hooks
+      name: '@deepseek-ai/dsh-hooks-codex'
+      config:
+        configPath: .dsh/project-context-hooks.json

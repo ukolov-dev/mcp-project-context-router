@@ -11,6 +11,7 @@ import { tmpdir } from 'node:os';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterEach, describe, expect, it } from 'vitest';
+import { loadYaml } from '../src/storage/yaml.js';
 
 type LaunchConfig = {
   command: string;
@@ -45,14 +46,21 @@ afterEach(() => {
 });
 
 describe('coding-agent installation configs', () => {
-  it('launches the core MCP surface through the Codex and OpenCode templates', async () => {
+  it('launches the core MCP surface through Codex, OpenCode, ZCode and DeepSeek Harness templates', async () => {
     consumerRoot = createConsumerRepository();
 
     const codexTemplate = readFileSync(resolve(templatesDir, 'codex.toml'), 'utf8');
     const stableTemplate = readFileSync(resolve(templatesDir, 'opencode.json'), 'utf8');
     const v2Template = readFileSync(resolve(templatesDir, 'opencode-v2.json'), 'utf8');
+    const zcodeTemplate = readFileSync(resolve(templatesDir, 'zcode.json'), 'utf8');
+    const dshTemplate = readFileSync(resolve(templatesDir, 'deepseek-harness.cordis.yml'), 'utf8');
+    const zcode = JSON.parse(zcodeTemplate).mcp.servers.project_context;
+    const dsh = (loadYaml(dshTemplate) as Array<{ insert: Array<{ name: string; config: Record<string, unknown> }> }>)[0].insert[0];
+    expect(dsh.name).toBe('@deepseek-ai/dsh-mcp-client');
+    expect(dsh.config.transport).toBe('stdio');
+    expect(dsh.config.serverName).toBe('project_context');
 
-    for (const template of [codexTemplate, stableTemplate, v2Template]) {
+    for (const template of [codexTemplate, stableTemplate, v2Template, zcodeTemplate, dshTemplate]) {
       expect(template).not.toContain(packageRoot);
       expect(template).toContain(`node_modules/${packageName}/bin/project-context-mcp`);
     }
@@ -77,6 +85,7 @@ describe('coding-agent installation configs', () => {
       codex,
       readOpenCodeConfig(stable.mcp.project_context),
       readOpenCodeConfig(v2.mcp.servers.project_context),
+      ...[zcode, dsh.config].map((server) => ({ command: server.command as string, args: server.args as string[], cwd: resolve(consumerRoot!, server.cwd as string), environment: server.env as Record<string, string> })),
     ];
     const results = await Promise.all(launchConfigs.map((config) => initializeAndGetBrief(config)));
 

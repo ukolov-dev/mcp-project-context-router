@@ -51,6 +51,19 @@ env = { PROJECT_CONTEXT_TOOL_PROFILE = "core" }
 
 Для OpenCode используйте [шаблон стабильной версии](https://github.com/ukolov-dev/mcp-project-context-router/blob/main/templates/client-configs/opencode.json). У [шаблона V2](https://github.com/ukolov-dev/mcp-project-context-router/blob/main/templates/client-configs/opencode-v2.json) другая схема. [Полная инструкция OpenCode](https://github.com/ukolov-dev/mcp-project-context-router/blob/main/docs/install/opencode.ru.md).
 
+## ZCode и DeepSeek Harness
+
+Поддержка добавлена после релиза 0.9.0 — устанавливайте пакет из Git `main`:
+
+```bash
+npx project-context init --client zcode --with-skills
+npx project-context init --client deepseek-harness --with-skills --with-hooks
+```
+
+Выберите команду для своего клиента. ZCode получает `.zcode/config.json` и `.zcode/skills`. Проектные хуки клиент игнорирует; ручная настройка пользовательских описана отдельно. DSH получает `.dsh/project-context.cordis.yml` и `.agents/skills`. Запуск из корня проекта: `dsh web --patch "$PWD/.dsh/project-context.cordis.yml"`; флаг хуков подключает Codex-адаптер DSH. Пользовательские файлы сохраняются — пропущенный конфиг объедините с шаблоном вручную.
+
+[Инструкция ZCode](https://github.com/ukolov-dev/mcp-project-context-router/blob/main/docs/install/zcode.ru.md) · [Инструкция DeepSeek Harness](https://github.com/ukolov-dev/mcp-project-context-router/blob/main/docs/install/deepseek-harness.ru.md). Проверка MCP и подпроцессов хуков не доказывает подключение к живой сессии клиента.
+
 ## Проверка подключения
 
 Попросите агента: «Используй project_context: получи описание проекта и собери пакет контекста для этой задачи». Doctor проверяет конфигурацию и локальные данные, но не подключение к текущему чату. Убедитесь, что реальный вызов инструмента работает.

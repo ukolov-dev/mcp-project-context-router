@@ -131,14 +131,25 @@ templates:
 | --- | --- | --- |
 | Codex desktop, CLI, and IDE | [Install for Codex](docs/install/codex.md) | [`templates/client-configs/codex.toml`](templates/client-configs/codex.toml) |
 | OpenCode stable | [Install for OpenCode](docs/install/opencode.md) | [`templates/client-configs/opencode.json`](templates/client-configs/opencode.json) |
+| ZCode (Z.ai) | [English](docs/install/zcode.md) · [Русский](docs/install/zcode.ru.md) | [`zcode.json`](templates/client-configs/zcode.json) |
+| DeepSeek Harness (official DSH) | [English](docs/install/deepseek-harness.md) · [Русский](docs/install/deepseek-harness.ru.md) | [`deepseek-harness.cordis.yml`](templates/client-configs/deepseek-harness.cordis.yml) |
 | OpenCode V2 preview | [OpenCode V2 notes](docs/install/opencode.md#opencode-v2-preview) | [`templates/client-configs/opencode-v2.json`](templates/client-configs/opencode-v2.json) |
+
+For client support added after release 0.9.0, install from Git `main` and initialize explicitly:
+
+```bash
+npx project-context init --client zcode --with-skills
+npx project-context init --client deepseek-harness --with-skills --with-hooks
+```
+
+Choose the command for your client. ZCode skills go to `.zcode/skills`; DSH uses `.agents/skills`. DSH loads its overlay with `dsh web --patch "$PWD/.dsh/project-context.cordis.yml"`. ZCode ignores project hooks, so its `--with-hooks` request is rejected before writes; reviewed user-level hooks are documented in its guide. Existing client files are preserved and reported in `skipped`; merge templates manually when needed. Plain `init` keeps its previous behavior. Explicit `--client codex` additionally copies the existing Codex MCP template.
 
 A complete Russian-language OpenCode guide is also available:
 [Использование в OpenCode](docs/install/opencode.ru.md). The Russian
 [workflow and artifact guide](docs/workflow.ru.md) explains what is created at
 each task stage and what an agent receives before implementation.
 
-All three configurations start the same local stdio MCP server from the consumer
+These configurations start the same local stdio MCP server from the consumer
 repository. They contain no credentials or workstation-specific absolute paths.
 Codex uses `.codex/config.toml`; OpenCode uses `opencode.json` at the repository
 root. The two OpenCode schemas are intentionally separate because stable and V2

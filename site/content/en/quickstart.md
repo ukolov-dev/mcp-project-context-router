@@ -51,6 +51,19 @@ Trust the project and reconnect the client after changing configuration. The rel
 
 For OpenCode, use the [stable configuration template](https://github.com/ukolov-dev/mcp-project-context-router/blob/main/templates/client-configs/opencode.json). The [V2 template](https://github.com/ukolov-dev/mcp-project-context-router/blob/main/templates/client-configs/opencode-v2.json) has a different schema. [Full OpenCode guide](https://github.com/ukolov-dev/mcp-project-context-router/blob/main/docs/install/opencode.md).
 
+## ZCode and DeepSeek Harness
+
+Use Git `main` for these client targets (added after release 0.9.0):
+
+```bash
+npx project-context init --client zcode --with-skills
+npx project-context init --client deepseek-harness --with-skills --with-hooks
+```
+
+Choose your client. ZCode receives `.zcode/config.json` and `.zcode/skills`; its project hooks are ignored by the host, so use the documented manual user-level setup. DSH receives `.dsh/project-context.cordis.yml` and `.agents/skills`. Start it from the repository root with `dsh web --patch "$PWD/.dsh/project-context.cordis.yml"`; the hook flag adds its explicit Codex bridge. Custom files are preserved; merge skipped configurations manually.
+
+[ZCode setup](https://github.com/ukolov-dev/mcp-project-context-router/blob/main/docs/install/zcode.md) · [DeepSeek Harness setup](https://github.com/ukolov-dev/mcp-project-context-router/blob/main/docs/install/deepseek-harness.md). Automated MCP/hook subprocess tests do not prove connection in a live client session.
+
 ## Check the connection
 
 Ask your agent: “Use project_context to get the project brief and build a context pack for this task.” A doctor check verifies configuration and local data, not attachment to your current chat. Confirm a real tool call works.

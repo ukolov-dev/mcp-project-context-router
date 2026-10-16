@@ -1,7 +1,7 @@
 import { createResearch, listResearch, getResearch, appendResearchEntry, transitionResearch, researchToBacklog } from './research/research.js';
 import { createResearchInputSchema, listResearchInputSchema, getResearchInputSchema, appendResearchInputSchema, transitionResearchInputSchema, researchToBacklogInputSchema } from './research/types.js';
 import { readFileSync } from 'node:fs';
-import { Command } from 'commander';
+import { Command, Option } from 'commander';
 import {
   confirmBacklogItem,
   confirmBacklogItemInputSchema,
@@ -125,13 +125,15 @@ program
   .command('init')
   .description('Create a generic project-context scaffold without overwriting existing configuration')
   .option('--name <name>', 'project name; defaults to the repository directory name')
-  .option('--with-hooks', 'install optional Codex lifecycle hooks without overwriting .codex/hooks.json')
-  .option('--with-skills', 'install bundled workflow and research skills into .agents/skills without overwriting existing files')
+  .addOption(new Option('--client <client>', 'client-specific MCP configuration and skill destination').choices(['codex', 'zcode', 'deepseek-harness']))
+  .option('--with-hooks', 'install optional Codex or DeepSeek Harness lifecycle hooks without overwriting existing files')
+  .option('--with-skills', 'install bundled workflow and research skills into the selected client directory without overwriting files')
   .option('--module <name:path>', 'seed a project module; repeat for multiple modules', collectValues, [])
   .action((options) => emit(initializeProjectContext({
     name: options.name,
     withSkills: Boolean(options.withSkills),
     withHooks: Boolean(options.withHooks),
+    client: options.client,
     modules: (options.module as string[]).map(parseModuleSeed),
   })));
 

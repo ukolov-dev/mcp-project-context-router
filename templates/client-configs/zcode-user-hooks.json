@@ -1,0 +1,49 @@
+{
+  "hooks": {
+    "enabled": true,
+    "events": {
+      "UserPromptSubmit": [
+        {
+          "hooks": [
+            {
+              "type": "process",
+              "command": "node",
+              "args": [
+                "REPLACE_WITH_ABSOLUTE_PACKAGE_DIR/hooks/user-prompt-submit.js"
+              ],
+              "timeoutMs": 30000
+            }
+          ]
+        }
+      ],
+      "PostToolUse": [
+        {
+          "hooks": [
+            {
+              "type": "process",
+              "command": "node",
+              "args": [
+                "REPLACE_WITH_ABSOLUTE_PACKAGE_DIR/hooks/post-tool-use.js"
+              ],
+              "timeoutMs": 30000
+            }
+          ]
+        }
+      ],
+      "Stop": [
+        {
+          "hooks": [
+            {
+              "type": "process",
+              "command": "node",
+              "args": [
+                "REPLACE_WITH_ABSOLUTE_PACKAGE_DIR/hooks/zcode-stop.js"
+              ],
+              "timeoutMs": 30000
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

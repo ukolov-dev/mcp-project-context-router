@@ -88,6 +88,15 @@ describe('lifecycle verification boundary', () => {
     expect(result.reason).toContain('TASK-ONE');
     expect(result.reason).not.toContain('TASK-HISTORICAL');
   });
+  it('adapts Stop feedback for ZCode CLI and desktop without changing successful stops', () => {
+    task();
+    const result = hook('zcode-stop.js');
+    expect(result.decision).toBe('block');
+    expect(result.continue).toBe(true);
+    expect(result.hookSpecificOutput).toEqual({ hookEventName: 'Stop', additionalContext: result.reason });
+    finish();
+    expect(hook('zcode-stop.js')).toBeUndefined();
+  });
   it('does not let one finalized task hide another matching task', () => {
     task(); task('TASK-TWO'); hook('post-tool-use.js'); finish();
     expect(hook().reason).toContain('TASK-TWO');
