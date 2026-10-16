@@ -75,4 +75,12 @@ npx project-context pack "Update customer service" --modules app
 npx project-context reuse-scan "CustomerService" --modules app
 ```
 
-Далее настройте [проект](configuration.html): пути к исходникам и команды проверки.
+## Первый полезный запрос
+
+После настройки [модулей и команд](configuration.html) отправьте агенту:
+
+> Используй project_context. Получи описание проекта, затем собери build_context_pack для задачи «Update CustomerService» с модулем app и файлом src/customer.ts. Покажи, какие материалы выбраны и почему, какие есть предупреждения и что нужно проверить. Пока только прочитай и объясни, без изменения кода.
+
+Замените пример своими модулем, путём и задачей. Убедитесь, что агент действительно вызвал инструмент: в ответе есть `routing`, `records`, `files`, `playbooks`, `commands` и `budget`. Сверьте выбранную область и прочитайте источники.
+
+Дальше — [схема сборки и разбор пакета](context-pack.html), затем [реализация и сохранение результата](workflow.html).

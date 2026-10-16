@@ -87,6 +87,7 @@ body:has(.docs-layout) .header-inner{width:calc(100% - 84px);max-width:1452px}
 .article h2{font-size:32px;line-height:1.25;letter-spacing:-.9px;margin:42px 0 20px;scroll-margin-top:25px}
 .article h3{font-size:23px;margin-top:30px}
 .article p{margin-bottom:19px}
+.article img{display:block;max-width:100%;height:auto;margin:28px auto}
 .article a{color:#426b0d;text-decoration:underline;text-underline-offset:3px}
 .article code:not(pre code){font-size:.86em;background:#f0f4ed;border-radius:3px;padding:2px 5px;overflow-wrap:anywhere}
 .article pre code{font-family:ui-monospace,SFMono-Regular,Consolas,monospace}

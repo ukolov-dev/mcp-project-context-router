@@ -75,4 +75,12 @@ npx project-context pack "Update customer service" --modules app
 npx project-context reuse-scan "CustomerService" --modules app
 ```
 
-Continue with [project configuration](configuration.html) to select the correct source paths and verification commands.
+## Your first useful request
+
+After configuring [modules and commands](configuration.html), send your agent:
+
+> Use project_context. Get the project brief, then call build_context_pack for “Update CustomerService”, module app, file src/customer.ts. Show which materials were selected and why, any warnings and the checks needed. Read and explain only for now; do not change code.
+
+Replace the sample module, path and task. Confirm the agent actually called the tool: the response includes `routing`, `records`, `files`, `playbooks`, `commands` and `budget`. Check the selected scope and read the sources.
+
+Continue with the [assembly diagram and pack walkthrough](context-pack.html), then [implementation and recording results](workflow.html).

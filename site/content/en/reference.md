@@ -21,7 +21,7 @@ Keep indexes, drafts, trash, credentials and private instructions out of publish
 | --- | --- |
 | `get_project_brief` | Repository purpose and configuration |
 | `validate_task`, `confirm_task_contract` | Draft and confirm task scope |
-| `build_context_pack`, `retrieve_project_context` | Scoped project context |
+| `build_context_pack` | Local records, source files, instructions and commands for a task |
 | `find_existing_capability` | Existing implementation candidates |
 | `get_verification_plan` | Applicable checks and prior evidence |
 | `record_verification_evidence` | Actual check results and environment boundaries |
@@ -30,6 +30,18 @@ Keep indexes, drafts, trash, credentials and private instructions out of publish
 | `context_doctor` | Local configuration and data diagnostics |
 
 Use `npx project-context --help` and per-command help for CLI arguments. Profiles determine which tools are exposed; see [configuration](configuration.html).
+
+## Choose the right tool
+
+| Need | Tool | When the result is useful |
+| --- | --- | --- |
+| Prepare for a code change | `build_context_pack` | Scope is correct, warnings are understood, sources and instructions have been read. [Diagram and examples](context-pack.html). |
+| Find a particular memory record | `search_project_context` | The record is found and its source, status and links are inspected. This is not a search of every code file. |
+| Find an existing implementation | `find_existing_capability` | Candidates have been inspected in source; a matching name does not establish suitability. |
+| Combine portal and local context | `retrieve_project_context` | The portal is configured and access, authority, revisions and returned-material limits have been checked. |
+| Identify verification work | `get_verification_plan` | Read the plan; the agent then runs checks separately and records evidence. |
+
+Ordinary local work does not need a portal connection. MCP returns material to the agent; its applicability and the implementation result are checked through the [agent workflow](workflow.html).
 
 ## The 13 record types
 

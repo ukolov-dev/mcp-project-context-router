@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" lang="en" role="img" aria-labelledby="title description" width="600" height="1120" viewBox="0 0 600 1120">
+  <title id="title">How a local context pack is built</title>
+  <desc id="description">The request determines scope. The router selects records, code, instructions and commands, applies a budget and returns the pack. The agent reads sources, changes code and runs checks.</desc>
+  <defs><marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M1 1 8 5 1 9" fill="none" stroke="#68746e" stroke-width="1.5"/></marker></defs>
+  <g font-family="Arial, Helvetica, sans-serif">
+    <g>
+      <rect x="16" y="16" width="568" height="150" rx="8" fill="#ffffff" stroke="#cbd5ce"/>
+      <text x="40" y="58" font-size="28" font-weight="700" fill="#18241e">1 · Request to MCP</text>
+      <text x="40" y="102" font-size="26" fill="#526158">query · taskId · modules · files</text>
+      <text x="40" y="139" font-size="26" fill="#526158">Goal and known paths</text>
+    </g>
+    <path d="M300 171v24" fill="none" stroke="#68746e" stroke-width="2" marker-end="url(#arrow)"/>
+    <g>
+      <rect x="16" y="201" width="568" height="150" rx="8" fill="#ffffff" stroke="#cbd5ce"/>
+      <text x="40" y="243" font-size="28" font-weight="700" fill="#18241e">2 · Task scope</text>
+      <text x="40" y="287" font-size="26" fill="#526158">Explicit scope and task keys</text>
+      <text x="40" y="324" font-size="26" fill="#526158">Configuration is the fallback</text>
+    </g>
+    <path d="M300 356v24" fill="none" stroke="#68746e" stroke-width="2" marker-end="url(#arrow)"/>
+    <g>
+      <rect x="16" y="386" width="568" height="150" rx="8" fill="#ffffff" stroke="#cbd5ce"/>
+      <text x="40" y="428" font-size="28" font-weight="700" fill="#18241e">3 · Select materials</text>
+      <text x="40" y="472" font-size="26" fill="#526158">Markdown · source code · playbooks</text>
+      <text x="40" y="509" font-size="26" fill="#526158">Commands from project.yaml</text>
+    </g>
+    <path d="M300 541v24" fill="none" stroke="#68746e" stroke-width="2" marker-end="url(#arrow)"/>
+    <g>
+      <rect x="16" y="571" width="568" height="150" rx="8" fill="#ffffff" stroke="#cbd5ce"/>
+      <text x="40" y="613" font-size="28" font-weight="700" fill="#18241e">4 · Budget and warnings</text>
+      <text x="40" y="657" font-size="26" fill="#526158">Excerpts and limits</text>
+      <text x="40" y="694" font-size="26" fill="#526158">Required instructions are preserved</text>
+    </g>
+    <path d="M300 726v24" fill="none" stroke="#68746e" stroke-width="2" marker-end="url(#arrow)"/>
+    <g>
+      <rect x="16" y="756" width="568" height="150" rx="8" fill="#18241e" stroke="#18241e"/>
+      <text x="40" y="798" font-size="28" font-weight="700" fill="#d7fa87">5 · Context pack</text>
+      <text x="40" y="842" font-size="26" fill="#ffffff">Paths · selection reasons · commands</text>
+      <text x="40" y="879" font-size="26" fill="#ffffff">What to read and check</text>
+    </g>
+    <path d="M300 911v24" fill="none" stroke="#68746e" stroke-width="2" marker-end="url(#arrow)"/>
+    <g>
+      <rect x="16" y="941" width="568" height="150" rx="8" fill="#f4fbdc" stroke="#cbd5ce"/>
+      <text x="40" y="983" font-size="28" font-weight="700" fill="#18241e">6 · Agent work</text>
+      <text x="40" y="1027" font-size="26" fill="#526158">Reads complete sources</text>
+      <text x="40" y="1064" font-size="26" fill="#526158">Changes code and runs checks</text>
+    </g>
+  </g>
+</svg>

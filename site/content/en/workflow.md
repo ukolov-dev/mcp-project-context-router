@@ -2,6 +2,22 @@
 
 Use the router to carry the agreed task scope from the request to a verified result.
 
+## What to do at each stage
+
+| Stage | Agent action | What to check in the result |
+| --- | --- | --- |
+| Understand the request | Read the project brief; find an existing task or draft a contract. | The goal, scope and criteria are clear; implementation is authorized. |
+| Gather context | Call `build_context_pack`, read selected material and find existing code. | Modules match the task and warnings are understood. |
+| Implement | Change code within the contract. | The diff solves the original task. |
+| Verify | Get a plan, execute commands and read the diff. | Actual outcomes exist, beyond a list of suggested commands. |
+| Save | Record evidence and call `finalize_work`. | Results, skips and limits are saved; `complete` has the required acceptance. |
+
+A prompt after agreeing on the task:
+
+> Continue task TASK-ID using project_context. Build a pack for its modules and files, read instructions and look for an existing implementation. Make the agreed changes, run checks, and save evidence and the result. If a check is unavailable, state why and report the actual degree of completion.
+
+Replace `TASK-ID` with a real ID. Do not assign `complete` merely to finish a response.
+
 ## Agree on the task
 
 For a new implementation request, use `validate_task` and `confirm_task_contract`. Store the goal, scope, acceptance criteria, risks and expected checks. Reuse an existing confirmed contract when continuing the same task. Resolve missing details from available context; ask about genuine blockers.
@@ -11,6 +27,8 @@ Exploring an idea does not authorize implementing it. Use `context-research` for
 ## Gather scoped context
 
 Call `build_context_pack` with the task and concrete module/file hints. Read its sources and applicable playbooks. Use `find_existing_capability` before adding reusable code.
+
+The [assembly diagram, inputs and response walkthrough](context-pack.html) help verify that the agent received context for the intended scope.
 
 ```bash
 npx project-context pack "Update customer service" --modules app --file src/customer.ts

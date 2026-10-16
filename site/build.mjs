@@ -9,25 +9,25 @@ const repo = 'https://github.com/ukolov-dev/mcp-project-context-router';
 const version = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version;
 const release = `${repo}/releases/tag/v${version}`;
 const packageUrl = `${repo}/releases/download/v${version}/mcp-project-context-router-${version}.tgz`;
-const pages = ['quickstart', 'configuration', 'workflow', 'reference', 'upgrading'];
+const pages = ['quickstart', 'configuration', 'context-pack', 'workflow', 'reference', 'upgrading'];
 const text = {
-  en: { docs: 'Documentation', topics: ['Quick start', 'Project configuration', 'Agent workflow', 'Tools and records', 'Upgrading and troubleshooting'],
+  en: { docs: 'Documentation', topics: ['Quick start', 'Project configuration', 'Context packs', 'Agent workflow', 'Tools and records', 'Upgrading and troubleshooting'],
     title: "Your project.<br>Your agent’s context.", intro: 'Local MCP server. Decisions, source files and checks for your task.', start: 'Get started', seeWorkflow: 'See the workflow', releaseNotes: 'Release notes',
     workflow: 'From request to verified work.', steps: [['Define the task','Keep the goal, scope and acceptance criteria together.'],['Bring the right context','Find decisions, relevant source files and existing capabilities.'],['Record the checks','Save actual checks and their limits with the task.']],
     principles: [['Memory you can review','Markdown records live in your repository.'],['Context for this task','Modules and files guide what goes into the pack.'],['Recorded verification','The agent runs checks; the router records results.']],
     local: 'Local files. Rebuildable index.', languages: 'Source languages',
     install: 'Start in your repository.', installIntro: 'Node.js 22.13 or newer. Install the release, then connect your agent.', guide: 'Installation guide', pack: 'Example context pack', illustration: 'Illustrative example',
     exampleTask: 'Fix sign-in', packLabels: ['Task','Project memory','Source files','Verification plan'], exampleDecision: 'decision · Session lifetime',
-    explore: 'Find your next step.', topicDescriptions: ['Install and connect an MCP client.','Choose modules, stacks and verification commands.','Tasks, context packs, skills and hooks.','Understand tools and durable project memory.','Update safely and check your configuration.'],
+    explore: 'Find your next step.', topicDescriptions: ['Install and connect an MCP client.','Choose modules, stacks and verification commands.','Follow the diagram, try a request and read the result.','Tasks, context packs, skills and hooks.','Understand tools and durable project memory.','Update safely and check your configuration.'],
     copy: 'Copy', copied: 'Copied', failed: 'Select and copy the code manually', skip: 'Skip to content', toc: 'On this page', next: 'Next', source: 'Edit this page', overview: 'Project overview' },
-  ru: { docs: 'Документация', topics: ['Быстрый старт', 'Настройка проекта', 'Работа с агентом', 'Инструменты и записи', 'Обновление и диагностика'],
+  ru: { docs: 'Документация', topics: ['Быстрый старт', 'Настройка проекта', 'Пакет контекста', 'Работа с агентом', 'Инструменты и записи', 'Обновление и диагностика'],
     title: 'Ваш проект.<br>Контекст для агента.', intro: 'Локальный MCP-сервер: решения, исходники и проверки для вашей задачи.', start: 'Начать работу', seeWorkflow: 'Как это работает', releaseNotes: 'Что нового',
     workflow: 'От запроса до проверенного результата.', steps: [['Определите задачу','Храните цель, границы и критерии приёмки вместе.'],['Соберите нужный контекст','Находите решения, нужные исходники и готовую реализацию.'],['Запишите проверки','Сохраняйте реальные проверки и их ограничения в задаче.']],
     principles: [['Память, которую можно прочитать','Записи Markdown хранятся в вашем репозитории.'],['Контекст конкретной задачи','Модули и файлы помогают выбрать содержимое пакета.'],['Проверки с результатом','Агент запускает проверки, роутер сохраняет результаты.']],
     local: 'Локальные файлы. Пересоздаваемый индекс.', languages: 'Языки исходников',
     install: 'Начните в своём репозитории.', installIntro: 'Node.js 22.13 или новее. Установите релиз и подключите агента.', guide: 'Инструкция по установке', pack: 'Пример пакета контекста', illustration: 'Иллюстративный пример',
     exampleTask: 'Исправить вход', packLabels: ['Задача','Память проекта','Исходники','План проверки'], exampleDecision: 'decision · Время жизни сессии',
-    explore: 'Выберите следующий шаг.', topicDescriptions: ['Установка и подключение MCP-клиента.','Модули, стеки и команды проверки.','Задачи, пакеты контекста, skills и хуки.','Инструменты и долговечная память проекта.','Безопасное обновление и диагностика конфигурации.'],
+    explore: 'Выберите следующий шаг.', topicDescriptions: ['Установка и подключение MCP-клиента.','Модули, стеки и команды проверки.','Схема сборки, примеры запросов и разбор ответа.','Задачи, пакеты контекста, skills и хуки.','Инструменты и долговечная память проекта.','Безопасное обновление и диагностика конфигурации.'],
     copy: 'Копировать', copied: 'Скопировано', failed: 'Выделите и скопируйте код вручную', skip: 'Перейти к содержимому', toc: 'На этой странице', next: 'Далее', source: 'Редактировать страницу', overview: 'О проекте' },
 };
 const escape = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' })[c]);
@@ -84,4 +84,4 @@ for(const lang of ['en','ru']) {
 }
 writeFileSync(join(output,'index.html'),'<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Project Context Router</title><meta http-equiv="refresh" content="0;url=en/"></head><body><a href="en/">English</a> · <a href="ru/">Русский</a></body></html>');
 writeFileSync(join(output,'.nojekyll'),'');
-console.log('Built 2 landing pages and 10 localized documentation pages in site/dist.');
+console.log(`Built 2 landing pages and ${pages.length * 2} localized documentation pages in site/dist.`);
