@@ -40,3 +40,7 @@ For bugs, include the router Git commit, Node version, exact command, sanitized 
 ## Release 0.9.0
 
 [Release notes and migration](https://github.com/ukolov-dev/mcp-project-context-router/blob/v0.9.0/docs/release-0.9.md). Add missing lifecycle hooks with `init --with-hooks`; review and trust them in Codex. Existing hook configuration is preserved.
+
+## Additional clients on Git main
+
+ZCode and official DeepSeek Harness now have `init --client` targets. Install from Git `main`; the immutable 0.9.0 release does not contain this addition. See [quick start](quickstart.html#zcode-and-deepseek-harness). Existing configs are preserved; new hook bridges need explicit activation in the client.

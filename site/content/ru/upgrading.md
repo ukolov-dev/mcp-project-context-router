@@ -40,3 +40,7 @@ npx project-context doctor --json
 ## Релиз 0.9.0
 
 [Изменения и миграция](https://github.com/ukolov-dev/mcp-project-context-router/blob/v0.9.0/docs/release-0.9.md). Добавьте хуки через `init --with-hooks`, просмотрите и разрешите их в Codex. Существующий конфиг хуков сохраняется.
+
+## Новые клиенты в Git main
+
+В `init --client` добавлены ZCode и официальный DeepSeek Harness. Установите из Git `main`: опубликованный релиз 0.9.0 эту доработку не содержит. См. [быстрый старт](quickstart.html#zcode-и-deepseek-harness). Существующие конфиги сохраняются; адаптеры хуков надо явно подключить в клиенте.

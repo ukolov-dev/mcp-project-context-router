@@ -14,6 +14,7 @@ export type InitializeProjectContextOptions = {
   modules?: ProjectModuleSeed[];
   withSkills?: boolean;
   withHooks?: boolean;
+  client?: 'codex' | 'zcode' | 'deepseek-harness';
 };
 
 export type InitializeProjectContextResult = {
@@ -81,17 +82,25 @@ export function initializeProjectContext(options: InitializeProjectContextOption
   const created: string[] = [];
   const skipped: string[] = [];
   const modules = uniqueModules(options.modules ?? []);
+  const client = options.client ?? 'codex';
+  if (!['codex', 'zcode', 'deepseek-harness'].includes(client)) throw new Error(`Unsupported client: ${client}`);
+  if (client === 'zcode' && options.withHooks) throw new Error('ZCode ignores project-level hooks. Install without --with-hooks and follow docs/install/zcode.md for reviewed user-level hooks.');
+  const skillsDirectory = client === 'zcode' ? '.zcode/skills' : '.agents/skills';
+  const hooksPath = client === 'deepseek-harness' ? '.dsh/project-context-hooks.json' : '.codex/hooks.json';
+  const configPath = client === 'zcode' ? '.zcode/config.json' : client === 'deepseek-harness' ? '.dsh/project-context.cordis.yml' : options.client ? '.codex/config.toml' : undefined;
+  if (configPath && !isRepositoryPath(configPath)) throw new Error(`Client configuration destination must stay inside the repository: ${configPath}`);
+  const prefix = options.withHooks || configPath ? packagePrefix() : '';
   const projectName = options.name?.trim() || humanizeRepositoryName(basename(paths.root));
 
   if (options.withSkills) {
     for (const name of bundledSkills) {
-      const relative = `.agents/skills/${name}/SKILL.md`;
+      const relative = `${skillsDirectory}/${name}/SKILL.md`;
       if (!isRepositoryPath(relative)) throw new Error(`Skill destination must stay inside the repository: ${relative}`);
     }
   }
 
-  if (options.withHooks && !isRepositoryPath('.codex/hooks.json')) {
-    throw new Error('Hook destination must stay inside the repository: .codex/hooks.json');
+  if (options.withHooks && !isRepositoryPath(hooksPath)) {
+    throw new Error(`Hook destination must stay inside the repository: ${hooksPath}`);
   }
 
   for (const relative of contextDirectories) {
@@ -100,7 +109,7 @@ export function initializeProjectContext(options: InitializeProjectContextOption
 
   writeIfMissing(
     resolve(paths.contextDir, 'project.yaml'),
-    renderProjectConfig(projectName, basename(paths.root), modules, Boolean(options.withHooks)),
+    renderProjectConfig(projectName, basename(paths.root), modules, Boolean(options.withHooks) && client === 'codex'),
     '.project-context/project.yaml',
     created,
     skipped,
@@ -118,21 +127,37 @@ export function initializeProjectContext(options: InitializeProjectContextOption
   copyTemplate('portable-workflow/verification-record.md', '.project-context/templates/VERIFICATION-RECORD.md', created, skipped);
   if (options.withSkills) {
     for (const name of bundledSkills) {
-      copyTemplate(`skills/${name}/SKILL.md`, `.agents/skills/${name}/SKILL.md`, created, skipped);
+      copyTemplate(`skills/${name}/SKILL.md`, `${skillsDirectory}/${name}/SKILL.md`, created, skipped);
     }
   }
   if (options.withHooks) {
-    const template = readFileSync(fileURLToPath(new URL('../../templates/client-configs/codex-hooks.json', import.meta.url)), 'utf8');
-    const packageRoot = fileURLToPath(new URL('../../', import.meta.url));
-    const local = relative(paths.root, packageRoot).replaceAll('\\', '/');
-    const prefix = local === '' ? '' : !isAbsolute(local) && local !== '..' && !local.startsWith('../') ? `${local}/` : 'node_modules/mcp-project-context-router/';
-    if (/["'$`\r\n]/.test(prefix)) throw new Error('Hook package path contains unsupported shell characters.');
-    const content = template.replaceAll('node_modules/mcp-project-context-router/', prefix);
-    writeIfMissing(resolve(paths.root, '.codex/hooks.json'), content, '.codex/hooks.json', created, skipped);
+    writeIfMissing(resolve(paths.root, hooksPath), renderHooks(prefix), hooksPath, created, skipped);
+  }
+  if (configPath) {
+    const template = client === 'zcode' ? 'zcode.json' : client === 'deepseek-harness' ? 'deepseek-harness.cordis.yml' : 'codex.toml';
+    let content = readFileSync(fileURLToPath(new URL(`../../templates/client-configs/${template}`, import.meta.url)), 'utf8');
+    content = content.replaceAll('node_modules/mcp-project-context-router/', prefix);
+    if (client === 'deepseek-harness' && options.withHooks) {
+      content += readFileSync(fileURLToPath(new URL('../../templates/client-configs/deepseek-harness-hooks.cordis.yml', import.meta.url)), 'utf8');
+    }
+    writeIfMissing(resolve(paths.root, configPath), content, configPath, created, skipped);
   }
   updateGitignore(paths.root, created, skipped);
 
   return { status: 'OK', contextDir: paths.contextDir, created, skipped };
+}
+
+function packagePrefix(): string {
+  const packageRoot = fileURLToPath(new URL('../../', import.meta.url));
+  const local = relative(repoPaths().root, packageRoot).replaceAll('\\', '/');
+  const prefix = local === '' ? '' : !isAbsolute(local) && local !== '..' && !local.startsWith('../') ? `${local}/` : 'node_modules/mcp-project-context-router/';
+  if (/[\u0000-\u001f"'$`]/.test(prefix)) throw new Error('Client package path contains unsupported shell characters.');
+  return prefix;
+}
+
+function renderHooks(prefix: string): string {
+  const template = readFileSync(fileURLToPath(new URL('../../templates/client-configs/codex-hooks.json', import.meta.url)), 'utf8');
+  return template.replaceAll('node_modules/mcp-project-context-router/', prefix);
 }
 
 function uniqueModules(modules: ProjectModuleSeed[]): ProjectModuleSeed[] {

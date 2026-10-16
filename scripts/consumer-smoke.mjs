@@ -182,6 +182,37 @@ try {
   checked('Installed stdio MCP handshake/version/default/FTS pack tool');
   await client.close();
   client = undefined;
+  const { loadYaml } = await import(pathToFileURL(join(installed, 'dist/storage/yaml.js')).href);
+  const zcodeInit = json('init', '--client', 'zcode', '--with-skills');
+  assert(zcodeInit.created.includes('.zcode/config.json'));
+  assert(zcodeInit.created.includes('.zcode/skills/project-context-workflow/SKILL.md'));
+  const zcodeConfig = JSON.parse(readFileSync(join(consumer, '.zcode/config.json'), 'utf8'));
+  const dshInit = json('init', '--client', 'deepseek-harness', '--with-skills', '--with-hooks');
+  assert(dshInit.created.includes('.dsh/project-context-hooks.json'));
+  const dshRows = loadYaml(readFileSync(join(consumer, '.dsh/project-context.cordis.yml'), 'utf8'));
+  assert.equal(dshRows[1].insert[0].name, '@deepseek-ai/dsh-hooks-codex');
+  for (const [name, server] of [['zcode', zcodeConfig.mcp.servers.project_context], ['deepseek-harness', dshRows[0].insert[0].config]]) {
+    client = new Client({ name: `installed-${name}-config`, version: '1.0.0' });
+    await client.connect(new StdioClientTransport({ command: server.command, args: server.args,
+      cwd: resolve(consumer, server.cwd), env: { ...env, ...server.env }, stderr: 'pipe' }));
+    const brief = await client.callTool({ name: 'get_project_brief', arguments: {} });
+    assert(!brief.isError);
+    assert.equal(brief.structuredContent.project, 'Clean consumer');
+    assert.equal(brief.structuredContent.toolProfile, 'core');
+    await client.close(); client = undefined;
+  }
+  const dshHooks = JSON.parse(readFileSync(join(consumer, '.dsh/project-context-hooks.json'), 'utf8'));
+  for (const event of ['UserPromptSubmit', 'PostToolUse', 'Stop']) {
+    const output = execFileSync(dshHooks.hooks[event][0].hooks[0].command,
+      { cwd: join(consumer, 'src'), shell: true, input: JSON.stringify({ cwd: join(consumer, 'src'), session_id: 'installed-dsh' }), env, encoding: 'utf8', timeout: 30000 });
+    if (event === 'Stop') assert.equal(output, '');
+  }
+  for (const [name, path] of [['zcode', '.zcode/config.json'], ['deepseek-harness', '.dsh/project-context.cordis.yml']]) {
+    writeFileSync(join(consumer, path), 'Custom client config');
+    assert(json('init', '--client', name).skipped.includes(path));
+    assert.equal(readFileSync(join(consumer, path), 'utf8'), 'Custom client config');
+  }
+  checked('Installed ZCode/DSH configs launch the consumer core MCP; client skills, optional DSH hooks and custom-file preservation work');
   writeFileSync(join(output, 'mcp-stderr.log'), serverErrors);
   report.status = 'OK';
 } catch (error) {

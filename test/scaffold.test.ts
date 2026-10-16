@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, 
 import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { loadYaml } from '../src/storage/yaml.js';
 import { initializeProjectContext, parseModuleSeed } from '../src/scaffold/init.js';
 
 let originalCwd: string;
@@ -121,6 +122,66 @@ describe('project-context scaffold', () => {
     symlinkSync(resolve(tempDir, 'missing-hooks.json'), resolve(tempDir, '.codex/hooks.json'));
     expect(initializeProjectContext({ withHooks: true }).skipped).toContain('.codex/hooks.json');
     expect(existsSync(resolve(tempDir, 'missing-hooks.json'))).toBe(false);
+  });
+
+  it('creates ZCode MCP and workspace skills while preserving custom configuration', () => {
+    const result = initializeProjectContext({ client: 'zcode', withSkills: true });
+    expect(result.created).toContain('.zcode/config.json');
+    expect(result.created).toContain('.zcode/skills/project-context-workflow/SKILL.md');
+    expect(existsSync(resolve(tempDir, '.agents'))).toBe(false);
+    expect(JSON.parse(readFileSync(resolve(tempDir, '.zcode/config.json'), 'utf8')).mcp.servers.project_context.env.PROJECT_CONTEXT_TOOL_PROFILE).toBe('core');
+    writeFileSync(resolve(tempDir, '.zcode/config.json'), '{"custom": true}');
+    writeFileSync(resolve(tempDir, '.zcode/skills/project-context-workflow/SKILL.md'), 'Custom skill');
+    expect(initializeProjectContext({ client: 'zcode', withSkills: true }).skipped).toContain('.zcode/config.json');
+    expect(readFileSync(resolve(tempDir, '.zcode/config.json'), 'utf8')).toBe('{"custom": true}');
+    expect(readFileSync(resolve(tempDir, '.zcode/skills/project-context-workflow/SKILL.md'), 'utf8')).toBe('Custom skill');
+  });
+
+  it('opts DSH into its Codex hook bridge without creating Codex client configuration', () => {
+    const result = initializeProjectContext({ client: 'deepseek-harness', withSkills: true, withHooks: true });
+    expect(result.created).toContain('.dsh/project-context-hooks.json');
+    expect(result.created).toContain('.agents/skills/project-context-workflow/SKILL.md');
+    expect(existsSync(resolve(tempDir, '.codex'))).toBe(false);
+    const rows = loadYaml(readFileSync(resolve(tempDir, '.dsh/project-context.cordis.yml'), 'utf8')) as Array<{ insert: Array<{ name: string; config: Record<string, unknown> }> }>;
+    expect(rows.map((row) => row.insert[0].name)).toEqual(['@deepseek-ai/dsh-mcp-client', '@deepseek-ai/dsh-hooks-codex']);
+    expect(rows[1].insert[0].config.configPath).toBe('.dsh/project-context-hooks.json');
+    expect(JSON.parse(readFileSync(resolve(tempDir, '.dsh/project-context-hooks.json'), 'utf8')).hooks.Stop).toHaveLength(1);
+    expect(readFileSync(resolve(tempDir, '.project-context/project.yaml'), 'utf8')).toContain('codex_hooks_path: false');
+    const before = readFileSync(resolve(tempDir, '.dsh/project-context.cordis.yml'), 'utf8');
+    expect(initializeProjectContext({ client: 'deepseek-harness', withHooks: true }).skipped).toContain('.dsh/project-context.cordis.yml');
+    expect(readFileSync(resolve(tempDir, '.dsh/project-context.cordis.yml'), 'utf8')).toBe(before);
+  });
+
+  it('preserves an existing DSH overlay when adding opt-in hooks later', () => {
+    initializeProjectContext({ client: 'deepseek-harness' });
+    const overlay = resolve(tempDir, '.dsh/project-context.cordis.yml');
+    const before = readFileSync(overlay, 'utf8');
+    const result = initializeProjectContext({ client: 'deepseek-harness', withHooks: true });
+    expect(result.created).toContain('.dsh/project-context-hooks.json');
+    expect(result.skipped).toContain('.dsh/project-context.cordis.yml');
+    expect(readFileSync(overlay, 'utf8')).toBe(before);
+  });
+
+  it('installs the Codex MCP template only with an explicit client choice', () => {
+    expect(initializeProjectContext({ client: 'codex' }).created).toContain('.codex/config.toml');
+    expect(readFileSync(resolve(tempDir, '.codex/config.toml'), 'utf8')).toContain('[mcp_servers.project_context]');
+  });
+
+  it('rejects unsupported clients and inactive project ZCode hooks before writing', () => {
+    expect(() => initializeProjectContext({ client: 'unknown' as never })).toThrow('Unsupported client');
+    expect(() => initializeProjectContext({ client: 'zcode', withHooks: true })).toThrow('ignores project-level hooks');
+    expect(existsSync(resolve(tempDir, '.project-context'))).toBe(false);
+    expect(existsSync(resolve(tempDir, '.zcode'))).toBe(false);
+  });
+
+  it.each(['zcode', 'deepseek-harness'] as const)('rejects an escaping %s client directory', (client) => {
+    const external = mkdtempSync(resolve(tmpdir(), 'router-client-external-'));
+    try {
+      symlinkSync(external, resolve(tempDir, client === 'zcode' ? '.zcode' : '.dsh'), 'junction');
+      expect(() => initializeProjectContext({ client, withSkills: true })).toThrow('must stay inside the repository');
+      expect(existsSync(resolve(tempDir, '.project-context'))).toBe(false);
+      expect(existsSync(resolve(external, 'config.json'))).toBe(false);
+    } finally { rmSync(external, { recursive: true, force: true }); }
   });
 
   it('rejects unsafe or malformed module definitions', () => {
