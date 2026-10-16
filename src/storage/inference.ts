@@ -106,7 +106,8 @@ function matchesQuerySignal(signal: string, candidate: string): boolean {
 /** Work keys match whole tokens, never incidental mentions in a record body. */
 export function matchesRecordIdentifier(query: string, record: Pick<ContextRecord, 'id'> & Partial<Pick<ContextRecord, 'title' | 'tags' | 'frontmatter'>>): boolean {
   const terms = new Set(query.toLowerCase().split(/[^\p{L}\p{N}_-]+/u));
-  const keys = `${record.title ?? ''} ${(record.tags ?? []).join(' ')} ${record.frontmatter?.task_key ?? ''}`
+  const taskKey = record.frontmatter?.task_key;
+  const keys = `${record.title ?? ''} ${(record.tags ?? []).join(' ')} ${typeof taskKey === 'string' ? taskKey : ''}`
     .match(/[\p{L}][\p{L}\p{N}]*(?:[-_][\p{L}\p{N}]+)+/gu) ?? [];
   return [record.id, ...keys.filter((key) => /\d/.test(key))].some((key) => terms.has(key.toLowerCase()));
 }
