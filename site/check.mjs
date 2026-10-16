@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 const version = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version;
 const output = join(dirname(fileURLToPath(import.meta.url)), 'dist');
 const files = readdirSync(output, { recursive: true }).filter(file => file.endsWith('.html'));
-assert.equal(files.length, 13, 'Expected root, two landing pages and ten docs');
+assert.equal(files.length, 15, 'Expected root, two landing pages and twelve docs');
 const decode = value => value.replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#39;/g, "'");
 for (const file of files) {
   const html = readFileSync(join(output, file), 'utf8');
@@ -19,10 +19,19 @@ for (const file of files) {
       assert(html.includes(`/releases/tag/v${version}`), `Missing current release link: ${file}`);
       assert(html.includes(`mcp-project-context-router-${version}.tgz`), `Wrong install version: ${file}`);
       assert(html.includes('ZCode') && html.includes('DeepSeek Harness'), `Missing supported clients: ${file}`);
-      assert.equal((html.match(/class="doc-row"/g) ?? []).length, 5, `Missing documentation entry points: ${file}`);
+      assert.equal((html.match(/class="doc-row"/g) ?? []).length, 6, `Missing documentation entry points: ${file}`);
       assert(html.includes('href="#workflow"') && html.includes('id="workflow"'), `Missing workflow navigation: ${file}`);
       assert(html.includes('src/auth/session.ts') && html.includes('<dl>'), `Missing readable context example: ${file}`);
       assert(html.includes('JavaScript'), `Missing JavaScript support: ${file}`);
+    }
+    if (file.endsWith(`${sep}context-pack.html`)) {
+      assert(html.includes(`assets/context-pack-${lang}.svg`) && /<img[^>]+alt="[^"]+"/.test(html), `Missing accessible localized diagram: ${file}`);
+      for (const field of ['build_context_pack', 'routing.modules', 'playbookDetails', 'exceedsLimit', 'retrieve_project_context']) {
+        assert(html.includes(field), `Missing context-pack guidance ${field}: ${file}`);
+      }
+      const diagram = readFileSync(join(output, 'assets', `context-pack-${lang}.svg`), 'utf8');
+      assert(diagram.includes(`lang="${lang}"`) && diagram.includes('<title') && diagram.includes('<desc'), `Missing diagram description: ${file}`);
+      assert(!/<script|<foreignObject|https?:|onload=/i.test(diagram.replace('http://www.w3.org/2000/svg', '')), `Unexpected active diagram content: ${file}`);
     }
     const other = lang === 'en' ? 'ru' : 'en';
     const paired = relative(dirname(join(output, file)), join(output, file.replace(lang + sep, other + sep))).split(sep).join('/');

@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" lang="ru" role="img" aria-labelledby="title description" width="600" height="1120" viewBox="0 0 600 1120">
+  <title id="title">Как собирается локальный пакет контекста</title>
+  <desc id="description">Запрос определяет область. Роутер подбирает записи, исходники, инструкции и команды, применяет бюджет и возвращает пакет. Агент читает источники, изменяет код и выполняет проверки.</desc>
+  <defs><marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M1 1 8 5 1 9" fill="none" stroke="#68746e" stroke-width="1.5"/></marker></defs>
+  <g font-family="Arial, Helvetica, sans-serif">
+    <g>
+      <rect x="16" y="16" width="568" height="150" rx="8" fill="#ffffff" stroke="#cbd5ce"/>
+      <text x="40" y="58" font-size="28" font-weight="700" fill="#18241e">1 · Запрос к MCP</text>
+      <text x="40" y="102" font-size="26" fill="#526158">query · taskId · modules · files</text>
+      <text x="40" y="139" font-size="26" fill="#526158">Цель и известные пути</text>
+    </g>
+    <path d="M300 171v24" fill="none" stroke="#68746e" stroke-width="2" marker-end="url(#arrow)"/>
+    <g>
+      <rect x="16" y="201" width="568" height="150" rx="8" fill="#ffffff" stroke="#cbd5ce"/>
+      <text x="40" y="243" font-size="28" font-weight="700" fill="#18241e">2 · Область задачи</text>
+      <text x="40" y="287" font-size="26" fill="#526158">Явные сигналы и ключи задач</text>
+      <text x="40" y="324" font-size="26" fill="#526158">Настройки — запасной вариант</text>
+    </g>
+    <path d="M300 356v24" fill="none" stroke="#68746e" stroke-width="2" marker-end="url(#arrow)"/>
+    <g>
+      <rect x="16" y="386" width="568" height="150" rx="8" fill="#ffffff" stroke="#cbd5ce"/>
+      <text x="40" y="428" font-size="28" font-weight="700" fill="#18241e">3 · Подбор материалов</text>
+      <text x="40" y="472" font-size="26" fill="#526158">Markdown · исходники · плейбуки</text>
+      <text x="40" y="509" font-size="26" fill="#526158">Команды из project.yaml</text>
+    </g>
+    <path d="M300 541v24" fill="none" stroke="#68746e" stroke-width="2" marker-end="url(#arrow)"/>
+    <g>
+      <rect x="16" y="571" width="568" height="150" rx="8" fill="#ffffff" stroke="#cbd5ce"/>
+      <text x="40" y="613" font-size="28" font-weight="700" fill="#18241e">4 · Бюджет и предупреждения</text>
+      <text x="40" y="657" font-size="26" fill="#526158">Отрывки и ограничения</text>
+      <text x="40" y="694" font-size="26" fill="#526158">Обязательные инструкции остаются</text>
+    </g>
+    <path d="M300 726v24" fill="none" stroke="#68746e" stroke-width="2" marker-end="url(#arrow)"/>
+    <g>
+      <rect x="16" y="756" width="568" height="150" rx="8" fill="#18241e" stroke="#18241e"/>
+      <text x="40" y="798" font-size="28" font-weight="700" fill="#d7fa87">5 · Пакет контекста</text>
+      <text x="40" y="842" font-size="26" fill="#ffffff">Пути · причины выбора · команды</text>
+      <text x="40" y="879" font-size="26" fill="#ffffff">Что читать и проверять</text>
+    </g>
+    <path d="M300 911v24" fill="none" stroke="#68746e" stroke-width="2" marker-end="url(#arrow)"/>
+    <g>
+      <rect x="16" y="941" width="568" height="150" rx="8" fill="#f4fbdc" stroke="#cbd5ce"/>
+      <text x="40" y="983" font-size="28" font-weight="700" fill="#18241e">6 · Работа агента</text>
+      <text x="40" y="1027" font-size="26" fill="#526158">Читает полные источники</text>
+      <text x="40" y="1064" font-size="26" fill="#526158">Меняет код и запускает проверки</text>
+    </g>
+  </g>
+</svg>
