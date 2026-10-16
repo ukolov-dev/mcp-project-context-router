@@ -1,11 +1,11 @@
 # Upgrading and troubleshooting
 
-The website describes current Git `main`. Existing release tags are immutable; a version string alone does not identify a Git installation.
+The current stable release is **0.10.0**, including ZCode and official DeepSeek Harness. Existing release tags are immutable; review the lockfile when upgrading.
 
-## Update from GitHub
+## Update to 0.10.0
 
 ```bash
-npm install --save-dev --save-exact github:ukolov-dev/mcp-project-context-router#main
+npm install --save-dev --save-exact https://github.com/ukolov-dev/mcp-project-context-router/releases/download/v0.10.0/mcp-project-context-router-0.10.0.tgz
 npx project-context index
 npx project-context doctor --json
 ```
@@ -41,6 +41,8 @@ For bugs, include the router Git commit, Node version, exact command, sanitized 
 
 [Release notes and migration](https://github.com/ukolov-dev/mcp-project-context-router/blob/v0.9.0/docs/release-0.9.md). Add missing lifecycle hooks with `init --with-hooks`; review and trust them in Codex. Existing hook configuration is preserved.
 
-## Additional clients on Git main
+## Release 0.10.0: ZCode and DeepSeek Harness
 
-ZCode and official DeepSeek Harness now have `init --client` targets. Install from Git `main`; the immutable 0.9.0 release does not contain this addition. See [quick start](quickstart.html#zcode-and-deepseek-harness). Existing configs are preserved; new hook bridges need explicit activation in the client.
+[Release and package](https://github.com/ukolov-dev/mcp-project-context-router/releases/tag/v0.10.0) · [Release notes](https://github.com/ukolov-dev/mcp-project-context-router/blob/v0.10.0/docs/release-0.10.md).
+
+Use `init --client zcode --with-skills` or `init --client deepseek-harness --with-skills --with-hooks` after upgrading. See [quick start](quickstart.html#zcode-and-deepseek-harness). Existing configs are preserved: merge skipped client entries/DSH hook rows manually. DSH needs its explicit `--patch` launch; ZCode user hooks remain a reviewed manual setup. No native client session or Windows verification is claimed.

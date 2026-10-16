@@ -1,11 +1,11 @@
 # Обновление и диагностика
 
-Сайт описывает текущий Git `main`. Опубликованные теги не меняются; одна строка версии не определяет установленный Git-коммит.
+Текущий стабильный релиз — **0.10.0**, с поддержкой ZCode и официального DeepSeek Harness. Опубликованные теги не меняются; при обновлении проверяйте lockfile.
 
-## Обновление из GitHub
+## Обновление до 0.10.0
 
 ```bash
-npm install --save-dev --save-exact github:ukolov-dev/mcp-project-context-router#main
+npm install --save-dev --save-exact https://github.com/ukolov-dev/mcp-project-context-router/releases/download/v0.10.0/mcp-project-context-router-0.10.0.tgz
 npx project-context index
 npx project-context doctor --json
 ```
@@ -41,6 +41,8 @@ npx project-context doctor --json
 
 [Изменения и миграция](https://github.com/ukolov-dev/mcp-project-context-router/blob/v0.9.0/docs/release-0.9.md). Добавьте хуки через `init --with-hooks`, просмотрите и разрешите их в Codex. Существующий конфиг хуков сохраняется.
 
-## Новые клиенты в Git main
+## Релиз 0.10.0: ZCode и DeepSeek Harness
 
-В `init --client` добавлены ZCode и официальный DeepSeek Harness. Установите из Git `main`: опубликованный релиз 0.9.0 эту доработку не содержит. См. [быстрый старт](quickstart.html#zcode-и-deepseek-harness). Существующие конфиги сохраняются; адаптеры хуков надо явно подключить в клиенте.
+[Релиз и пакет](https://github.com/ukolov-dev/mcp-project-context-router/releases/tag/v0.10.0) · [Изменения](https://github.com/ukolov-dev/mcp-project-context-router/blob/v0.10.0/docs/release-0.10.md).
+
+После обновления используйте `init --client zcode --with-skills` или `init --client deepseek-harness --with-skills --with-hooks`. См. [быстрый старт](quickstart.html#zcode-и-deepseek-harness). Существующие файлы сохраняются: пропущенные записи клиентов и адаптера DSH объедините вручную. DSH требует запуска с `--patch`; пользовательские хуки ZCode подключаются отдельно. Живые сессии клиентов и Windows не проверены.

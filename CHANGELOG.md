@@ -3,7 +3,7 @@
 Notable changes to Project Context Router are recorded here. Versions before
 1.0 are under active development. The package requires Node.js 22.13 or newer.
 
-## Unreleased
+## [0.10.0] - 2026-10-16
 
 - Add explicit `init --client codex|zcode|deepseek-harness` MCP setup, keeping plain init unchanged. Install ZCode skills into `.zcode/skills`; DSH reuses `.agents/skills`. Preserve custom files and reject escaping destinations.
 - Add optional DSH lifecycle hook delivery through its official Codex bridge and a manual ZCode user-hook template/Stop adapter; reject unsupported project-level ZCode hook installation explicitly.

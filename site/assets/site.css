@@ -18,6 +18,8 @@ a:hover{text-decoration:underline;text-underline-offset:5px}
 h1,h2,h3,p{margin-top:0}
 .hero h1{font-size:clamp(54px,5.55vw,86px);line-height:1.06;letter-spacing:-4px;margin:26px 0 38px;font-weight:750}
 .hero-intro{font-size:24px;line-height:1.45;color:var(--muted);max-width:700px;margin-bottom:36px}
+.clients{margin:24px 0 0;color:var(--muted);font-size:16px;line-height:1.7}
+.clients a{text-decoration:underline;text-underline-offset:4px}
 .actions{display:flex;gap:38px;align-items:center;flex-wrap:wrap}
 .button,.text-action{display:inline-flex;align-items:center;gap:18px;font-size:19px}
 .button{background:var(--lime);border-radius:8px;padding:19px 28px;font-weight:700}

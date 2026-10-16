@@ -1,13 +1,13 @@
 # Install for ZCode (Z.ai)
 
-This guide targets ZCode's built-in agent. Client support is on Git `main` after 0.9.0; install from Git until a newer release is tagged. Router runtime needs Node.js 22.13+; follow ZCode's own runtime requirements separately.
+This guide targets ZCode's built-in agent. Client support is included in release **0.10.0** and newer. Router runtime needs Node.js 22.13+; follow ZCode's own runtime requirements separately.
 
 ## Install and connect
 
 From the consumer Git repository root:
 
 ```bash
-npm install --save-dev --save-exact github:ukolov-dev/mcp-project-context-router#main
+npm install --save-dev --save-exact https://github.com/ukolov-dev/mcp-project-context-router/releases/download/v0.10.0/mcp-project-context-router-0.10.0.tgz
 npx project-context init --client zcode --with-skills --name "My project" --module app:src
 npx project-context index
 npx project-context doctor --json

@@ -7,13 +7,13 @@ Install the router in the repository that should own the project context.
 You need Node.js **22.13 or newer** and npm. If the repository has no `package.json`, run `npm init -y` first.
 
 ```bash
-npm install --save-dev --save-exact github:ukolov-dev/mcp-project-context-router
+npm install --save-dev --save-exact https://github.com/ukolov-dev/mcp-project-context-router/releases/download/v0.10.0/mcp-project-context-router-0.10.0.tgz
 npx project-context init --name "My project" --module app:src --with-skills
 npx project-context index
 npx project-context doctor --json
 ```
 
-Adjust the project name and source path. Review `.project-context/project.yaml`: source globs, playbooks and checks must match your repository. Commit the package manifest and lockfile; Git installations are pinned to an exact commit.
+Adjust the project name and source path. Review `.project-context/project.yaml`: source globs, playbooks and checks must match your repository. Commit the package manifest and lockfile. The URL pins the prebuilt 0.10.0 release; no npm-registry publication is required.
 
 `--with-skills` installs `project-context-workflow` and `context-research` into `.agents/skills/`. It works for existing projects and preserves customized files. Plain `init` installs no skills. Updating the npm package does not replace installed skill copies.
 
@@ -53,7 +53,7 @@ For OpenCode, use the [stable configuration template](https://github.com/ukolov-
 
 ## ZCode and DeepSeek Harness
 
-Use Git `main` for these client targets (added after release 0.9.0):
+Release **0.10.0** includes both clients. After installing the package above, choose your client:
 
 ```bash
 npx project-context init --client zcode --with-skills
