@@ -98,7 +98,7 @@ describe('Codex project-context MCP launch config', () => {
     const tools = responseResult(responses, 2).tools as McpTool[];
     const toolNames = tools.map((tool) => tool.name);
 
-    expect(toolNames).toHaveLength(51 + executionToolNames.length + researchToolNames.length);
+    expect(toolNames).toHaveLength(54 + executionToolNames.length + researchToolNames.length);
     expect(toolNames).toEqual(expect.arrayContaining([...executionToolNames]));
     expect(toolNames).toContain('retrieve_project_context');
     expect(toolNames).toContain('search_project_context');

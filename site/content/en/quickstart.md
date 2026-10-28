@@ -7,15 +7,19 @@ Install the router in the repository that should own the project context.
 You need Node.js **22.13 or newer** and npm. If the repository has no `package.json`, run `npm init -y` first.
 
 ```bash
-npm install --save-dev --save-exact https://github.com/ukolov-dev/mcp-project-context-router/releases/download/v0.10.1/mcp-project-context-router-0.10.1.tgz
+npm install --save-dev --save-exact https://github.com/ukolov-dev/mcp-project-context-router/releases/download/v0.11.0/mcp-project-context-router-0.11.0.tgz
 npx project-context init --name "My project" --module app:src --with-skills
 npx project-context index
 npx project-context doctor --json
 ```
 
-Adjust the project name and source path. Review `.project-context/project.yaml`: source globs, playbooks and checks must match your repository. Commit the package manifest and lockfile. The URL pins the prebuilt 0.10.1 release; no npm-registry publication is required.
+Adjust the project name and source path. Review `.project-context/project.yaml`: source globs, playbooks and checks must match your repository. Commit the package manifest and lockfile. The URL pins the prebuilt 0.11.0 release; no npm-registry publication is required.
 
 `--with-skills` installs `project-context-workflow` and `context-research` into `.agents/skills/`. It works for existing projects and preserves customized files. Plain `init` installs no skills. Updating the npm package does not replace installed skill copies.
+
+## Navigate project documents
+
+Start with a short source map, then use `npx project-context docs tree` to choose a document, `docs outline <path>` to get section IDs, and `docs read <path> --section <id>` to read the relevant section. See [Tree docs tools](reference.html#tree-docs-navigation).
 
 ## Optional Codex lifecycle hooks
 

@@ -31,6 +31,9 @@ const required = [
   'dist/execution/acceptance.js',
   'dist/execution/runner.js',
   'dist/git-hooks/git-hooks.js',
+  'dist/tree-docs/tree-docs.js',
+  'docs/tree-docs.md',
+  'docs/release-0.11.md',
   'dist/hooks/stop.js',
   'hooks/state.js',
   'hooks/user-prompt-submit.js',
@@ -102,9 +105,9 @@ const result = {
   forbidden,
 };
 
-if (report.name !== 'mcp-project-context-router' || report.version !== '0.10.1') {
+if (report.name !== 'mcp-project-context-router' || report.version !== '0.11.0') {
   result.status = 'FAILED';
-  result.identity = `Expected mcp-project-context-router@0.10.1, got ${report.name}@${report.version}`;
+  result.identity = `Expected mcp-project-context-router@0.11.0, got ${report.name}@${report.version}`;
 }
 
 const packageJson = JSON.parse(execFileSync('npm', ['pkg', 'get'], {

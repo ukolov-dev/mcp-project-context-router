@@ -2,6 +2,18 @@
 
 Project Context Router — локальный stdio MCP-сервер и CLI. Markdown хранит долговечную память; SQLite-индекс можно пересоздать.
 
+## Навигация Tree docs
+
+Пройдите по карте проекта к документу, просмотрите оглавление и прочитайте нужный раздел. Эти инструменты доступны во всех профилях, не изменяют файлы и не требуют индекса или настройки модулей.
+
+| MCP | CLI | Результат |
+| --- | --- | --- |
+| `get_document_tree` | `docs tree [path]` | Каталоги и пути Markdown |
+| `get_document_outline` | `docs outline <path>` | ID разделов и строки источника |
+| `read_document_section` | `docs read <path> --section <id>` | Раздел вместе с подразделами |
+
+Используйте ID из оглавления. При `truncated: true` повторите запрос с `offset: nextOffset`. Без section чтение начинается с начала документа. Размер ответа ограничен, обнаруженные секреты скрываются. Поддерживаются относительные пути к UTF-8 Markdown; скрытые, генерируемые и Git-игнорируемые пути и symlink исключаются. Поддержаны ATX и однострочные Setext вне fenced code и frontmatter. См. [полное руководство](https://github.com/ukolov-dev/mcp-project-context-router/blob/main/docs/tree-docs.md).
+
 ## Файлы проекта
 
 | Путь | Назначение |

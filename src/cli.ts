@@ -38,6 +38,7 @@ import {
   validateTask,
 } from './task-validation/task.js';
 import { buildContextPack } from './context-pack/pack.js';
+import { getDocumentTree, getDocumentOutline, readDocumentSection } from './tree-docs/tree-docs.js';
 import { createAgentRun, getAgentRun, getRunSnapshot, listAgentRuns, recordRunVerification, transitionAgentRun } from './execution/runs.js';
 import { createAgentRunInputSchema, recordRunVerificationInputSchema, transitionAgentRunInputSchema } from './execution/types.js';
 import {
@@ -185,6 +186,25 @@ program
     const result = rebuildIndex();
     emit({ status: hasIndexDiagnostics(result) ? 'WARN' : 'OK', ...result });
   });
+
+const docs = program.command('docs').description('Browse the document tree, inspect headings and read Markdown sections');
+docs.command('tree')
+  .argument('[path]', 'repository-relative directory', '.')
+  .option('--depth <number>', 'directory depth (1-8)', '1')
+  .option('--offset <number>', 'entry offset', '0')
+  .option('--limit <number>', 'maximum entries (1-500)', '100')
+  .action((path, options) => emit(getDocumentTree({ path, depth: Number(options.depth), offset: Number(options.offset), limit: Number(options.limit) })));
+docs.command('outline')
+  .argument('<path>', 'repository-relative Markdown file')
+  .option('--offset <number>', 'heading offset', '0')
+  .option('--limit <number>', 'maximum headings (1-500)', '100')
+  .action((path, options) => emit(getDocumentOutline({ path, offset: Number(options.offset), limit: Number(options.limit) })));
+docs.command('read')
+  .argument('<path>', 'repository-relative Markdown file')
+  .option('--section <id>', 'section ID from docs outline; omit to read the whole document')
+  .option('--offset <number>', 'character offset within the selected section', '0')
+  .option('--max-chars <number>', 'maximum characters (2-100000)', '12000')
+  .action((path, options) => emit(readDocumentSection({ path, section: options.section, offset: Number(options.offset), maxChars: Number(options.maxChars) })));
 
 program
   .command('search')

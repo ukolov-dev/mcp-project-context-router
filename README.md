@@ -4,21 +4,44 @@
 [![Node.js 22.13+](https://img.shields.io/badge/Node.js-22.13%2B-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
 [![MCP](https://img.shields.io/badge/Model_Context_Protocol-server-5A67D8)](https://modelcontextprotocol.io/)
 
-A local-first CLI and [Model Context Protocol](https://modelcontextprotocol.io/)
-server that gives coding agents structured project memory, task contracts, compact
-context packs, backlog workflows, and verification evidence.
+**Tree docs for coding agents: a project map that leads to the documents,
+sections, code, and checks needed for a task.**
 
-The router keeps durable knowledge in reviewable Markdown and YAML inside the
-consumer repository. A disposable SQLite index makes retrieval fast without
-turning an external service into the source of truth.
+Project Context Router supports this approach with a local-first CLI and
+[Model Context Protocol](https://modelcontextprotocol.io/) server. Keep project
+knowledge in reviewable Markdown and YAML, then retrieve task-focused context
+packs with source paths, selection reasons, and token-budget warnings. Task
+contracts, reuse scans, backlog workflows, and verification evidence support
+the work around that context.
+
+Markdown, YAML, and source code remain the sources of truth. SQLite is a
+rebuildable retrieval index.
 
 > Status: active development. The current package is
-> `mcp-project-context-router@0.10.1`, requires Node.js 22.13 or newer, and is distributed
+> `mcp-project-context-router@0.11.0`, requires Node.js 22.13 or newer, and is distributed
 > from source or a versioned tarball. It is not currently published to an npm
 > registry.
 
 See the [changelog](CHANGELOG.md) and [GitHub releases](https://github.com/ukolov-dev/mcp-project-context-router/releases)
 for versioned changes and installable tarballs.
+
+## Tree docs: the main approach
+
+Start with a small map, choose the relevant document, read the needed section,
+then inspect the implementation and its checks. Follow links across modules
+when a task spans several areas.
+
+The map and documents live in the repository and can be read directly by an
+agent or a person. The router uses configured modules, task signals, and its
+index to select a bounded context pack. Its CLI and MCP interface expose the
+same underlying project knowledge.
+
+Browse directories with `docs tree`, inspect heading IDs with `docs outline`,
+and read individual sections with `docs read --section`. The same operations
+are available through MCP, with bounded responses and continuation offsets.
+Maps and document links are authored as ordinary Markdown. See the
+[Tree docs guide](docs/tree-docs.md) for commands and supported Markdown,
+and [this repository's map](docs/context-map.md) for an example.
 
 ## Website and documentation
 
@@ -43,8 +66,9 @@ Open `http://127.0.0.1:4179/`. Rebuild and refresh after editing Markdown or ass
 
 ## Why use it?
 
-- Keep project memory versioned beside the code that it describes.
-- Give agents a focused context pack instead of an unbounded repository dump.
+- Give agents a short map and reveal relevant detail as the task requires it.
+- Keep linked project knowledge versioned beside the code that it describes.
+- Retrieve focused context packs with inspectable source paths and reasons.
 - Validate and confirm a Task Contract before implementation begins.
 - Search existing capabilities before adding duplicate code.
 - Track backlog state, dependencies, decisions, and verification evidence.
@@ -53,11 +77,13 @@ Open `http://127.0.0.1:4179/`. Rebuild and refresh after editing Markdown or ass
 
 ## Quick start
 
+Working on the router itself? Start with the [repository context map](docs/context-map.md).
+
 Install directly from GitHub in the repository that should own the project
 context:
 
 ```bash
-npm install --save-dev --save-exact https://github.com/ukolov-dev/mcp-project-context-router/releases/download/v0.10.1/mcp-project-context-router-0.10.1.tgz
+npm install --save-dev --save-exact https://github.com/ukolov-dev/mcp-project-context-router/releases/download/v0.11.0/mcp-project-context-router-0.11.0.tgz
 npx project-context init --name "Example Project" --module app:src
 npx project-context index
 npx project-context doctor --json
@@ -87,6 +113,11 @@ and select the tool profile needed by the task. See the
 Review `.project-context/project.yaml` after generation and replace the example
 modules, source globs, playbooks, and verification commands with real project
 values.
+
+Create a short source map using the
+[source-of-truth template](templates/portable-workflow/SOURCE_OF_TRUTH.md),
+replace its placeholders with links to your project documents, and link the
+map from `AGENTS.md`. This is the entry point for your project tree docs.
 
 `hooks install` creates a managed `.githooks/pre-commit`, configures the local
 clone's `core.hooksPath`, and records that wiring in `project.yaml`. The hook runs
@@ -135,7 +166,7 @@ templates:
 | DeepSeek Harness (official DSH) | [English](docs/install/deepseek-harness.md) · [Русский](docs/install/deepseek-harness.ru.md) | [`deepseek-harness.cordis.yml`](templates/client-configs/deepseek-harness.cordis.yml) |
 | OpenCode V2 preview | [OpenCode V2 notes](docs/install/opencode.md#opencode-v2-preview) | [`templates/client-configs/opencode-v2.json`](templates/client-configs/opencode-v2.json) |
 
-Release [0.10.1](https://github.com/ukolov-dev/mcp-project-context-router/releases/tag/v0.10.1) includes ZCode and official DeepSeek Harness support. Install the release package above and initialize explicitly:
+Release [0.11.0](https://github.com/ukolov-dev/mcp-project-context-router/releases/tag/v0.11.0) includes ZCode and official DeepSeek Harness support. Install the release package above and initialize explicitly:
 
 ```bash
 npx project-context init --client zcode --with-skills
@@ -159,7 +190,7 @@ The server supports scoped tool profiles:
 
 | Profile | Intended use |
 | --- | --- |
-| `core` | Task contracts, context packs, reuse scans, verification, refactor review, and finalization |
+| `core` | Tree docs, task contracts, context packs, reuse scans, verification, refactor review, and finalization |
 | `planning` | `core` plus research history, research-to-backlog handoff, and backlog lifecycle |
 | `developer` | `core` plus assigned-work acceptance and implementation reports |
 | `analyst` | `core` plus research, requirements, source traceability, analyst packs, and Confluence publishing |
