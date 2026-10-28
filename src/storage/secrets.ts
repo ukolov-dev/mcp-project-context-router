@@ -30,12 +30,13 @@ export function scanSecrets(path: string, text: string): SecretHit[] {
   return hits;
 }
 
-export function redactSecrets(text: string): string {
+export function redactSecrets(text: string, options: { preserveLines?: boolean } = {}): string {
   const output: string[] = [];
   let privateKeyBlock = false;
   for (const line of text.split(/\r?\n/)) {
     if (privateKeyBlock) {
       if (privateKeyEnd.test(line)) privateKeyBlock = false;
+      if (options.preserveLines) output.push('');
       continue;
     }
     if (privateKeyBegin.test(line)) {

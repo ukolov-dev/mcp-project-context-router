@@ -3,6 +3,13 @@
 Fill this file during transfer. Keep it short enough for agents to read before
 work starts.
 
+Use it as the entry point for tree docs: map -> document -> section ->
+implementation and checks. Replace each `CHANGE_ME` with a relative link to
+the owning document or section. Keep detailed rules in their source documents;
+link related code and tests from there. Follow task-relevant branches and
+cross-links, and read applicable mandatory instructions in full. Update the
+route when its source moves or its behavior changes.
+
 ## Product And Domain
 
 - Product contract: `CHANGE_ME`

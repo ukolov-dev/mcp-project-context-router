@@ -4,8 +4,60 @@
 от первого запроса до завершения работы, какие файлы и ответы появляются на
 каждом этапе и какой контекст получает агент перед изменением кода.
 
+Основной подход к организации знаний — [Tree docs](tree-docs.md):
+карта проекта → документ → раздел → реализация и проверки. Описанный ниже
+workflow использует найденный контекст для выполнения и проверки задачи.
+
 Подключение к OpenCode описано отдельно в
 [`docs/install/opencode.ru.md`](install/opencode.ru.md).
+
+## Проба progressive disclosure в этом репозитории
+
+Для работы над самим Router начни с [карты контекста](context-map.md).
+Она указывает направления, а существующий CLI подбирает контекст под вопрос.
+Пример вопроса: «Как `buildContextPack` ограничивает размер пакета?»
+Это исследование поведения; для последующего изменения нужен подтверждённый
+Task Contract по процессу ниже.
+
+Из корня исходного репозитория после `npm run build`:
+
+```bash
+node bin/project-context docs tree docs --depth 2
+node bin/project-context docs outline docs/context-map.md
+node bin/project-context docs read docs/context-map.md --section куда-идти-по-задаче
+node bin/project-context pack "buildContextPack" \
+  --modules router --workflow fast --max-tokens 4000 \
+  --file src/context-pack/pack.ts --explain
+node bin/project-context reuse-scan "buildContextPack" --modules router
+```
+
+В пакете проверь `routing.modules`, `files[].reason`, `playbookDetails`,
+`warnings` и `budget`. Начинай с известного имени функции: общие слова вроде
+`token` могут привести к коду авторизации вместо нужного расчёта бюджета.
+`fast` ограничивает число кандидатов, но обязательные
+playbooks сохраняются: бюджет может быть превышен, и тогда
+`budget.exceedsLimit` и предупреждения требуют внимания. При обрезке пакета
+отсутствие файла или записи в ответе не доказывает отсутствие в проекте.
+
+Следующий уровень — нужный участок первоисточника:
+
+```bash
+rg -n 'function (buildContextPack|fitContextPackBudget|resolvePackOptions)' src/context-pack/pack.ts
+rg -n 'buildContextPack\(' src test
+rg -n 'maxTokens|budget|truncat' test/high-priority-workflows.test.ts
+```
+
+Открой найденные функции, связанные вызовы и тесты, а не только поисковые
+строки. Если вопрос затрагивает CLI/MCP или соседний модуль, добавь его файлы
+через повторяемый `--file`, модули через `--modules router,tests` и при
+необходимости перейди к `--workflow standard`. Ограниченный фрагмент из
+пакета помогает найти источник, но не заменяет чтение реализации.
+
+Для задачи с уже подтверждённым контрактом передай `--task <taskId>`.
+После изменения выполни согласованные проверки, refactor review и финализацию.
+Пример использует существующие операции и не требует установки отдельного
+скилла. Проба проверяет навигацию; сравнение точности, времени и расхода
+токенов разных подходов требует отдельных одинаковых задач и измерений.
 
 ## Коротко: весь процесс
 

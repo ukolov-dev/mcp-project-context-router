@@ -55,6 +55,16 @@ try {
   const cli = join(installed, 'bin/project-context');
   const json = (...args) => JSON.parse(run(process.execPath, [cli, '--json', ...args]));
   assert(run(process.execPath, [cli, 'pack', '--help']).includes('experimental'));
+  mkdirSync(join(consumer, 'docs'));
+  writeFileSync(join(consumer, 'docs/tree-guide.md'), '# Guide\n## Install\nInstalled tree docs\n### Check\nNested section\n## Other\nOther section\n');
+  const docPath = 'docs/tree-guide.md';
+  assert(json('docs', 'tree', 'docs').entries.some(entry => entry.path === docPath));
+  assert(json('docs', 'outline', docPath).sections.some(section => section.id === 'install'));
+  const docSection = json('docs', 'read', docPath, '--section', 'install');
+  assert(docSection.content.includes('Nested section'));
+  assert(!docSection.content.includes('Other section'));
+  checked('Installed Tree docs CLI directory, outline and section reading');
+
   mkdirSync(join(consumer, 'src'));
   writeFileSync(join(consumer, 'src/example.ts'), 'export function example() { return true; }\n');
   json('init', '--name', 'Clean consumer', '--module', 'app:src');
@@ -160,6 +170,12 @@ try {
   await client.connect(transport);
   assert.equal(client.getServerVersion()?.version, metadata.version);
   const tools = await client.listTools();
+  for (const name of ['get_document_tree', 'get_document_outline', 'read_document_section']) assert(tools.tools.some(tool => tool.name === name));
+  const sectionResult = await client.callTool({ name: 'read_document_section', arguments: { path: docPath, section: 'install' } });
+  assert(!sectionResult.isError);
+  assert.equal(sectionResult.structuredContent.content, docSection.content);
+  checked('Installed core MCP exposes Tree docs and returns the same section as CLI');
+
   assert.deepEqual(tools.tools.find((tool) => tool.name === 'build_context_pack')?.inputSchema.properties.searchEngine.enum, ['current', 'fts5']);
   const input = { query: 'quick_valid', modules: ['app'], maxTokens: 4000 };
   const call = async (args) => {

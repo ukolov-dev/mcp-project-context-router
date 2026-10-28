@@ -2,6 +2,18 @@
 
 Project Context Router is a local stdio MCP server and CLI. Markdown is durable memory; the SQLite index is disposable.
 
+## Tree docs navigation
+
+Follow the project map, choose a document, inspect its outline, then read the needed section. These read-only tools are available in every profile; they do not require an index or module configuration.
+
+| MCP | CLI | Result |
+| --- | --- | --- |
+| `get_document_tree` | `docs tree [path]` | Directories and Markdown paths |
+| `get_document_outline` | `docs outline <path>` | Section IDs and source line ranges |
+| `read_document_section` | `docs read <path> --section <id>` | A section with its subsections |
+
+Use IDs returned by the outline. When `truncated` is true, repeat the same request with `offset: nextOffset`. Omit the section to read the document from its beginning. Responses are bounded and detected secrets are redacted. Files must be repository-relative UTF-8 Markdown; hidden/generated/Git-ignored paths and symlinks are excluded. ATX and single-line Setext headings are supported outside fenced code and frontmatter. See the [complete guide](https://github.com/ukolov-dev/mcp-project-context-router/blob/main/docs/tree-docs.md).
+
 ## Project files
 
 | Path | Purpose |

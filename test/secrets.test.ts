@@ -31,4 +31,11 @@ describe('secret scanning', () => {
 
     expect(result).toBe('before\n[REDACTED: private key]\nafter');
   });
+
+  it('can preserve source line numbers while redacting private key blocks', () => {
+    const begin = '-----BEGIN ' + 'PRIVATE KEY-----';
+    const end = '-----END ' + 'PRIVATE KEY-----';
+    expect(redactSecrets(['before', begin, 'abc123', end, 'after'].join('\n'), { preserveLines: true }))
+      .toBe('before\n[REDACTED: private key]\n\n\nafter');
+  });
 });

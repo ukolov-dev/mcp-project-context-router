@@ -3,6 +3,14 @@
 Notable changes to Project Context Router are recorded here. Versions before
 1.0 are under active development. The package requires Node.js 22.13 or newer.
 
+## [0.11.0] - 2026-10-28
+
+- Make Tree docs the primary navigation model: project map → document → section → implementation and checks.
+- Add `docs tree`, `docs outline` and `docs read`, plus `get_document_tree`, `get_document_outline` and `read_document_section` in every MCP profile.
+- Return bounded, paginated results, unique section IDs and source line ranges; preserve subsection boundaries and Unicode continuation.
+- Enforce repository-relative paths and document-size limits, exclude symlinks and private/generated/ignored paths, and redact detected secrets before section selection while retaining source lines.
+- Add a shared CLI/MCP implementation, conditional playbook, source map, documentation and installed-package regressions. Preserve existing 0.10.1 routing, hooks, client setup and website behavior.
+
 ## [0.10.1] - 2026-10-16
 
 - Route context packs and task validation by exact task/backlog keys before module fallback; preserve explicit scope and recognize short aliases in hyphenated words.
@@ -185,3 +193,5 @@ It is the first tagged GitHub release; the previous source baseline was 0.4.0.
 [0.7.0]: https://github.com/ukolov-dev/mcp-project-context-router/releases/tag/v0.7.0
 
 [0.7.1]: https://github.com/ukolov-dev/mcp-project-context-router/releases/tag/v0.7.1
+
+[0.11.0]: https://github.com/ukolov-dev/mcp-project-context-router/releases/tag/v0.11.0

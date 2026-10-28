@@ -7,15 +7,19 @@
 Нужны Node.js **22.13 или новее** и npm. Если в репозитории нет `package.json`, сначала выполните `npm init -y`.
 
 ```bash
-npm install --save-dev --save-exact https://github.com/ukolov-dev/mcp-project-context-router/releases/download/v0.10.1/mcp-project-context-router-0.10.1.tgz
+npm install --save-dev --save-exact https://github.com/ukolov-dev/mcp-project-context-router/releases/download/v0.11.0/mcp-project-context-router-0.11.0.tgz
 npx project-context init --name "My project" --module app:src --with-skills
 npx project-context index
 npx project-context doctor --json
 ```
 
-Замените имя проекта и путь к исходникам. Проверьте `.project-context/project.yaml`: маски файлов, плейбуки и команды проверки должны соответствовать репозиторию. Сохраните манифест и lockfile в Git. URL закрепляет готовый релиз 0.10.1; публикация в npm registry не требуется.
+Замените имя проекта и путь к исходникам. Проверьте `.project-context/project.yaml`: маски файлов, плейбуки и команды проверки должны соответствовать репозиторию. Сохраните манифест и lockfile в Git. URL закрепляет готовый релиз 0.11.0; публикация в npm registry не требуется.
 
 `--with-skills` устанавливает `project-context-workflow` и `context-research` в `.agents/skills/`. Подходит и для уже настроенного проекта; пользовательские файлы не перезаписываются. Без флага skills не устанавливаются. Обновление npm-пакета не заменяет установленные копии skills.
+
+## Навигация по документам
+
+Начните с короткой карты источников. Через `npx project-context docs tree` выберите документ, через `docs outline <path>` получите ID разделов, затем прочитайте нужный раздел командой `docs read <path> --section <id>`. См. [инструменты Tree docs](reference.html#навигация-tree-docs).
 
 ## Необязательные хуки Codex
 

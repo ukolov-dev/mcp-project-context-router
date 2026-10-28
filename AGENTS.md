@@ -12,6 +12,9 @@ This repository contains the reusable Project Context Router package.
 
 ## Workflow
 
+Start with [the context map](docs/context-map.md) and follow task-relevant links.
+Use context-pack excerpts to locate sources; verify behavior in code and tests.
+
 Before implementation, validate the request and confirm a Task Contract. Build a context pack, inspect existing capabilities, and keep changes scoped. Before handoff, run refactor review, execute the applicable verification commands, record evidence, and finalize the work.
 
 ## Verification
