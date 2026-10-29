@@ -27,6 +27,14 @@ const required = [
   'bin/ppm-context',
   'dist/cli.js',
   'dist/mcp/server.js',
+  'dist/mcp/operations.js',
+  'dist/diagnostics/compact.js',
+  'dist/storage/operation.js',
+  'dist/symbol-graph/graph.js',
+  'dist/symbol-graph/extract.js',
+  'docs/symbol-graph.md',
+  'docs/mcp-operations.md',
+  'templates/portable-workflow/ROUTER.md',
   'dist/execution/runs.js',
   'dist/execution/acceptance.js',
   'dist/execution/runner.js',
@@ -105,9 +113,9 @@ const result = {
   forbidden,
 };
 
-if (report.name !== 'mcp-project-context-router' || report.version !== '0.11.0') {
+if (report.name !== 'mcp-project-context-router' || report.version !== '0.12.0') {
   result.status = 'FAILED';
-  result.identity = `Expected mcp-project-context-router@0.11.0, got ${report.name}@${report.version}`;
+  result.identity = `Expected mcp-project-context-router@0.12.0, got ${report.name}@${report.version}`;
 }
 
 const packageJson = JSON.parse(execFileSync('npm', ['pkg', 'get'], {

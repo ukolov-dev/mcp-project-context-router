@@ -17,11 +17,12 @@
 | Состав, размер и кэш context pack | [Этап построения пакета](workflow.ru.md#этап-3-построение-context-pack) | [buildContextPack](../src/context-pack/pack.ts), [тесты сценариев](../test/high-priority-workflows.test.ts) |
 | Выбор модулей и инструкций | [Правила репозитория](../AGENTS.md), [проверки](../playbooks/testing.md) | [Вывод модулей](../src/storage/inference.ts), [selectPlaybooks](../src/context-pack/playbooks.ts), [тесты конфигурации](../test/project-config.test.ts) |
 | Поиск, языки и свежесть индекса | [SQLite и FTS5](sqlite-index.md), [оценка поиска](search-evaluation.md) | [Индекс](../src/indexer/sqlite.ts), [capabilities](../src/indexer/capabilities.ts), [тесты свежести](../test/index-freshness.test.ts) |
+| Связи символов и влияние изменений | [Explain, affected, path](symbol-graph.md) | [Извлечение](../src/symbol-graph/extract.ts), [обход](../src/symbol-graph/graph.ts), [тесты](../test/symbol-graph.test.ts) |
 | Контракт задачи и финализация | [Жизненный цикл задачи](workflow.ru.md), [зарегистрированное выполнение](execution.md) | [Контракты](../src/task-validation/task.ts), [execution](../src/execution/runs.ts), [тесты](../test/task-validation.test.ts) |
 | Проверки и evidence | [Правила тестирования](../playbooks/testing.md), [workflow](workflow.ru.md#этап-6-план-проверки) | [Verification](../src/verification/verification.ts), [doctor](../src/doctor/doctor.ts), [тесты границ](../test/repository-boundary.test.ts) |
 | Research и backlog | [Research workflow](research.ru.md) | [Research](../src/research/research.ts), [backlog](../src/backlog/backlog.ts), [тесты](../test/research.test.ts) |
 | Portal и объединённый контекст | [README](../README.md), [границы доверия](workflow.ru.md#границы-доверия) | [Bridge](../src/portal/bridge.ts), [unified pack](../src/context-pack/unified.ts), [тесты](../test/unified-context-pack.test.ts) |
-| CLI, MCP и доступные операции | [README](../README.md#connect-your-coding-agent) | [CLI](../src/cli.ts), [MCP](../src/mcp/server.ts), [профили инструментов](../src/mcp/tool-profiles.ts), [тесты](../test/tool-profiles.test.ts) |
+| CLI, MCP и доступные операции | [README](../README.md#connect-your-coding-agent) | [CLI](../src/cli.ts), [MCP](../src/mcp/server.ts), [фоновые операции](mcp-operations.md), [профили инструментов](../src/mcp/tool-profiles.ts), [тесты](../test/tool-profiles.test.ts) |
 | Перенос процесса в другой проект | [Bootstrap](../templates/portable-workflow/BOOTSTRAP.md), [источники истины](../templates/portable-workflow/SOURCE_OF_TRUTH.md) | [Шаблоны](../templates/portable-workflow/), [тесты переносимости](../test/portability.test.ts) |
 
 ## Как раскрывать детали

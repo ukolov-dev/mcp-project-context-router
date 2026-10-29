@@ -157,3 +157,22 @@ fallback modules, with a warning. This is broader than the retrieval evaluator's
 literal unknown-module scope. Use reviewed configured module names/aliases when
 requesting a pack. See the actual-pack evaluation for this distinction and the
 default hidden-history policy.
+
+## Operation-scoped file reuse
+
+Index rebuilds, doctor, lint and research reads reuse unchanged file text and
+checksums only within the current operation. Nested reads share that scope;
+subsequent operations start with empty caches. Each cached read checks fresh
+file identity, mode, size, mtime and ctime. Failed reads are not cached.
+
+File-reference authorization is not cached: every access still resolves the
+current target (or existing ancestor for missing files) and checks repository
+containment. Only the canonical repository root is reused within the operation.
+Resolution uses native realpath with a standard realpath fallback. Repeated
+source references therefore avoid repeated content hashing without dropping
+symlink/junction escape checks. Stat calls are deliberately retained.
+
+Research list responses share one backlog snapshot across the returned page;
+research without backlog links does not scan archived records to resolve links.
+This file reuse remains synchronous in CLI/library calls. MCP isolates tool work
+in a serial worker; see [MCP operations](mcp-operations.md).

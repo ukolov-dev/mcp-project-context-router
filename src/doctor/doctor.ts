@@ -1,3 +1,4 @@
+import { withFileOperation } from '../storage/operation.js';
 import { checkSourceCoverage, checkDurableMemory, aliasSuggestions } from './coverage.js';
 import { recordCategory } from '../storage/lifecycle.js';
 import { resolveModuleName } from '../storage/inference.js';
@@ -48,6 +49,10 @@ export type ContextDoctorOptions = {
 };
 
 export function contextDoctor(options: ContextDoctorOptions = {}): ContextDoctorResult {
+  return withFileOperation(() => contextDoctorInOperation(options));
+}
+
+function contextDoctorInOperation(options: ContextDoctorOptions = {}): ContextDoctorResult {
   const paths = repoPaths();
   const config = loadProjectConfig();
   const packageRoot = routerPackageRoot(paths.root, config);

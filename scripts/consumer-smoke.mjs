@@ -66,8 +66,15 @@ try {
   checked('Installed Tree docs CLI directory, outline and section reading');
 
   mkdirSync(join(consumer, 'src'));
-  writeFileSync(join(consumer, 'src/example.ts'), 'export function example() { return true; }\n');
+  writeFileSync(join(consumer, 'src/example.ts'), 'export function example() { return exampleTarget(); }\nexport function exampleTarget() { return true; }\n');
   json('init', '--name', 'Clean consumer', '--module', 'app:src');
+  assert(readFileSync(join(consumer, '.project-context/ROUTER.md'), 'utf8').includes('get_operation_result'));
+  const agents = readFileSync(join(consumer, 'AGENTS.md'), 'utf8');
+  assert(agents.includes('.project-context/ROUTER.md'));
+  writeFileSync(join(consumer, 'AGENTS.md'), '# User instructions\nPreserve these.\n\n' + agents);
+  json('init');
+  assert.equal(readFileSync(join(consumer, 'AGENTS.md'), 'utf8'), '# User instructions\nPreserve these.\n\n' + agents);
+  checked('Installed init creates the Router playbook and preserves user AGENTS.md instructions on repeat');
   assert(!existsSync(join(consumer, '.agents')));
   assert(!existsSync(join(consumer, '.codex')));
   const skillInit = json('init', '--with-skills');
@@ -127,6 +134,13 @@ try {
     writeFileSync(join(records, `${id}.md`), `---\nid: ${id}\ntype: decision\nstatus: active\ntitle: ${id}\nmodules: [app]\nfiles: []\ntags: []\n---\n${body}\n`);
   }
   json('index');
+  assert.equal(json('explain', 'example').status, 'found');
+  assert.equal(json('affected', 'exampleTarget').status, 'found');
+  const symbolPath = json('path', 'example', 'exampleTarget');
+  assert.equal(symbolPath.status, 'found');
+  assert.equal(symbolPath.edges[0].file, 'src/example.ts');
+  assert.equal(symbolPath.edges[0].line, 1);
+  checked('Installed CLI graph uses the runtime Compiler API and returns source lines');
   const dbPath = join(consumer, '.project-context/indexes/context.sqlite');
   const { DatabaseSync } = await import('node:sqlite');
   const probe = new DatabaseSync(':memory:');
@@ -196,6 +210,16 @@ try {
   assert(!mcpPack.budget.exceedsLimit);
   assert.equal(mcpPack.warnings.some((warning) => warning.includes('FTS5 unavailable')), !report.fts5Available);
   checked('Installed stdio MCP handshake/version/default/FTS pack tool');
+  for (const name of ['explain', 'affected', 'path', 'get_operation_result']) assert(tools.tools.some(tool => tool.name === name));
+  const graphResult = await client.callTool({ name: 'path', arguments: { from: 'example', to: 'exampleTarget' } });
+  assert.equal(graphResult.structuredContent.status, 'found');
+  const diagnostic = await client.callTool({ name: 'context_doctor', arguments: {} });
+  assert.equal(diagnostic.structuredContent.detail, 'summary');
+  assert(JSON.stringify(diagnostic.content).length < 500);
+  const full = await client.readResource({ uri: diagnostic.structuredContent.fullResultUri });
+  assert.equal(JSON.parse(full.contents[0].text).status, 'COMPLETED');
+  checked('Installed worker serves symbol tools, compact doctor and full snapshot resources');
+
   await client.close();
   client = undefined;
   const { loadYaml } = await import(pathToFileURL(join(installed, 'dist/storage/yaml.js')).href);

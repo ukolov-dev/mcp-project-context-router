@@ -18,7 +18,7 @@ Markdown, YAML, and source code remain the sources of truth. SQLite is a
 rebuildable retrieval index.
 
 > Status: active development. The current package is
-> `mcp-project-context-router@0.11.0`, requires Node.js 22.13 or newer, and is distributed
+> `mcp-project-context-router@0.12.0`, requires Node.js 22.13 or newer, and is distributed
 > from source or a versioned tarball. It is not currently published to an npm
 > registry.
 
@@ -83,7 +83,7 @@ Install directly from GitHub in the repository that should own the project
 context:
 
 ```bash
-npm install --save-dev --save-exact https://github.com/ukolov-dev/mcp-project-context-router/releases/download/v0.11.0/mcp-project-context-router-0.11.0.tgz
+npm install --save-dev --save-exact https://github.com/ukolov-dev/mcp-project-context-router/releases/download/v0.12.0/mcp-project-context-router-0.12.0.tgz
 npx project-context init --name "Example Project" --module app:src
 npx project-context index
 npx project-context doctor --json
@@ -166,7 +166,7 @@ templates:
 | DeepSeek Harness (official DSH) | [English](docs/install/deepseek-harness.md) · [Русский](docs/install/deepseek-harness.ru.md) | [`deepseek-harness.cordis.yml`](templates/client-configs/deepseek-harness.cordis.yml) |
 | OpenCode V2 preview | [OpenCode V2 notes](docs/install/opencode.md#opencode-v2-preview) | [`templates/client-configs/opencode-v2.json`](templates/client-configs/opencode-v2.json) |
 
-Release [0.11.0](https://github.com/ukolov-dev/mcp-project-context-router/releases/tag/v0.11.0) includes ZCode and official DeepSeek Harness support. Install the release package above and initialize explicitly:
+Release [0.12.0](https://github.com/ukolov-dev/mcp-project-context-router/releases/tag/v0.12.0) includes ZCode and official DeepSeek Harness support. Install the release package above and initialize explicitly:
 
 ```bash
 npx project-context init --client zcode --with-skills
@@ -665,3 +665,16 @@ redistribute it.
 ### Upgrading to 0.7
 
 See the [0.7 migration guide](docs/upgrade-0.7.md) for configured routing, lifecycle-aware retrieval, actionable diagnostics, required verification and scoped review. Existing records are preserved. The [sanitized audit plan](docs/reliability-audit.md) maps findings to regression coverage.
+
+## Symbol navigation and responsive MCP
+
+Version 0.12 adds `explain`, `affected` and `path` for static TS/JS relationships
+with repository files and line numbers. See [coverage and limits](docs/symbol-graph.md).
+`init` creates `.project-context/ROUTER.md` and maintains only its marked block in
+`AGENTS.md`; existing client, skills and hooks options remain supported.
+
+MCP tools use a serial worker. Calls longer than five seconds return `RUNNING`:
+poll `get_operation_result` with the returned ID rather than repeating the call,
+especially for mutations. Doctor defaults to a compact summary with a full-result
+resource URI. CLI `doctor --full` and `lint --full` expose complete diagnostics.
+See [operation lifecycle and migration](docs/mcp-operations.md).

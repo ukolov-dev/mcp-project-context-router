@@ -1,6 +1,11 @@
+import { isMainThread, parentPort } from 'node:worker_threads';
+import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
+import { McpOperations, type Operation } from './operations.js';
+import { compactDoctor } from '../diagnostics/compact.js';
+import { explainSymbol, affectedSymbols, symbolPath, explainInputSchema, affectedInputSchema, pathInputSchema } from '../symbol-graph/graph.js';
 import { createResearch, listResearch, getResearch, appendResearchEntry, transitionResearch, researchToBacklog } from '../research/research.js';
 import { createResearchInputSchema, listResearchInputSchema, getResearchInputSchema, appendResearchInputSchema, transitionResearchInputSchema, researchToBacklogInputSchema } from '../research/types.js';
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { McpServer, ResourceTemplate } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
 import { getContextBrand, withBrand } from '../brand.js';
@@ -117,6 +122,7 @@ const projectName = startupConfig.project.name;
 const resourceScheme = startupConfig.contextRouter.resourceScheme;
 const server = new McpServer({ name: startupConfig.contextRouter.mcpServerName, version: projectContextVersion });
 const activeToolProfile = resolveMcpToolProfile();
+const operations = new McpOperations();
 const structuredJsonOutputSchema = z.object({
   brand: z.object({
     name: z.string(),
@@ -131,7 +137,7 @@ server.registerResource('project-research', `${resourceScheme}://research`, {
   title: `${projectName} research`,
   description: 'Research ideas, statuses, open questions and links to backlog.',
   mimeType: 'application/json',
-}, async (uri) => resourceJson(uri, listResearch()));
+}, async (uri) => readOperationResource(uri, 'list_research', {}));
 
 server.registerResource(
   'project-backlog',
@@ -141,7 +147,7 @@ server.registerResource(
     description: 'Active backlog records with priorities, dependencies, acceptance criteria, and checks.',
     mimeType: 'application/json',
   },
-  async (uri) => resourceJson(uri, getBacklog()),
+  async (uri) => readOperationResource(uri, 'get_backlog', {}),
 );
 
 server.registerResource(
@@ -152,7 +158,7 @@ server.registerResource(
     description: 'Best ready/open backlog item for an agent to pick next.',
     mimeType: 'application/json',
   },
-  async (uri) => resourceJson(uri, pickNextBacklogTask()),
+  async (uri) => readOperationResource(uri, 'pick_next_task', {}),
 );
 
 server.registerResource(
@@ -163,7 +169,7 @@ server.registerResource(
     description: 'Active backlog nodes, dependency edges, blockers, missing dependencies, and cycles.',
     mimeType: 'application/json',
   },
-  async (uri) => resourceJson(uri, getBacklogDependencyGraph()),
+  async (uri) => readOperationResource(uri, 'get_backlog_dependency_graph', {}),
 );
 
 server.registerResource(
@@ -174,8 +180,18 @@ server.registerResource(
     description: 'Current health of context-router wiring, hooks, index, backlog, and lint.',
     mimeType: 'application/json',
   },
-  async (uri) => resourceJson(uri, contextDoctor()),
+  async (uri) => readOperationResource(uri, 'context_doctor', { fixDryRun: false, detail: 'full' }),
 );
+
+server.registerTool('get_operation_result', {
+  description: 'Poll a RUNNING operation without repeating its tool call. Results are session-local; completed results may be evicted after 24 newer operations. Use detail=full or the resource URI for full diagnostic data.',
+  inputSchema: { operationId: z.string().uuid(), detail: z.enum(['summary', 'full']).default('summary') },
+  annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
+}, async ({ operationId, detail }) => operationResponse(operations.get(operationId), detail));
+
+server.registerResource('operation-result', new ResourceTemplate(`${resourceScheme}://operations/{operationId}`, { list: undefined }), {
+  mimeType: 'application/json', description: 'Full result of a session-local MCP operation; unavailable after eviction or restart.',
+}, async (uri, { operationId }) => resourceJson(uri, operationData(operations.get(String(operationId)), 'full')));
 
 server.registerTool(
   'get_project_brief',
@@ -365,6 +381,22 @@ server.registerTool(
   },
   async (args) => json(confirmTaskContract(confirmTaskInputSchema.parse(args))),
 );
+
+server.registerTool('explain', {
+  description: 'Explain exact indexed TS/JS symbol calls and imports with repository files and lines. Use file#name or candidate id to disambiguate. Static coverage only.',
+  inputSchema: explainInputSchema.shape,
+  annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
+}, async args => json(explainSymbol(args)));
+server.registerTool('affected', {
+  description: 'Traverse incoming static calls/imports for an indexed symbol. Results are potential impact, with files and lines, not proof of runtime effects.',
+  inputSchema: affectedInputSchema.shape,
+  annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
+}, async args => json(affectedSymbols(args)));
+server.registerTool('path', {
+  description: 'Find a shortest directed static call/import path between exact symbols. Distinguishes ambiguity, absent symbols, no path and traversal limits.',
+  inputSchema: pathInputSchema.shape,
+  annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
+}, async args => json(symbolPath(args)));
 
 server.registerTool('get_document_tree', {
   title: 'Browse document tree',
@@ -1003,12 +1035,13 @@ server.registerTool(
   'context_doctor',
   {
     title: 'Run context doctor',
-    description: 'Diagnose context-router wiring, hooks, index, backlog, and lint health.',
+    description: 'Diagnose context-router health. Returns a compact summary by default; detail=full or fullResultUri provides complete data.',
     inputSchema: {
       fixDryRun: z.boolean().default(false),
+      detail: z.enum(['summary', 'full']).default('summary'),
     },
   },
-  async ({ fixDryRun }) => json(contextDoctor({ fixDryRun })),
+  async ({ fixDryRun }) => json(contextDoctor({ fixDryRun }), 'Full doctor data is in structuredContent.'),
 );
 
 server.registerTool(
@@ -1204,6 +1237,7 @@ configureRegisteredTools(server);
 
 async function main(): Promise<void> {
   const transport = new StdioServerTransport();
+  server.server.onclose = () => { void operations.close(); };
   await server.connect(transport);
 }
 
@@ -1211,6 +1245,7 @@ type RegisteredToolWithExecution = {
   execution?: unknown;
   outputSchema?: unknown;
   disable?: () => void;
+  handler?: (args: Record<string, unknown>) => Promise<CallToolResult>;
 };
 
 type McpServerWithRegisteredTools = {
@@ -1229,16 +1264,28 @@ function configureRegisteredTools(mcpServer: McpServer): void {
     delete tool.execution;
     tool.outputSchema = structuredJsonOutputSchema;
     if (!toolEnabledForProfile(activeToolProfile, name)) tool.disable?.();
+    if (isMainThread && tool.handler && !['get_project_brief', 'get_document_tree', 'get_document_outline', 'read_document_section', 'get_operation_result'].includes(name)) {
+      tool.handler = async args => {
+        const operation = await operations.execute(name, args);
+        if (operation.status === 'COMPLETED') {
+          if (name !== 'context_doctor') return operation.result!;
+          const data = operation.result!.structuredContent!;
+          return json({ ...(args.detail === 'full' ? data : compactDoctor(data as unknown as ReturnType<typeof contextDoctor>)),
+            operationId: operation.operationId, fullResultUri: `${resourceScheme}://operations/${operation.operationId}` }, 'Doctor data is in structuredContent; use fullResultUri for complete diagnostics.');
+        }
+        return operationResponse(operation, args.detail === 'full' ? 'full' : 'summary');
+      };
+    }
   }
 }
 
-function json(data: unknown) {
+function json(data: unknown, text?: string) {
   const structuredContent = withBrand(data) as Record<string, unknown>;
   return {
     content: [
       {
         type: 'text' as const,
-        text: JSON.stringify(structuredContent),
+        text: text ?? JSON.stringify(structuredContent),
       },
     ],
     structuredContent,
@@ -1257,7 +1304,38 @@ function resourceJson(uri: URL, data: unknown) {
   };
 }
 
-main().catch((error: unknown) => {
-  console.error(error instanceof Error ? error.stack ?? error.message : String(error));
-  process.exit(1);
-});
+function operationData(operation: ReturnType<McpOperations['get']>, detail: 'summary' | 'full') {
+  const { result, ...state } = operation as Operation;
+  const payload = result?.structuredContent;
+  return { ...state, ...(payload ? { result: state.tool === 'context_doctor' && detail === 'summary'
+    ? compactDoctor(payload as unknown as ReturnType<typeof contextDoctor>) : payload } : {}),
+    fullResultUri: `${resourceScheme}://operations/${operation.operationId}`,
+    ...(operation.status === 'RUNNING' ? { next: 'Poll get_operation_result with this operationId. Do not repeat the original call, especially for mutations.' } : {}) };
+}
+
+function operationResponse(operation: ReturnType<McpOperations['get']>, detail: 'summary' | 'full') {
+  return { ...json(operationData(operation, detail), `Operation ${operation.operationId}: ${operation.status}. See structuredContent; fullResultUri provides complete data.`),
+    ...(operation.status === 'FAILED' ? { isError: true } : {}) };
+}
+
+async function readOperationResource(uri: URL, tool: string, args: Record<string, unknown>) {
+  const operation = await operations.execute(tool, args);
+  return resourceJson(uri, operation.status === 'COMPLETED' ? operation.result!.structuredContent : operationData(operation, 'full'));
+}
+
+if (isMainThread) {
+  main().catch((error: unknown) => { console.error(error instanceof Error ? error.stack ?? error.message : String(error)); process.exit(1); });
+} else {
+  // A serial queue avoids overlapping mutations and duplicate concurrent rebuilds.
+  let queue = Promise.resolve();
+  parentPort!.on('message', ({ id, tool, args }) => {
+    queue = queue.then(async () => {
+      try {
+        const registered = (server as unknown as McpServerWithRegisteredTools)._registeredTools?.[tool];
+        if (!registered?.handler) throw new Error(`Unknown worker operation: ${tool}`);
+        const result = await registered.handler(args);
+        parentPort!.postMessage({ id, result });
+      } catch (error) { parentPort!.postMessage({ id, error: error instanceof Error ? error.message : String(error) }); }
+    });
+  });
+}

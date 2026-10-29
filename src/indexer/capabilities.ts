@@ -9,7 +9,7 @@ import type { Capability, Endpoint } from '../storage/types.js';
 import { repoPaths } from '../storage/repo.js';
 
 // Bump when discovery rules change so existing consumer indexes are rebuilt.
-const capabilityDiscoveryVersion = 'native-languages-v1';
+const capabilityDiscoveryVersion = 'symbol-graph-v4';
 
 export function isCapabilitySourcePath(filePath: string): boolean {
   const config = loadProjectConfig();
@@ -72,7 +72,7 @@ export function discoverCapabilitySourceStateFingerprint(): string {
   return fingerprint.digest('hex');
 }
 
-function capabilitySourceFiles(): Array<{ filePath: string; module: string }> {
+export function capabilitySourceFiles(): Array<{ filePath: string; module: string }> {
   const config = loadProjectConfig();
   const files = new Map<string, string>();
   for (const [moduleName, module] of Object.entries(config.modules)) {

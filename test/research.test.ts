@@ -175,3 +175,10 @@ describe('research lifecycle', () => {
     } finally { await client.close(); }
   });
 });
+
+it('does not load unrelated archived records for research without backlog links', () => {
+  const record = createResearch({ title: 'Independent research', question: 'A question?' });
+  writeFileSync('.project-context/archive/invalid.md', 'not a valid context record');
+  expect(listResearch().items.map(item => item.id)).toEqual([record.id]);
+  expect(getResearch({ researchId: record.id }).linkedBacklog).toEqual([]);
+});

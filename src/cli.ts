@@ -1,3 +1,5 @@
+import { compactLint, compactDoctor } from './diagnostics/compact.js';
+import { explainSymbol, affectedSymbols, symbolPath } from './symbol-graph/graph.js';
 import { createResearch, listResearch, getResearch, appendResearchEntry, transitionResearch, researchToBacklog } from './research/research.js';
 import { createResearchInputSchema, listResearchInputSchema, getResearchInputSchema, appendResearchInputSchema, transitionResearchInputSchema, researchToBacklogInputSchema } from './research/types.js';
 import { readFileSync } from 'node:fs';
@@ -141,10 +143,11 @@ program
 program
   .command('lint')
   .description('Validate context records')
+  .option('--full', 'return complete diagnostics rather than a compact summary')
   .option('--staged', 'validate staged context records only')
   .action((options) => {
     const result = lintContext(Boolean(options.staged));
-    emit({ status: result.errors.length > 0 ? 'FAILED' : result.warnings.length > 0 ? 'WARN' : 'OK', ...result }, result.errors.length > 0 ? 1 : 0);
+    emit({ status: result.errors.length > 0 ? 'FAILED' : result.warnings.length > 0 ? 'WARN' : 'OK', ...(options.full ? result : compactLint(result)) }, result.errors.length > 0 ? 1 : 0);
   });
 
 program
@@ -792,6 +795,16 @@ program
     approvedBy: options.approvedBy,
   }))));
 
+program.command('explain').argument('<symbol>').description('Explain indexed TS/JS symbol calls and imports with source locations')
+  .option('--limit <number>', 'maximum connections', '50')
+  .action((symbol, options) => emit(explainSymbol({ symbol, limit: Number(options.limit) })));
+program.command('affected').argument('<symbol>').description('Find indexed callers and importers affected by a symbol')
+  .option('--depth <number>', 'maximum reverse traversal depth', '2').option('--limit <number>', 'maximum affected symbols', '50')
+  .action((symbol, options) => emit(affectedSymbols({ symbol, depth: Number(options.depth), limit: Number(options.limit) })));
+program.command('path').argument('<from>').argument('<to>').description('Find a shortest directed indexed symbol path')
+  .option('--depth <number>', 'maximum traversal depth', '8')
+  .action((from, to, options) => emit(symbolPath({ from, to, depth: Number(options.depth) })));
+
 program
   .command('reuse-scan')
   .argument('<query>')
@@ -1005,12 +1018,13 @@ program
   .description('Diagnose context-router wiring, hooks, index, backlog, and lint health')
   .option('--fix-dry-run', 'include non-mutating fix proposals')
   .option('--commit', 'treat missing mapped files as failures for pre-commit validation')
+  .option('--full', 'return complete diagnostics rather than a compact summary')
   .action((options) => {
     const result = contextDoctor({
       fixDryRun: Boolean(options.fixDryRun),
       commitValidation: Boolean(options.commit),
     });
-    emit(result, result.status === 'FAILED' ? 1 : 0);
+    emit(options.full ? result : { ...compactDoctor(result), fullData: 'Run doctor --full for all diagnostics.' }, result.status === 'FAILED' ? 1 : 0);
   });
 
 const gitHooks = program.command('hooks').description('Install repository Git hooks for project-context validation');

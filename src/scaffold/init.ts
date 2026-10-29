@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, lstatSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { basename, dirname, isAbsolute, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { repoPaths } from '../storage/repo.js';
@@ -21,6 +21,7 @@ export type InitializeProjectContextResult = {
   status: 'OK';
   contextDir: string;
   created: string[];
+  updated: string[];
   skipped: string[];
 };
 
@@ -80,6 +81,7 @@ export function parseModuleSeed(value: string): ProjectModuleSeed {
 export function initializeProjectContext(options: InitializeProjectContextOptions = {}): InitializeProjectContextResult {
   const paths = repoPaths();
   const created: string[] = [];
+  const updated: string[] = [];
   const skipped: string[] = [];
   const modules = uniqueModules(options.modules ?? []);
   const client = options.client ?? 'codex';
@@ -103,6 +105,9 @@ export function initializeProjectContext(options: InitializeProjectContextOption
     throw new Error(`Hook destination must stay inside the repository: ${hooksPath}`);
   }
 
+  const agents = planAgentsUpdate(resolve(paths.root, 'AGENTS.md'));
+  if (!isRepositoryPath('.project-context/ROUTER.md')) throw new Error('Router playbook destination must stay inside the repository.');
+
   for (const relative of contextDirectories) {
     mkdirSync(resolve(paths.contextDir, relative), { recursive: true });
   }
@@ -121,6 +126,13 @@ export function initializeProjectContext(options: InitializeProjectContextOption
     created,
     skipped,
   );
+
+  const routerTemplate = fileURLToPath(new URL('../../templates/portable-workflow/ROUTER.md', import.meta.url));
+  writeIfMissing(resolve(paths.contextDir, 'ROUTER.md'), readFileSync(routerTemplate, 'utf8'), '.project-context/ROUTER.md', created, skipped);
+  if (agents.content !== agents.existing) {
+    writeFileSync(resolve(paths.root, 'AGENTS.md'), agents.content, 'utf8');
+    (agents.exists ? updated : created).push('AGENTS.md');
+  } else skipped.push('AGENTS.md');
 
   copyTemplate('portable-workflow/task-contract.md', '.project-context/templates/TASK-CONTRACT.md', created, skipped);
   copyTemplate('portable-workflow/task-contract.full.md', '.project-context/templates/TASK-CONTRACT.full.md', created, skipped);
@@ -144,7 +156,7 @@ export function initializeProjectContext(options: InitializeProjectContextOption
   }
   updateGitignore(paths.root, created, skipped);
 
-  return { status: 'OK', contextDir: paths.contextDir, created, skipped };
+  return { status: 'OK', contextDir: paths.contextDir, created, updated, skipped };
 }
 
 function packagePrefix(): string {
@@ -292,4 +304,31 @@ function yamlString(value: string): string {
 
 function yamlArray(values: string[]): string {
   return `[${values.map(yamlString).join(', ')}]`;
+}
+
+function planAgentsUpdate(path: string) {
+  let exists = false;
+  try {
+    const stat = lstatSync(path);
+    if (!stat.isFile() || stat.isSymbolicLink()) throw new Error('AGENTS.md must be a regular file, not a symbolic link.');
+    exists = true;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+  }
+  const existing = exists ? readFileSync(path, 'utf8') : '';
+  const start = '<!-- project-context-router:start -->';
+  const end = '<!-- project-context-router:end -->';
+  const starts = [...existing.matchAll(/^<!-- project-context-router:start -->\r?$/gm)];
+  const ends = [...existing.matchAll(/^<!-- project-context-router:end -->\r?$/gm)];
+  if ((starts.length || ends.length) && (starts.length !== 1 || ends.length !== 1 || starts[0].index! >= ends[0].index!)) {
+    throw new Error('Invalid Router block markers in AGENTS.md; repair the markers before init. No instructions were changed.');
+  }
+  const newline = existing.includes('\r\n') ? '\r\n' : '\n';
+  const block = [start, '## Project Context Router', '',
+    'Before using Router, read [the Router playbook](.project-context/ROUTER.md) and follow its source-inspection and verification workflow.',
+    'Use the connected MCP tools or the CLI fallback described there; no separate skill is required.', end].join(newline);
+  const content = starts.length
+    ? existing.slice(0, starts[0].index) + block + existing.slice(ends[0].index! + end.length)
+    : existing + (existing ? (existing.endsWith('\n') ? newline : newline + newline) : '') + block + newline;
+  return { exists, existing, content };
 }

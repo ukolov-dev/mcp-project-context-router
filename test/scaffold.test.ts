@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync, symlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -28,6 +28,9 @@ describe('project-context scaffold', () => {
     });
 
     expect(result.status).toBe('OK');
+    expect(result.created).toContain('AGENTS.md');
+    expect(result.created).toContain('.project-context/ROUTER.md');
+    expect(readFileSync('AGENTS.md', 'utf8')).toContain('.project-context/ROUTER.md');
     expect(result.created).toContain('.project-context/project.yaml');
     expect(result.created).toContain('.project-context/templates/TASK-CONTRACT.md');
     expect(existsSync(resolve(tempDir, '.agents'))).toBe(false);
@@ -182,6 +185,53 @@ describe('project-context scaffold', () => {
       expect(existsSync(resolve(tempDir, '.project-context'))).toBe(false);
       expect(existsSync(resolve(external, 'config.json'))).toBe(false);
     } finally { rmSync(external, { recursive: true, force: true }); }
+  });
+
+  it('preserves existing instructions and project-owned playbook while replacing only its block', () => {
+    const before = '# Team instructions\r\nKeep these.\r\n\r\n';
+    const after = '\r\n\r\n## Other tool\r\nNever change this.\r\n';
+    writeFileSync('AGENTS.md', before + '<!-- project-context-router:start -->\r\nOld Router instructions\r\n<!-- project-context-router:end -->' + after);
+    mkdirSync('.project-context');
+    writeFileSync('.project-context/ROUTER.md', '# Custom Router policy\n');
+    const result = initializeProjectContext();
+    const agents = readFileSync('AGENTS.md', 'utf8');
+    expect(agents.startsWith(before)).toBe(true);
+    expect(agents.endsWith(after)).toBe(true);
+    expect(agents).not.toContain('Old Router instructions');
+    expect(agents.replaceAll('\r\n', '')).not.toContain('\n');
+    expect(result.updated).toEqual(['AGENTS.md']);
+    expect(readFileSync('.project-context/ROUTER.md', 'utf8')).toBe('# Custom Router policy\n');
+    expect(initializeProjectContext().skipped).toContain('AGENTS.md');
+    expect(readFileSync('AGENTS.md', 'utf8')).toBe(agents);
+  });
+
+  it('appends once to an existing AGENTS.md without a final newline', () => {
+    const original = '# Existing instructions\nKeep exact bytes.';
+    writeFileSync('AGENTS.md', original);
+    expect(initializeProjectContext().updated).toContain('AGENTS.md');
+    const agents = readFileSync('AGENTS.md', 'utf8');
+    expect(agents.startsWith(original + '\n\n')).toBe(true);
+    initializeProjectContext();
+    expect(readFileSync('AGENTS.md', 'utf8')).toBe(agents);
+  });
+
+  it.each([
+    '<!-- project-context-router:start -->',
+    '<!-- project-context-router:end -->',
+    '<!-- project-context-router:end -->\n<!-- project-context-router:start -->',
+    '<!-- project-context-router:start -->\n<!-- project-context-router:start -->\n<!-- project-context-router:end -->',
+  ])('rejects malformed markers without changing instructions: %s', text => {
+    writeFileSync('AGENTS.md', text);
+    expect(() => initializeProjectContext()).toThrow('Invalid Router block markers');
+    expect(readFileSync('AGENTS.md', 'utf8')).toBe(text);
+    expect(existsSync('.project-context')).toBe(false);
+  });
+
+  it('rejects linked instruction files without changing their target', () => {
+    writeFileSync('custom.md', '# Preserve me');
+    symlinkSync('custom.md', 'AGENTS.md');
+    expect(() => initializeProjectContext()).toThrow('regular file');
+    expect(readFileSync('custom.md', 'utf8')).toBe('# Preserve me');
   });
 
   it('rejects unsafe or malformed module definitions', () => {

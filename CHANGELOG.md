@@ -3,6 +3,16 @@
 Notable changes to Project Context Router are recorded here. Versions before
 1.0 are under active development. The package requires Node.js 22.13 or newer.
 
+## [0.12.0] - 2026-10-29
+
+- Add CLI/MCP `explain`, `affected` and `path` over the existing SQLite index with static TS/JS call/import locations, ambiguity handling and bounded traversal.
+- Use TypeScript 5.9.3 at runtime for its JS Compiler API; TypeScript 7 from 0.11.0 only exposes the native compiler CLI. Keep the other released dependency upgrades and client features.
+- Generate a project-owned Router playbook and an idempotent managed AGENTS.md block during init, preserving configuration, client setup, skills, hooks and user instructions.
+- Reuse unchanged text, hashes and canonical roots within one operation while retaining fresh target/symlink containment checks. Avoid per-result research backlog rescans.
+- Run MCP tools in one serial worker. After five seconds return RUNNING with polling and full-result resources. Do not automatically retry writes after worker failure.
+- Default CLI lint/doctor and MCP doctor to compact diagnostics with explicit full-data access. CLI consumers needing complete arrays must use --full; MCP callers must poll RUNNING operations instead of resubmitting.
+- Preserve Tree docs, experimental FTS5 and retired-record exclusions from 0.11.0. Rebuild the disposable index and reconnect MCP clients after upgrading. Native Windows qualification remains pending.
+
 ## [0.11.0] - 2026-10-28
 
 - Make Tree docs the primary navigation model: project map → document → section → implementation and checks.
@@ -195,3 +205,5 @@ It is the first tagged GitHub release; the previous source baseline was 0.4.0.
 [0.7.1]: https://github.com/ukolov-dev/mcp-project-context-router/releases/tag/v0.7.1
 
 [0.11.0]: https://github.com/ukolov-dev/mcp-project-context-router/releases/tag/v0.11.0
+
+[0.12.0]: https://github.com/ukolov-dev/mcp-project-context-router/releases/tag/v0.12.0
