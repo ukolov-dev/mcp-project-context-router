@@ -1,3 +1,5 @@
+import { readOperationText } from './operation.js';
+import { withFileOperation } from './operation.js';
 import { recordCategory } from './lifecycle.js';
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
@@ -132,6 +134,10 @@ const typeSchemas: Record<string, z.ZodTypeAny> = {
 };
 
 export function lintContext(staged = false): LintResult {
+  return withFileOperation(() => lintContextInOperation(staged));
+}
+
+function lintContextInOperation(staged = false): LintResult {
   const paths = repoPaths();
   const errors: string[] = [];
   const warnings: string[] = [];
@@ -185,7 +191,7 @@ export function lintContext(staged = false): LintResult {
         errors.push(`${relative}: referenced path is not a regular file: ${file}`);
       }
     }
-    const raw = readFileSync(absolute, 'utf8');
+    const raw = readOperationText(absolute);
     for (const hit of scanSecrets(relative, raw)) {
       errors.push(`${hit.path}:${hit.line}: possible ${hit.reason}`);
     }
@@ -217,7 +223,7 @@ function lintPlaybooks(staged: boolean, errors: string[], warnings: string[]): v
   for (const relative of playbooks) {
     const absolute = resolve(paths.root, relative);
     if (!existsSync(absolute)) continue;
-    const raw = readFileSync(absolute, 'utf8');
+    const raw = readOperationText(absolute);
     const frontmatter = parsePlaybookFrontmatter(raw);
     if (!frontmatter) {
       errors.push(`${relative}: playbook must start with YAML frontmatter`);

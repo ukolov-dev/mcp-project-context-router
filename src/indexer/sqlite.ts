@@ -1,4 +1,6 @@
 import { retiredRecordTypes } from '../storage/record-types.js';
+import { withFileOperation } from '../storage/operation.js';
+import { extractSymbolGraph } from '../symbol-graph/extract.js';
 import { moduleSearchNames, resolveModuleName } from '../storage/inference.js';
 import { createHash } from 'node:crypto';
 import { mkdirSync, rmSync, statSync } from 'node:fs';
@@ -9,12 +11,13 @@ import { checksumForFile, discoverRecordFiles, parseRecord, readRecords } from '
 import type { ContextRecord } from '../storage/types.js';
 import { classifyFileReference, collectFileReferenceIssues, type FileReferenceIssue } from '../storage/file-references.js';
 import {
+  capabilitySourceFiles,
   discoverCapabilities,
   discoverCapabilitySourceFingerprint,
   discoverCapabilitySourceStateFingerprint,
 } from './capabilities.js';
 
-const schemaVersion = '5';
+const schemaVersion = '7';
 
 export const searchEngines = ['current', 'fts5'] as const;
 export type SearchEngine = typeof searchEngines[number];
@@ -122,6 +125,12 @@ CREATE TABLE IF NOT EXISTS symbols (
   signature TEXT,
   exported INTEGER NOT NULL DEFAULT 0
 );
+CREATE TABLE IF NOT EXISTS symbol_relations (
+  source_id TEXT NOT NULL, target_id TEXT NOT NULL, relation_type TEXT NOT NULL,
+  file_path TEXT NOT NULL, line INTEGER NOT NULL,
+  PRIMARY KEY (source_id, target_id, relation_type, file_path, line)
+);
+CREATE INDEX IF NOT EXISTS symbol_relations_target ON symbol_relations(target_id);
 CREATE TABLE IF NOT EXISTS endpoints (
   id TEXT PRIMARY KEY,
   method TEXT NOT NULL,
@@ -149,6 +158,8 @@ CREATE TABLE IF NOT EXISTS search_index (
   metadata TEXT NOT NULL DEFAULT '{}'
 );
 `);
+  const symbolColumns = db.prepare('PRAGMA table_info(symbols)').all() as Array<{ name: string }>;
+  if (!symbolColumns.some(column => column.name === 'graph_node')) db.exec('ALTER TABLE symbols ADD COLUMN graph_node INTEGER NOT NULL DEFAULT 0');
   const columns = db.prepare('PRAGMA table_info(search_index)').all() as Array<{ name: string }>;
   if (!columns.some((column) => column.name === 'metadata')) {
     db.exec("ALTER TABLE search_index ADD COLUMN metadata TEXT NOT NULL DEFAULT '{}'");
@@ -186,10 +197,16 @@ const indexFreshnessCheckedAt = new Map<string, number>();
 const defaultFreshnessTtlMs = 1_000;
 
 export function rebuildIndex(): IndexRebuildResult {
+  return withFileOperation(() => rebuildIndexInOperation());
+}
+
+function rebuildIndexInOperation(): IndexRebuildResult {
   const records = readRecords(true);
   const fileReferenceIssues = collectFileReferenceIssues(records);
   const { indexableRecords, duplicateRecordIssues } = selectIndexableRecords(records);
   const { capabilities, endpoints, sourceFingerprint } = discoverCapabilities();
+  const graph = extractSymbolGraph(capabilitySourceFiles(), capabilities);
+  const allSymbols = new Map([...capabilities, ...graph.nodes].map(node => [node.id, node]));
   const recordFingerprint = fingerprintRecords(indexableRecords);
   const recordSourceState = fingerprintFileState(discoverRecordFiles(true));
   const capabilitySourceState = discoverCapabilitySourceStateFingerprint();
@@ -202,6 +219,7 @@ DELETE FROM record_tags;
 DELETE FROM record_modules;
 DELETE FROM record_files;
 DELETE FROM symbols;
+DELETE FROM symbol_relations;
 DELETE FROM endpoints;
 DELETE FROM relations;
 DELETE FROM index_metadata;
@@ -244,7 +262,7 @@ VALUES (?, ?, NULL, NULL, ?, ?)
 INSERT OR REPLACE INTO symbols (id, name, kind, module, file_path, line_start, line_end, signature, exported)
 VALUES (@id, @name, @kind, @module, @filePath, @lineStart, @lineEnd, @signature, @exported)
 `);
-    for (const capability of capabilities) {
+    for (const capability of allSymbols.values()) {
       insertSymbol.run({
         id: capability.id,
         name: capability.name,
@@ -271,6 +289,11 @@ VALUES (@id, @method, @path, @module, @controllerSymbolId, @filePath)
         filePath: endpoint.filePath,
       });
     }
+    const markGraphNode = db.prepare('UPDATE symbols SET graph_node = 1 WHERE id = ?');
+    for (const node of graph.nodes) markGraphNode.run(node.id);
+    const insertEdge = db.prepare('INSERT OR IGNORE INTO symbol_relations VALUES (?, ?, ?, ?, ?)');
+    for (const edge of graph.edges) insertEdge.run(edge.source, edge.target, edge.relation, edge.file, edge.line);
+    db.prepare('INSERT INTO index_metadata (key, value) VALUES (?, ?)').run('symbol_graph_coverage', JSON.stringify(graph.coverage));
     const insertMetadata = db.prepare('INSERT INTO index_metadata (key, value) VALUES (?, ?)');
     insertMetadata.run('record_fingerprint', recordFingerprint);
     insertMetadata.run('capability_source_fingerprint', sourceFingerprint);
@@ -292,7 +315,7 @@ VALUES (@id, @method, @path, @module, @controllerSymbolId, @filePath)
   indexFreshnessCheckedAt.set(repoPaths().root, Date.now());
   return {
     records: indexableRecords.length,
-    symbols: capabilities.length,
+    symbols: allSymbols.size,
     endpoints: endpoints.length,
     fileReferenceIssues,
     duplicateRecordIssues,
@@ -669,7 +692,7 @@ export function searchCapabilities(query: string, modules: string[], limit = 12)
     const rows = db.prepare(`
 SELECT name, kind, file_path AS path, signature, module, exported
 FROM symbols
-WHERE module IN (${modules.map(() => '?').join(',')})
+WHERE kind != 'file' AND module IN (${modules.map(() => '?').join(',')})
   AND (${words.map(() => "lower(name || ' ' || kind || ' ' || file_path || ' ' || coalesce(signature, '')) LIKE ?").join(' OR ')})
 LIMIT 500
 `).all(...modules, ...words.map((word) => `%${word}%`)) as Array<{

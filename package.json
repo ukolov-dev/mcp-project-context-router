@@ -1,6 +1,6 @@
 {
   "name": "mcp-project-context-router",
-  "version": "0.11.0",
+  "version": "0.12.0",
   "description": "Tree docs and task-focused context routing for coding agents, with local Markdown/YAML memory and CLI/MCP workflows",
   "license": "UNLICENSED",
   "private": false,
@@ -67,13 +67,13 @@
     "fast-glob": "3.3.3",
     "gray-matter": "4.0.3",
     "js-yaml": "5.4.3",
-    "zod": "4.6.7"
+    "zod": "4.6.7",
+    "typescript": "5.9.3"
   },
   "devDependencies": {
     "@types/node": "26.6.5",
     "marked": "18.1.1",
     "tsx": "4.23.15",
-    "typescript": "7.0.2",
     "vite": "8.3.4",
     "vitest": "5.0.4"
   },

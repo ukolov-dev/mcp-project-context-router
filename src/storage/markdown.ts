@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto';
+import { readOperationText, operationChecksum } from './operation.js';
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import fg from 'fast-glob';
@@ -46,7 +46,7 @@ export function discoverRecordFiles(includeArchive = true): string[] {
 }
 
 export function parseRecord(file: string, root = repoPaths().root): ContextRecord {
-  const raw = readFileSync(file, 'utf8');
+  const raw = readOperationText(file);
   const parsed = matter(raw);
   const frontmatter = frontmatterSchema.parse(parsed.data);
   const relative = relPath(root, file);
@@ -96,7 +96,7 @@ export function checksumForFile(path: string): string | null {
   if (!existsSync(path)) {
     return null;
   }
-  return createHash('sha256').update(readFileSync(path)).digest('hex');
+  return operationChecksum(path);
 }
 
 export function nextRecordId(prefix: string, includeArchive = true): string {

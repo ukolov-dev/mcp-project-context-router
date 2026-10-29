@@ -85,3 +85,32 @@ npx project-context pack "Historical decision" --include-history --include-archi
 Context Hub/портал и Confluence требуют явной конфигурации проекта и учётные данные. Они отделены от локальной памяти разработки. Финализация локальной задачи не обновляет приёмку в портале автоматически. Используйте нужный профиль и собственный процесс интеграции: plan/apply либо назначение/отчёт.
 
 Credentials храните в переменных окружения или поддерживаемом системном хранилище, а не в экспортируемых записях. Справка: `npx project-context portal --help` и `npx project-context confluence --help`.
+
+## Связи символов: explain, affected, path
+
+В 0.12.0 эти операции CLI и MCP используют существующий SQLite-индекс:
+
+```bash
+npx project-context explain redactSecrets --json
+npx project-context affected redactSecrets --depth 2 --json
+npx project-context path buildContextPack ensureFreshIndex --json
+```
+
+Вместо примеров укажите символы своего проекта. Результаты содержат файлы и строки объявлений, вызовов и импортов. Для одноимённых символов используйте ID кандидата или `file#name`. Анализ ограничен статически разрешимыми TS/JS-связями; отсутствие ребра не доказывает отсутствие зависимости. [Подробности](https://github.com/ukolov-dev/mcp-project-context-router/blob/main/docs/symbol-graph.md).
+
+## Долгие операции MCP
+
+Инструменты выполняются в одном последовательном worker. Пересборка индекса не блокирует brief, Tree docs и получение статуса. Если вызов длится больше пяти секунд, ответ содержит `RUNNING`, `operationId` и `fullResultUri`. Вызывайте `get_operation_result` с этим ID, пока статус не станет `COMPLETED` или `FAILED`. Данные завершённой операции находятся в `result`.
+
+Не повторяйте исходный вызов, особенно запись: он уже принят. Отмена ожидания не отменяет выполнение. Автоматических повторов при сбое worker нет. Очередь ограничена восемью незавершёнными операциями; старые результаты вытесняются, перезапуск удаляет снимки. `NOT_FOUND` означает, что ID недоступен в этом сеансе.
+
+## Краткая и полная диагностика
+
+Doctor по умолчанию возвращает статус, счётчики и несколько примеров. Полный снимок доступен по `fullResultUri` или через `get_operation_result` с `detail: "full"`. `context_doctor` с `detail: "full"` запускает новую полную проверку. Текст MCP не дублирует весь диагностический JSON.
+
+```bash
+npx project-context doctor --full --json
+npx project-context lint --full --json
+```
+
+CLI без `--full` выдаёт сводку, но код возврата учитывает все ошибки. Полная CLI-проверка запускается заново. [Контракт операций](https://github.com/ukolov-dev/mcp-project-context-router/blob/main/docs/mcp-operations.md).

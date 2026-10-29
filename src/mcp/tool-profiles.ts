@@ -1,6 +1,7 @@
 export type McpToolProfile = 'core' | 'planning' | 'analyst' | 'developer' | 'admin' | 'full';
 
 export const coreToolNames = [
+  'get_operation_result',
   'get_project_brief',
   'get_shared_project_snapshot',
   'get_exact_shared_snapshot',
@@ -9,6 +10,7 @@ export const coreToolNames = [
   'get_portal_sync_status',
   'validate_task',
   'confirm_task_contract',
+  'explain', 'affected', 'path',
   'get_document_tree',
   'get_document_outline',
   'read_document_section',

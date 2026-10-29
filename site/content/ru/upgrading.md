@@ -52,3 +52,9 @@ npx project-context doctor --json
 [Релиз и пакет](https://github.com/ukolov-dev/mcp-project-context-router/releases/tag/v0.10.0) · [Изменения](https://github.com/ukolov-dev/mcp-project-context-router/blob/v0.10.0/docs/release-0.10.md).
 
 После обновления используйте `init --client zcode --with-skills` или `init --client deepseek-harness --with-skills --with-hooks`. См. [быстрый старт](quickstart.html#zcode-и-deepseek-harness). Существующие файлы сохраняются: пропущенные записи клиентов и адаптера DSH объедините вручную. DSH требует запуска с `--patch`; пользовательские хуки ZCode подключаются отдельно. Живые сессии клиентов и Windows не проверены.
+
+## Переход на 0.12.0
+
+Обновите закреплённый пакет, выполните `npx project-context index` и переподключите MCP. Клиент должен обрабатывать `RUNNING`, а не считать его готовым пакетом и не повторять исходную запись. Для полной диагностики CLI используйте `--full`. Полные снимки MCP доступны только в текущем сеансе.
+
+TypeScript 5.9.3 включён в runtime для JS Compiler API графа; TypeScript 7 из 0.11.0 API не предоставляет. Остальные клиентские интеграции, hooks, Tree docs, FTS5 и исключения устаревших записей сохранены. Нативная Windows-квалификация не выполнена.

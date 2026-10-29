@@ -1,4 +1,5 @@
-import { existsSync, realpathSync, statSync } from 'node:fs';
+import { canonicalRepositoryRoot, realPath } from './operation.js';
+import { existsSync, statSync } from 'node:fs';
 import { dirname, isAbsolute, relative, resolve, sep, win32 } from 'node:path';
 import { repoPaths } from './repo.js';
 import type { ContextRecord } from './types.js';
@@ -66,7 +67,7 @@ function existingAncestorStaysWithinRepository(root: string, target: string): bo
   }
 
   try {
-    return isPathWithin(realpathSync(root), realpathSync(existing));
+    return isPathWithin(canonicalRepositoryRoot(root), realPath(existing));
   } catch {
     return false;
   }

@@ -1,3 +1,5 @@
+import { withFileOperation } from '../storage/operation.js';
+import type { ContextRecord } from '../storage/types.js';
 import { createHash } from 'node:crypto';
 import { z } from 'zod';
 import { proposeBacklogItem } from '../backlog/backlog.js';
@@ -10,9 +12,9 @@ import {
   type ResearchEntry, type ResearchRecord, type ResearchStatus,
 } from './types.js';
 
-function view(record: ResearchRecord) {
+function view(record: ResearchRecord, records?: ContextRecord[]) {
   const ids = new Set(record.entries.flatMap((entry) => entry.backlog_id ? [entry.backlog_id] : []));
-  const backlog = readRecords(true).filter((item) => item.type === 'backlog' && ids.has(item.id));
+  const backlog = (ids.size ? records ?? readRecords(true) : []).filter((item) => item.type === 'backlog' && ids.has(item.id));
   return {
     ...record,
     path: researchPath(record.id),
@@ -25,21 +27,28 @@ function view(record: ResearchRecord) {
   };
 }
 export function getResearch(input: z.input<typeof getResearchInputSchema>) {
-  return view(readResearch(getResearchInputSchema.parse(input).researchId));
+  return withFileOperation(() => view(readResearch(getResearchInputSchema.parse(input).researchId)));
 }
 export function listResearch(input: z.input<typeof listResearchInputSchema> = {}) {
+  return withFileOperation(() => listResearchInOperation(input));
+}
+
+function listResearchInOperation(input: z.input<typeof listResearchInputSchema>) {
   const parsed = listResearchInputSchema.parse(input);
   const query = parsed.query.toLowerCase().trim();
-  const matches = readRecords(false)
+  const records = readRecords(false);
+  const matches = records
     .filter((record) => record.type === 'research' && record.path.startsWith('.project-context/active/research/'))
     .map((record) => readResearch(record.id))
     .filter((record) => parsed.statuses.length ? parsed.statuses.includes(record.status) : parsed.includeClosed || record.status !== 'closed')
     .filter((record) => !parsed.modules.length || record.modules.some((module) => parsed.modules.includes(module)))
     .filter((record) => !query || JSON.stringify(record).toLowerCase().includes(query))
     .sort((a, b) => b.updated_at.localeCompare(a.updated_at) || a.id.localeCompare(b.id));
+  const page = matches.slice(0, parsed.limit);
+  const linkedRecords = page.some(record => record.entries.some(entry => entry.backlog_id)) ? readRecords(true) : [];
   return {
-    items: matches.slice(0, parsed.limit).map((record) => {
-      const { entries, ...summary } = view(record);
+    items: page.map((record) => {
+      const { entries, ...summary } = view(record, linkedRecords);
       return { ...summary, entryCount: entries.length, lastEntry: entries.at(-1) };
     }),
     count: Math.min(matches.length, parsed.limit),

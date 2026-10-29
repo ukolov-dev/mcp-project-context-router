@@ -7,13 +7,13 @@
 Нужны Node.js **22.13 или новее** и npm. Если в репозитории нет `package.json`, сначала выполните `npm init -y`.
 
 ```bash
-npm install --save-dev --save-exact https://github.com/ukolov-dev/mcp-project-context-router/releases/download/v0.11.0/mcp-project-context-router-0.11.0.tgz
+npm install --save-dev --save-exact https://github.com/ukolov-dev/mcp-project-context-router/releases/download/v0.12.0/mcp-project-context-router-0.12.0.tgz
 npx project-context init --name "My project" --module app:src --with-skills
 npx project-context index
 npx project-context doctor --json
 ```
 
-Замените имя проекта и путь к исходникам. Проверьте `.project-context/project.yaml`: маски файлов, плейбуки и команды проверки должны соответствовать репозиторию. Сохраните манифест и lockfile в Git. URL закрепляет готовый релиз 0.11.0; публикация в npm registry не требуется.
+Замените имя проекта и путь к исходникам. Проверьте `.project-context/project.yaml`: маски файлов, плейбуки и команды проверки должны соответствовать репозиторию. Сохраните манифест и lockfile в Git. URL закрепляет готовый релиз 0.12.0; публикация в npm registry не требуется.
 
 `--with-skills` устанавливает `project-context-workflow` и `context-research` в `.agents/skills/`. Подходит и для уже настроенного проекта; пользовательские файлы не перезаписываются. Без флага skills не устанавливаются. Обновление npm-пакета не заменяет установленные копии skills.
 
@@ -88,3 +88,7 @@ npx project-context reuse-scan "CustomerService" --modules app
 Замените пример своими модулем, путём и задачей. Убедитесь, что агент действительно вызвал инструмент: в ответе есть `routing`, `records`, `files`, `playbooks`, `commands` и `budget`. Сверьте выбранную область и прочитайте источники.
 
 Дальше — [схема сборки и разбор пакета](context-pack.html), затем [реализация и сохранение результата](workflow.html).
+
+## Инструкции без скилла
+
+`init` создаёт `.project-context/ROUTER.md` и ссылку в управляемом блоке `AGENTS.md`. Агент читает этот плейбук перед работой с Router. Повторный `init` обновляет только свой блок: остальные инструкции и существующий плейбук сохраняются. Повреждённые маркеры требуют исправления вручную. Skills и hooks остаются дополнительными опциями.
