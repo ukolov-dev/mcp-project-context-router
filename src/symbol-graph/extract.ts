@@ -1,14 +1,18 @@
-import ts from 'typescript';
+import type ts from 'typescript';
+import { createRequire } from 'node:module';
 import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { classifyFileReference } from '../storage/file-references.js';
 import { repoPaths } from '../storage/repo.js';
 import type { Capability } from '../storage/types.js';
 
+const require = createRequire(import.meta.url);
+
 export type SymbolEdge = { source: string; target: string; relation: 'calls' | 'imports'; file: string; line: number };
 
 /** Only statically resolved TS/JS declarations inside the indexed source set are connected. */
 export function extractSymbolGraph(files: Array<{ filePath: string; module: string }>, existing: Capability[]) {
+  const ts: typeof import('typescript') = require('typescript');
   const supported = files.filter(f => /\.[cm]?[jt]sx?$/.test(f.filePath));
   const sources = new Map<string, ts.SourceFile>();
   for (const file of supported) {

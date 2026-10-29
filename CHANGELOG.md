@@ -6,6 +6,7 @@ Notable changes to Project Context Router are recorded here. Versions before
 ## [0.12.0] - 2026-10-29
 
 - Add CLI/MCP `explain`, `affected` and `path` over the existing SQLite index with static TS/JS call/import locations, ambiguity handling and bounded traversal.
+- Load the Compiler API lazily during graph builds, keeping lightweight CLI/MCP startup free of the compiler payload.
 - Use TypeScript 5.9.3 at runtime for its JS Compiler API; TypeScript 7 from 0.11.0 only exposes the native compiler CLI. Keep the other released dependency upgrades and client features.
 - Generate a project-owned Router playbook and an idempotent managed AGENTS.md block during init, preserving configuration, client setup, skills, hooks and user instructions.
 - Reuse unchanged text, hashes and canonical roots within one operation while retaining fresh target/symlink containment checks. Avoid per-result research backlog rescans.

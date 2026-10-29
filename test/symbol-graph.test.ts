@@ -2,7 +2,7 @@ import { execFileSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync, unlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { beforeEach, afterEach, it, expect } from 'vitest';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
@@ -96,4 +96,16 @@ it('exposes matching results through CLI and the core MCP profile', async () => 
       expect(brand).toBeDefined(); expect(data).toEqual(op.expected);
     }
   } finally { await client.close(); }
+});
+
+it('loads the Compiler API only when building a graph, not on lightweight startup', () => {
+  const script = `import { createRequire } from 'node:module';
+    const require = createRequire(import.meta.url);
+    const { rebuildIndex } = await import(${JSON.stringify(pathToFileURL(resolve(packageRoot, 'dist/indexer/sqlite.js')).href)});
+    const loaded = () => Object.keys(require.cache).some(path => path.split(String.fromCharCode(92)).join('/').includes('typescript/lib/typescript.js'));
+    const before = loaded(); rebuildIndex();
+    console.log(JSON.stringify({ before, after: loaded() }));`;
+  const result = JSON.parse(execFileSync(process.execPath, ['--input-type=module', '-e', script],
+    { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }));
+  expect(result).toEqual({ before: false, after: true });
 });
