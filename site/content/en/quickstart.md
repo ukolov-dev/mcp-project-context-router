@@ -88,3 +88,7 @@ After configuring [modules and commands](configuration.html), send your agent:
 Replace the sample module, path and task. Confirm the agent actually called the tool: the response includes `routing`, `records`, `files`, `playbooks`, `commands` and `budget`. Check the selected scope and read the sources.
 
 Continue with the [assembly diagram and pack walkthrough](context-pack.html), then [implementation and recording results](workflow.html).
+
+## Instructions without a skill
+
+`init` creates `.project-context/ROUTER.md` and links it from a managed block in `AGENTS.md`. The agent reads this playbook before using Router. Repeating `init` updates only its own block, preserving other instructions and an existing playbook. Repair malformed markers manually. Skills and hooks remain optional.

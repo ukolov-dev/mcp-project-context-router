@@ -52,3 +52,9 @@ Exact work keys route context to the matching task/backlog modules. Explicit sco
 [Release and package](https://github.com/ukolov-dev/mcp-project-context-router/releases/tag/v0.10.0) · [Release notes](https://github.com/ukolov-dev/mcp-project-context-router/blob/v0.10.0/docs/release-0.10.md).
 
 Use `init --client zcode --with-skills` or `init --client deepseek-harness --with-skills --with-hooks` after upgrading. See [quick start](quickstart.html#zcode-and-deepseek-harness). Existing configs are preserved: merge skipped client entries/DSH hook rows manually. DSH needs its explicit `--patch` launch; ZCode user hooks remain a reviewed manual setup. No native client session or Windows verification is claimed.
+
+## Upgrading to 0.12.0
+
+Update the pinned package, run `npx project-context index` and reconnect MCP. Clients must handle `RUNNING` instead of treating it as a ready pack or resubmitting a mutation. Use CLI `--full` for complete diagnostics. MCP snapshots exist only in the current session.
+
+TypeScript 5.9.3 is a runtime dependency for the graph JS Compiler API; TypeScript 7 from 0.11.0 does not expose it. Other client integrations, hooks, Tree docs, FTS5 and retired-record exclusions are preserved. Native Windows qualification remains pending.

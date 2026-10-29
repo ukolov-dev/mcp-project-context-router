@@ -85,3 +85,32 @@ The optional `--search-engine fts5` mode is experimental. It requires SQLite com
 Context Hub/portal and Confluence require explicit project configuration and credentials. They are separate from local project memory. A local task result does not automatically update portal acceptance. Use the configured profile and the integration's own plan/apply or assignment/report workflow.
 
 Credentials belong in environment variables or supported native stores, not in exported records. Get current command syntax from `npx project-context portal --help` or `npx project-context confluence --help`.
+
+## Symbol relationships: explain, affected, path
+
+In 0.12.0 these CLI and MCP operations use the existing SQLite index:
+
+```bash
+npx project-context explain redactSecrets --json
+npx project-context affected redactSecrets --depth 2 --json
+npx project-context path buildContextPack ensureFreshIndex --json
+```
+
+Replace the examples with symbols in your project. Results include declaration, call and import files and line numbers. Disambiguate names with a candidate ID or `file#name`. Coverage is limited to statically resolved TS/JS relationships; a missing edge does not prove independence. [Coverage and limits](https://github.com/ukolov-dev/mcp-project-context-router/blob/main/docs/symbol-graph.md).
+
+## Long MCP operations
+
+Tools run in one serial worker. Index rebuilds leave brief, Tree docs and status requests available. Calls taking over five seconds return `RUNNING`, an `operationId` and `fullResultUri`. Poll `get_operation_result` with that ID until `COMPLETED` or `FAILED`; completed data is in `result`.
+
+Do not resubmit the original call, especially a mutation: it has already been accepted. Cancelling the wait does not cancel execution. Worker failures are not automatically retried. At most eight unfinished operations are accepted; older results are evicted and restarting clears snapshots. `NOT_FOUND` means that the ID is unavailable in this session.
+
+## Summary and full diagnostics
+
+Doctor defaults to status, counts and a few examples. Read `fullResultUri` or call `get_operation_result` with `detail: "full"` for the same complete snapshot. Calling `context_doctor` with `detail: "full"` starts a new complete check. MCP text no longer duplicates the diagnostic JSON.
+
+```bash
+npx project-context doctor --full --json
+npx project-context lint --full --json
+```
+
+Without `--full`, CLI returns a summary but its exit code still reflects every error. Full CLI checks run again. [Operation contract](https://github.com/ukolov-dev/mcp-project-context-router/blob/main/docs/mcp-operations.md).
