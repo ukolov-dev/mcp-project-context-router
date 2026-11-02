@@ -1,9 +1,10 @@
-import { existsSync, readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
 import { z } from 'zod';
 import { proposeBacklogItem } from '../backlog/backlog.js';
+import { assertExecutionPath } from '../execution/store.js';
 import { classifyFileReference } from '../storage/file-references.js';
-import { writeMarkdown } from '../storage/markdown.js';
+import { nextRecordId, renderMarkdown, writeMarkdown } from '../storage/markdown.js';
 import { segmentForRecordType } from '../storage/record-types.js';
 import { relPath, repoPaths } from '../storage/repo.js';
 import { nowIso } from '../storage/time.js';
@@ -108,8 +109,7 @@ export function proposeAnalystSource(input: z.input<typeof proposeAnalystSourceI
   const parsed = proposeAnalystSourceInputSchema.parse(input);
   const paths = repoPaths();
   const timestamp = nowIso();
-  const index = nextStableIndex('source', parsed.sourceId ?? parsed.title);
-  const id = stableId('SOURCE', index);
+  const id = nextRecordId('SOURCE');
   const sourcePath = repositoryFile(parsed.sourcePath);
   const files = sourcePath ? [sourcePath] : [];
   const record = makeRecord({
@@ -124,7 +124,7 @@ export function proposeAnalystSource(input: z.input<typeof proposeAnalystSourceI
     sourceRefs: parsed.sourceRefs,
     frontmatter: {
       source_id: parsed.sourceId ?? id,
-      source_path: sourcePath,
+      ...(sourcePath ? { source_path: sourcePath } : {}),
       source_kind: parsed.sourceKind,
       processed_status: 'proposed',
     },
@@ -140,7 +140,10 @@ Draft only. Register chunks, derived requirements, decisions and open questions 
 `,
   });
   if (parsed.apply) {
-    writeMarkdown(resolve(paths.root, record.path), record.frontmatter, record.body);
+    const target = resolve(paths.root, record.path);
+    assertExecutionPath(target);
+    mkdirSync(dirname(target), { recursive: true });
+    writeFileSync(target, renderMarkdown(record.frontmatter, record.body), { encoding: 'utf8', flag: 'wx' });
   }
   return {
     status: parsed.apply ? 'DRAFT_CREATED' : 'DRY_RUN',
@@ -640,12 +643,4 @@ function repositoryFile(filePath: string | undefined): string | undefined {
 
 function stableId(prefix: string, index: number): string {
   return `${prefix}-${importDate}-${String(index).padStart(3, '0')}`;
-}
-
-function nextStableIndex(type: string, key: string): number {
-  let hash = 0;
-  for (const char of `${type}:${key}`) {
-    hash = (hash * 31 + char.charCodeAt(0)) % 900;
-  }
-  return hash + 100;
 }

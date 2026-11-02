@@ -38,10 +38,10 @@ describe('Portal client', () => {
     });
   });
 
-  it('materializes only a manifest whose project, manifest digest, and bodies verify', async () => {
+  it.each(['current', 'exact'] as const)('materializes a verified %s snapshot', async (kind) => {
     const fetcher = vi.fn(async (input: string | URL | Request) => {
       const url = String(input);
-      if (url.includes('/context/snapshots/current')) {
+      if (url.includes('/context/snapshots/')) {
         return response({
           id: snapshotId,
           projectId,
@@ -59,11 +59,87 @@ describe('Portal client', () => {
       retries: 0,
     });
 
-    const snapshot = await client.getCurrentSnapshot(projectId);
+    const snapshot = await (kind === 'exact'
+      ? client.getExactSnapshot(snapshotId, projectId)
+      : client.getCurrentSnapshot(projectId));
 
     expect(snapshot.digest).toBe(snapshotDigest);
     expect(snapshot.documents).toEqual([{ documentId, revisionId, contentDigest, body }]);
     expect(fetcher).toHaveBeenCalledTimes(2);
+  });
+
+  it('rejects a different exact snapshot before loading its revisions', async () => {
+    const fetcher = vi.fn(async (input: string | URL | Request) => {
+      if (String(input).includes('/context/snapshots/')) {
+        return response({
+          id: '00000000-0000-4000-8000-000000000009',
+          projectId,
+          digest: snapshotDigest,
+          createdBy: 'analyst',
+          createdAt: '2026-07-23T12:00:00Z',
+          entries: [{ documentId, revisionId, contentDigest }],
+        });
+      }
+      return response(body);
+    });
+    const client = new PortalClient('https://portal.example.test', 'DUMMY_TOKEN', {
+      fetch: fetcher as typeof fetch,
+      retries: 0,
+    });
+
+    await expect(client.getExactSnapshot(snapshotId, projectId)).rejects.toThrow('mismatched snapshot');
+    expect(fetcher).toHaveBeenCalledTimes(1);
+  });
+
+  it.each(['JSON GET', 'revision GET', 'JSON POST'] as const)('keeps the timeout active while reading a %s response body', async (operation) => {
+    vi.useFakeTimers();
+    try {
+      const signals: AbortSignal[] = [];
+      const fetcher = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+        if (operation === 'revision GET' && String(input).includes('/context/snapshots/current')) {
+          return response({
+            id: snapshotId, projectId, digest: snapshotDigest, createdBy: 'analyst',
+            createdAt: '2026-07-23T12:00:00Z', entries: [{ documentId, revisionId, contentDigest }],
+          });
+        }
+        const signal = init!.signal!;
+        signals.push(signal);
+        return new Response(new ReadableStream({
+          start(controller) {
+            const timer = setTimeout(() => {
+              const value = operation === 'JSON GET' ? { id: projectId, key: 'TEST', name: 'Test' } : {
+                contextSessionId: snapshotId, digest: sha256('pack'), query: 'test', intent: 'test',
+                maximumTokens: 100, actualTokens: 0, truncated: false, items: [], droppedItems: [], unknowns: [],
+              };
+              controller.enqueue(new TextEncoder().encode(operation === 'revision GET' ? body : JSON.stringify(value)));
+              controller.close();
+            }, 200);
+            signal.addEventListener('abort', () => {
+              clearTimeout(timer);
+              controller.error(signal.reason);
+            }, { once: true });
+          },
+        }));
+      });
+      const client = new PortalClient('https://portal.example.test', 'DUMMY_TOKEN', {
+        fetch: fetcher as typeof fetch,
+        timeoutMs: 100,
+        retries: 2,
+      });
+      const result = (operation === 'JSON GET'
+        ? client.getProject(projectId)
+        : operation === 'revision GET' ? client.getCurrentSnapshot(projectId)
+        : client.retrieveContext(projectId, { query: 'test', intent: 'test', maximumTokens: 100, topK: 1 })
+      ).catch(error => error);
+
+      await vi.advanceTimersByTimeAsync(500);
+
+      expect(await result).toMatchObject({ message: 'Portal request failed after bounded retries.' });
+      expect(fetcher).toHaveBeenCalledTimes(operation === 'JSON POST' ? 1 : operation === 'revision GET' ? 4 : 3);
+      expect(signals.every(signal => signal.aborted)).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('rejects digest tampering before returning shared context', async () => {

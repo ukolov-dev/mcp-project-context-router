@@ -66,7 +66,9 @@ export function todayArchiveYear(): string {
 
 export function durationToDays(raw: string): number {
   const match = /^(\d+)\s*d$/i.exec(raw.trim());
-  return match ? Number(match[1]) : 0;
+  const days = match ? Number(match[1]) : NaN;
+  if (!Number.isSafeInteger(days) || days <= 0) throw new Error('Invalid archive duration: use a positive number of days, such as 90d.');
+  return days;
 }
 
 export function dateFromCompact(date: string): string {

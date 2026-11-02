@@ -1,6 +1,6 @@
 {
   "name": "mcp-project-context-router",
-  "version": "0.12.0",
+  "version": "0.12.1",
   "description": "Tree docs and task-focused context routing for coding agents, with local Markdown/YAML memory and CLI/MCP workflows",
   "license": "UNLICENSED",
   "private": false,

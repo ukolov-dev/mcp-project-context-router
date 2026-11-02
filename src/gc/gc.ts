@@ -1,11 +1,12 @@
-import { mkdirSync, renameSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { linkSync, mkdirSync, unlinkSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
 import { moveToArchive, readRecords } from '../storage/markdown.js';
 import { loadProjectConfig, retentionNumber } from '../storage/config.js';
 import { gitIgnoredPaths, repoPaths, relPath } from '../storage/repo.js';
 import { daysOld, durationToDays } from '../storage/time.js';
 import { isRetiredRecordType, segmentForRecordType } from '../storage/record-types.js';
 import { classifyFileReference } from '../storage/file-references.js';
+import { assertExecutionPath } from '../execution/store.js';
 
 export type GcCandidate = {
   id: string;
@@ -145,10 +146,20 @@ export function restore(recordId: string): { restoredPath: string } {
   if (!archived) throw new Error(`Archived record not found: ${recordId}`);
   if (isRetiredRecordType(archived.type)) throw new Error(`Record type ${archived.type} is retired; keep it archived or migrate it to a supported type.`);
   const segment = segmentForRecordType(archived.type);
-  const target = resolve(paths.activeDir, segment, `${archived.id}.md`);
+  const directory = resolve(paths.activeDir, segment);
+  const target = resolve(directory, `${archived.id}.md`);
+  if (dirname(target) !== directory) throw new Error('Archived record ID must stay within its active record directory.');
+  assertExecutionPath(target);
   const archivedReference = classifyFileReference(archived.path);
   if (archivedReference.kind !== 'file') throw new Error(`Archived record path is unsafe or missing: ${archived.path}`);
-  mkdirSync(resolve(paths.activeDir, segment), { recursive: true });
-  renameSync(archivedReference.absolutePath, target);
+  assertExecutionPath(archivedReference.absolutePath);
+  mkdirSync(directory, { recursive: true });
+  // Exclusive publication keeps a concurrent restore from overwriting an active record.
+  try { linkSync(archivedReference.absolutePath, target); }
+  catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'EEXIST') throw new Error(`Active record already exists: ${archived.id}; refusing to overwrite it.`);
+    throw error;
+  }
+  unlinkSync(archivedReference.absolutePath);
   return { restoredPath: relPath(paths.root, target) };
 }

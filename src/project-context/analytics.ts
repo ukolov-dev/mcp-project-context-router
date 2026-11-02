@@ -4,6 +4,7 @@ import { readRecords } from '../storage/markdown.js';
 import type { ContextRecord } from '../storage/types.js';
 import type { ProjectContextSource } from './project-context.js';
 import { contextCliCommand, loadProjectConfig } from '../storage/config.js';
+import { redactSecrets } from '../storage/secrets.js';
 
 type AnalystRecordResult = {
   id: string;
@@ -352,7 +353,7 @@ function scoreRecord(record: ContextRecord, terms: string[]): number {
 }
 
 function excerptForRecord(record: ContextRecord, terms: string[]): string {
-  const text = `${record.title}\n${record.body}`.replace(/\s+/g, ' ').trim();
+  const text = redactSecrets(`${record.title}\n${record.body}`).replace(/\s+/g, ' ').trim();
   if (text.length <= 320 || terms.length === 0) return text.slice(0, 320);
   const lower = text.toLowerCase();
   const firstHit = terms
