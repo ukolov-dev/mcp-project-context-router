@@ -1,6 +1,6 @@
 # __PROJECT_NAME__ context
 
-This directory contains only knowledge and workflow configuration for the standalone router repository. It must never contain PPM backlog items, decisions, source archives, credentials, or absolute workstation paths.
+This directory contains only knowledge and workflow configuration for the standalone router repository. It must never contain source-project backlog items, decisions, source archives, credentials, or absolute workstation paths.
 
 - `project.yaml` defines repository identity, module routing, verification, and MCP branding.
 - `active/` contains reviewed durable records.

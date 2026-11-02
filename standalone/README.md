@@ -122,10 +122,23 @@ git clone https://github.com/ukolov-dev/mcp-project-context-router.git
 cd mcp-project-context-router
 npm ci
 npm run build
+npm run site:build
+npm run site:check
 npm test
 npm run package:check
 node bin/project-context doctor --json
 ```
+
+To create a clean source copy, run
+`npm run export:standalone -- --destination ../router-copy` with an empty destination.
+The copy includes reusable source, tests, scripts, website sources, and GitHub
+workflows. It starts with empty project memory and excludes dependencies and
+generated build outputs. Local `.env` files and `.npmrc` are excluded;
+`.env.example` remains available.
+
+After initializing and committing the exported repository, run
+`npm run search:eval -- --samples 1 --engines current --output artifacts/search-eval.json`
+to exercise its search evaluation with Git provenance.
 
 To exercise the installable artifact locally:
 

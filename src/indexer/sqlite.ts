@@ -1,6 +1,5 @@
 import { retiredRecordTypes } from '../storage/record-types.js';
 import { withFileOperation } from '../storage/operation.js';
-import { extractSymbolGraph } from '../symbol-graph/extract.js';
 import { moduleSearchNames, resolveModuleName } from '../storage/inference.js';
 import { createHash } from 'node:crypto';
 import { mkdirSync, rmSync, statSync } from 'node:fs';
@@ -11,7 +10,6 @@ import { checksumForFile, discoverRecordFiles, parseRecord, readRecords } from '
 import type { ContextRecord } from '../storage/types.js';
 import { classifyFileReference, collectFileReferenceIssues, type FileReferenceIssue } from '../storage/file-references.js';
 import {
-  capabilitySourceFiles,
   discoverCapabilities,
   discoverCapabilitySourceFingerprint,
   discoverCapabilitySourceStateFingerprint,
@@ -204,8 +202,7 @@ function rebuildIndexInOperation(): IndexRebuildResult {
   const records = readRecords(true);
   const fileReferenceIssues = collectFileReferenceIssues(records);
   const { indexableRecords, duplicateRecordIssues } = selectIndexableRecords(records);
-  const { capabilities, endpoints, sourceFingerprint } = discoverCapabilities();
-  const graph = extractSymbolGraph(capabilitySourceFiles(), capabilities);
+  const { capabilities, endpoints, sourceFingerprint, graph } = discoverCapabilities();
   const allSymbols = new Map([...capabilities, ...graph.nodes].map(node => [node.id, node]));
   const recordFingerprint = fingerprintRecords(indexableRecords);
   const recordSourceState = fingerprintFileState(discoverRecordFiles(true));

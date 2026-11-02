@@ -172,28 +172,6 @@ export function getStoredPortalCredential(options: PortalCredentialOptions = {})
   return credential || null;
 }
 
-export function resolvePortalCredential(options: PortalCredentialOptions = {}): {
-  token: string;
-  source: 'environment' | 'native-store';
-} {
-  const environment = options.environment ?? process.env;
-  const fromEnvironment = environment.PROJECT_CONTEXT_HUB_TOKEN;
-  if (fromEnvironment) return { token: fromEnvironment, source: 'environment' };
-  const stored = getStoredPortalCredential(options);
-  if (stored) {
-    const oauthCredential = parseOAuthCredential(stored);
-    if (!oauthCredential) return { token: stored, source: 'native-store' };
-    if (new Date(oauthCredential.accessTokenExpiresAt).getTime() > (options.now?.() ?? new Date()).getTime() + 30_000) {
-      return { token: oauthCredential.accessToken, source: 'native-store' };
-    }
-    throw new Error('Stored Portal access token expired. Run `project-context portal auth` to refresh the browser session.');
-  }
-  throw new Error(
-    'Portal credential is missing. Run `project-context portal auth` '
-    + 'or set PROJECT_CONTEXT_HUB_TOKEN for this process.',
-  );
-}
-
 export async function resolvePortalAccessToken(options: PortalCredentialOptions = {}): Promise<{
   token: string;
   source: 'environment' | 'native-store';

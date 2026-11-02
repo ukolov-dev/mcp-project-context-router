@@ -9,7 +9,7 @@ import { McpServer, ResourceTemplate } from '@modelcontextprotocol/sdk/server/mc
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
 import { getContextBrand, withBrand } from '../brand.js';
-import { resolveMcpToolProfile, toolEnabledForProfile } from './tool-profiles.js';
+import { portalBoundToolNames, resolveMcpToolProfile, toolEnabledForProfile } from './tool-profiles.js';
 import {
   confirmBacklogItem,
   confirmBacklogItemInputSchema,
@@ -118,6 +118,8 @@ import {
 } from '../portal/bridge.js';
 
 const startupConfig = loadProjectConfig();
+const portalBinding = startupConfig.integrations.portal;
+const portalConfigured = Boolean(portalBinding?.projectKey && portalBinding.projectName);
 const projectName = startupConfig.project.name;
 const resourceScheme = startupConfig.contextRouter.resourceScheme;
 const server = new McpServer({ name: startupConfig.contextRouter.mcpServerName, version: projectContextVersion });
@@ -1243,6 +1245,7 @@ async function main(): Promise<void> {
 
 type RegisteredToolWithExecution = {
   execution?: unknown;
+  inputSchema?: unknown;
   outputSchema?: unknown;
   disable?: () => void;
   handler?: (args: Record<string, unknown>) => Promise<CallToolResult>;
@@ -1263,9 +1266,10 @@ function configureRegisteredTools(mcpServer: McpServer): void {
   for (const [name, tool] of Object.entries(registeredTools)) {
     delete tool.execution;
     tool.outputSchema = structuredJsonOutputSchema;
-    if (!toolEnabledForProfile(activeToolProfile, name)) tool.disable?.();
+    if (!toolEnabledForProfile(activeToolProfile, name, portalConfigured)) tool.disable?.();
     if (isMainThread && tool.handler && !['get_project_brief', 'get_document_tree', 'get_document_outline', 'read_document_section', 'get_operation_result'].includes(name)) {
-      tool.handler = async args => {
+      tool.handler = async handlerArgs => {
+        const args = tool.inputSchema ? handlerArgs : {};
         const operation = await operations.execute(name, args);
         if (operation.status === 'COMPLETED') {
           if (name !== 'context_doctor') return operation.result!;
@@ -1333,6 +1337,9 @@ if (isMainThread) {
       try {
         const registered = (server as unknown as McpServerWithRegisteredTools)._registeredTools?.[tool];
         if (!registered?.handler) throw new Error(`Unknown worker operation: ${tool}`);
+        if (portalBoundToolNames.some(name => name === tool) && !toolEnabledForProfile(activeToolProfile, tool, portalConfigured)) {
+          throw new Error(`Portal operation requires a project binding: ${tool}`);
+        }
         const result = await registered.handler(args);
         parentPort!.postMessage({ id, result });
       } catch (error) { parentPort!.postMessage({ id, error: error instanceof Error ? error.message : String(error) }); }

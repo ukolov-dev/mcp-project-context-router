@@ -2,7 +2,6 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   getStoredPortalCredential,
   resolvePortalAccessToken,
-  resolvePortalCredential,
   storePortalOAuthCredential,
 } from '../src/portal/credential-store.js';
 import type { PortalOAuthCredential } from '../src/portal/device-auth.js';
@@ -32,18 +31,21 @@ describe('Portal credential store', () => {
     expect(options.stdio).toEqual(['pipe', 'ignore', 'pipe']);
   });
 
-  it('reads a valid stored OAuth access token synchronously', () => {
+  it('reads a valid stored OAuth access token without refreshing it', async () => {
     const spawn = vi.fn().mockReturnValue({
       status: 0,
       stdout: `${JSON.stringify(credential)}\n`,
       stderr: '',
     });
-    expect(resolvePortalCredential({
+    const fetch = vi.fn();
+    await expect(resolvePortalAccessToken({
       platform: 'darwin',
       spawn: spawn as never,
       environment: {},
+      fetch,
       now: () => new Date('2026-07-24T09:00:00.000Z'),
-    })).toEqual({ token: 'DUMMY_ACCESS_TOKEN', source: 'native-store' });
+    })).resolves.toEqual({ token: 'DUMMY_ACCESS_TOKEN', source: 'native-store' });
+    expect(fetch).not.toHaveBeenCalled();
   });
 
   it('refreshes an expired access token and rotates the stored envelope', async () => {
@@ -75,14 +77,14 @@ describe('Portal credential store', () => {
     expect((spawn.mock.calls[1]?.[1] as string[]).join(' ')).not.toContain('DUMMY_ROTATED_REFRESH_TOKEN');
   });
 
-  it('keeps legacy bearer credentials backward compatible', () => {
+  it('keeps legacy bearer credentials backward compatible', async () => {
     const spawn = vi.fn().mockReturnValue({ status: 0, stdout: 'DUMMY_LEGACY_TOKEN\n', stderr: '' });
     expect(getStoredPortalCredential({ platform: 'darwin', spawn: spawn as never }))
       .toBe('DUMMY_LEGACY_TOKEN');
-    expect(resolvePortalCredential({
+    await expect(resolvePortalAccessToken({
       platform: 'darwin',
       spawn: spawn as never,
       environment: {},
-    })).toEqual({ token: 'DUMMY_LEGACY_TOKEN', source: 'native-store' });
+    })).resolves.toEqual({ token: 'DUMMY_LEGACY_TOKEN', source: 'native-store' });
   });
 });

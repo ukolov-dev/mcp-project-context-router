@@ -4,7 +4,7 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { hasFts5 } from './sqlite-fts.js';
-import { coreToolNames, executionToolNames, researchToolNames, type McpToolProfile } from '../src/mcp/tool-profiles.js';
+import { coreToolNames, executionToolNames, researchToolNames, toolsForProfile, type McpToolProfile } from '../src/mcp/tool-profiles.js';
 import { loadProjectConfig } from '../src/storage/config.js';
 
 type McpConfig = {
@@ -32,6 +32,7 @@ const repoRoot = findRepositoryRoot();
 const configDir = resolve(repoRoot, '.codex');
 const configPath = resolve(configDir, 'config.toml');
 const projectConfig = loadProjectConfig();
+const portalConfigured = Boolean(projectConfig.integrations.portal?.projectKey && projectConfig.integrations.portal.projectName);
 const serverName = projectConfig.contextRouter.mcpServerName;
 const packageVersion = (JSON.parse(readFileSync(resolve(packageRoot, 'package.json'), 'utf8')) as { version: string }).version;
 
@@ -78,7 +79,7 @@ describe('Codex project-context MCP launch config', () => {
     const tools = toolsResult.tools as McpTool[];
     const toolNames = tools.map((tool) => tool.name);
 
-    expect(toolNames).toEqual([...coreToolNames]);
+    expect(toolNames).toEqual(toolsForProfile('core', coreToolNames, portalConfigured));
     expect(toolNames).not.toContain('search_project_context');
     expect(toolNames).not.toContain('archive_records');
     expect(tools.every((tool) => !Object.hasOwn(tool, 'execution'))).toBe(true);
@@ -128,7 +129,7 @@ describe('Codex project-context MCP launch config', () => {
     expect(analystTools).toContain('plan_confluence_publish');
     expect(analystTools).toContain('apply_confluence_publish');
     expect(analystTools).not.toContain('archive_records');
-    expect(developerTools).toContain('get_shared_project_snapshot');
+    expect(developerTools.includes('get_shared_project_snapshot')).toBe(portalConfigured);
     expect(developerTools).toContain('accept_assigned_work');
     expect(developerTools).toContain('submit_implementation_report');
     expect(developerTools).not.toContain('apply_confluence_publish');

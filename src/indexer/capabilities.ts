@@ -7,9 +7,10 @@ import { loadProjectConfig, type ProjectConfig } from '../storage/config.js';
 import { inferModulesFromPath, sourceGlobMayMatchPath, sourceGlobsForModule } from '../storage/inference.js';
 import type { Capability, Endpoint } from '../storage/types.js';
 import { repoPaths } from '../storage/repo.js';
+import { extractSymbolGraph } from '../symbol-graph/extract.js';
 
 // Bump when discovery rules change so existing consumer indexes are rebuilt.
-const capabilityDiscoveryVersion = 'symbol-graph-v4';
+const capabilityDiscoveryVersion = 'symbol-graph-v5';
 
 export function isCapabilitySourcePath(filePath: string): boolean {
   const config = loadProjectConfig();
@@ -22,7 +23,7 @@ export function inferModule(filePath: string): string {
   return inferModulesFromPath(filePath)[0] ?? 'unknown';
 }
 
-export function discoverCapabilities(): { capabilities: Capability[]; endpoints: Endpoint[]; sourceFingerprint: string } {
+export function discoverCapabilities(): { capabilities: Capability[]; endpoints: Endpoint[]; sourceFingerprint: string; graph: ReturnType<typeof extractSymbolGraph> } {
   const paths = repoPaths();
   const files = capabilitySourceFiles();
   const capabilities: Capability[] = [];
@@ -39,14 +40,15 @@ export function discoverCapabilities(): { capabilities: Capability[]; endpoints:
       extractCSharpCapabilities(filePath, module, text, capabilities, endpoints);
     } else if (/\.(?:py|go|rs)$/.test(filePath)) {
       for (const capability of extractLanguageCapabilities(filePath, module, text)) push(capabilities, capability);
-    } else {
-      extractTsCapabilities(filePath, module, lines, capabilities);
+    } else if (!/\.[cm]?[jt]sx?$/.test(filePath)) {
       extractJavaCapabilities(filePath, module, lines, capabilities, endpoints);
     }
     extractDocsCapabilities(filePath, module, lines, capabilities);
   }
 
-  return { capabilities, endpoints, sourceFingerprint: fingerprint.digest('hex') };
+  const graph = extractSymbolGraph(files);
+  capabilities.push(...graph.nodes.filter(node => node.kind !== 'file'));
+  return { capabilities, endpoints, sourceFingerprint: fingerprint.digest('hex'), graph };
 }
 
 export function discoverCapabilitySourceFingerprint(): string {
@@ -109,29 +111,6 @@ function push(capabilities: Capability[], item: Omit<Capability, 'id'>): void {
   capabilities.push({
     id: `${item.filePath}:${item.kind}:${item.name}:${item.lineStart ?? 0}`,
     ...item,
-  });
-}
-
-function extractTsCapabilities(filePath: string, module: string, lines: string[], capabilities: Capability[]): void {
-  lines.forEach((line, index) => {
-    const exports = /\bexport\b/.test(line);
-    const fn = /\b(?:export\s+)?(?:async\s+)?function\s+([A-Za-z0-9_]+)/.exec(line);
-    const cnst = /\b(?:export\s+)?const\s+([A-Za-z0-9_]+)\s*=/.exec(line);
-    const type = /\b(?:export\s+)?(?:type|interface)\s+([A-Za-z0-9_]+)/.exec(line);
-    const match = fn ?? cnst ?? type;
-    if (!match) return;
-    const name = match[1];
-    const kind = fn ? (name.startsWith('use') ? 'hook' : /^[A-Z]/.test(name) ? 'component' : 'function') : type ? 'type' : /^[A-Z]/.test(name) ? 'component' : 'constant';
-    push(capabilities, {
-      name,
-      kind,
-      module,
-      filePath,
-      lineStart: index + 1,
-      lineEnd: index + 1,
-      signature: line.trim(),
-      exported: exports,
-    });
   });
 }
 

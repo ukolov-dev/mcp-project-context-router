@@ -292,8 +292,10 @@ export function evaluateSearch(input: unknown, samples = 7, budgets = [500, 1000
     const identifierIndex = { entries: 0, buildMs: 0 };
     const db = openDb();
     try {
-      db.exec(`CREATE VIRTUAL TABLE eval_fts USING fts5(record_id UNINDEXED, title, body, tags, tokenize='unicode61');
-        INSERT INTO eval_fts SELECT record_id, title, body, tags FROM search_index;`);
+      if (selectedEngines.some((engine) => engine.startsWith('fts5') || engine.startsWith('hybrid'))) {
+        db.exec(`CREATE VIRTUAL TABLE eval_fts USING fts5(record_id UNINDEXED, title, body, tags, tokenize='unicode61');
+          INSERT INTO eval_fts SELECT record_id, title, body, tags FROM search_index;`);
+      }
       if (selectedEngines.some((engine) => engine.includes('+identifiers'))) {
         const start = performance.now();
         db.exec('CREATE TABLE eval_identifiers (record_id TEXT NOT NULL, identifier TEXT NOT NULL, PRIMARY KEY(record_id, identifier)); BEGIN;');

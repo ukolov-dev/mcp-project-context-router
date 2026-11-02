@@ -18,7 +18,7 @@ Markdown, YAML, and source code remain the sources of truth. SQLite is a
 rebuildable retrieval index.
 
 > Status: active development. The current package is
-> `mcp-project-context-router@0.12.1`, requires Node.js 22.13 or newer, and is distributed
+> `mcp-project-context-router@0.12.2`, requires Node.js 22.13 or newer, and is distributed
 > from source or a versioned tarball. It is not currently published to an npm
 > registry.
 
@@ -83,7 +83,7 @@ Install directly from GitHub in the repository that should own the project
 context:
 
 ```bash
-npm install --save-dev --save-exact https://github.com/ukolov-dev/mcp-project-context-router/releases/download/v0.12.1/mcp-project-context-router-0.12.1.tgz
+npm install --save-dev --save-exact https://github.com/ukolov-dev/mcp-project-context-router/releases/download/v0.12.2/mcp-project-context-router-0.12.2.tgz
 npx project-context init --name "Example Project" --module app:src
 npx project-context index
 npx project-context doctor --json
@@ -166,7 +166,7 @@ templates:
 | DeepSeek Harness (official DSH) | [English](docs/install/deepseek-harness.md) · [Русский](docs/install/deepseek-harness.ru.md) | [`deepseek-harness.cordis.yml`](templates/client-configs/deepseek-harness.cordis.yml) |
 | OpenCode V2 preview | [OpenCode V2 notes](docs/install/opencode.md#opencode-v2-preview) | [`templates/client-configs/opencode-v2.json`](templates/client-configs/opencode-v2.json) |
 
-Release [0.12.1](https://github.com/ukolov-dev/mcp-project-context-router/releases/tag/v0.12.1) includes ZCode and official DeepSeek Harness support. Install the release package above and initialize explicitly:
+Release [0.12.2](https://github.com/ukolov-dev/mcp-project-context-router/releases/tag/v0.12.2) includes ZCode and official DeepSeek Harness support. Install the release package above and initialize explicitly:
 
 ```bash
 npx project-context init --client zcode --with-skills
@@ -196,6 +196,8 @@ The server supports scoped tool profiles:
 | `analyst` | `core` plus research, requirements, source traceability, analyst packs, and Confluence publishing |
 | `admin` | `core` plus research, backlog lifecycle, promotion, retention, and decision management |
 | `full` | The complete compatibility surface |
+
+Four Portal read tools are hidden outside `full` until the repository has a complete Portal project binding. `get_portal_sync_status` remains available.
 
 `core` is the default. The legacy `PPM_CONTEXT_TOOL_PROFILE` variable remains
 supported for compatibility.
