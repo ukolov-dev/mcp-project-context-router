@@ -9,7 +9,7 @@ Notable changes to Project Context Router are recorded here. Versions before
 - Remove the unimplemented `capture-commit` command, which previously reported success without capturing anything. Use `index --changed` for index maintenance.
 - Hide four binding-dependent Portal read tools outside the full profile when the repository has no complete Portal binding. Keep status diagnostics and configured-project behavior; keep SDK request context out of no-argument worker calls.
 - Use the existing Compiler API analysis as the single TS/JS declaration source for capability discovery and symbol graphs, preserving useful metadata and lazy compiler loading. Rebuild stale indexes with the updated discovery fingerprint.
-- Simplify standalone export by copying reusable source scripts and website together, excluding generated output and removing obsolete filters and template rewrites. Exercise exported commands in regression checks.
+- Simplify standalone export by copying reusable source scripts and website together, excluding private/generated output and removing obsolete filters and template rewrites. Exercise exported commands in regression checks; keep current-only search evaluation independent of optional FTS5 on Node.js22.13.
 - Keep existing dependency pins and records. The unused simple-git dependency and obsolete refactor draft code had already been removed before this patch.
 
 ## [0.12.1] - 2026-11-02

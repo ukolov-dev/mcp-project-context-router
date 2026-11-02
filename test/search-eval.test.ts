@@ -1,7 +1,8 @@
 import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { DatabaseSync } from 'node:sqlite';
+import { describe, expect, it, vi } from 'vitest';
 import { hasFts5 } from './sqlite-fts.js';
 import { budgetContext, applyIdentifierFallback, identifierTerms, engines, evaluateSearch, expandRelations, fuseRankings, supportingRecords, scoreHits, validateFixture } from '../scripts/search-eval.js';
 import type { ContextRecord } from '../src/storage/types.js';
@@ -17,6 +18,24 @@ function record(id: string, fields: Partial<ContextRecord> = {}): ContextRecord 
 }
 
 describe('search relevance evaluation', () => {
+  it('evaluates current engines without an FTS5 module', () => {
+    const exec = DatabaseSync.prototype.exec;
+    const spy = vi.spyOn(DatabaseSync.prototype, 'exec').mockImplementation(function (this: DatabaseSync, sql) {
+      if (/\bUSING\s+fts5\b/i.test(sql)) throw new Error('no such module: fts5');
+      return exec.call(this, sql);
+    });
+    try {
+      const report = evaluateSearch({ ...fixture, queries: fixture.queries.slice(0, 2) }, 1, [500], ['current', 'current+relations']);
+
+      expect(report.engines).toEqual(['current', 'current+relations']);
+      expect(Object.keys(report.summary)).toEqual(['current', 'current+relations']);
+      expect(report.results).toHaveLength(2);
+      expect(report.results[0].engines.current.ids.length).toBeGreaterThan(0);
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
   it.skipIf(!hasFts5)('replays consumer routing and required guidance, recording honest budget overflow', () => {
     const snapshot = { kind: 'project-snapshot', version: 1, description: 'Consumer budget regression',
       capturedAt: '2026-10-13T00:00:00Z', excludedRecordIds: [],
