@@ -3,6 +3,15 @@
 Notable changes to Project Context Router are recorded here. Versions before
 1.0 are under active development. The package requires Node.js 22.13 or newer.
 
+## [0.12.1] - 2026-11-02
+
+- Validate Task Contract IDs and reject unsafe or symlinked storage paths before writing.
+- Reject invalid, zero and unsafe archive durations before moving records; refuse restore conflicts without overwriting active records.
+- Redact detected secrets in analyst excerpts with the shared redaction helper.
+- Generate source draft IDs with the existing record allocator and create files exclusively, preserving logical source IDs and existing drafts.
+- Keep Portal request timeouts active through response-body reads and reject exact snapshots whose IDs do not match the request.
+- Add focused regressions for all seven priority audit findings. Preserve existing records, dependency pins and optional integration setup.
+
 ## [0.12.0] - 2026-10-29
 
 - Add CLI/MCP `explain`, `affected` and `path` over the existing SQLite index with static TS/JS call/import locations, ambiguity handling and bounded traversal.
@@ -208,3 +217,5 @@ It is the first tagged GitHub release; the previous source baseline was 0.4.0.
 [0.11.0]: https://github.com/ukolov-dev/mcp-project-context-router/releases/tag/v0.11.0
 
 [0.12.0]: https://github.com/ukolov-dev/mcp-project-context-router/releases/tag/v0.12.0
+
+[0.12.1]: https://github.com/ukolov-dev/mcp-project-context-router/releases/tag/v0.12.1

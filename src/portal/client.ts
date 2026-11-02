@@ -188,6 +188,7 @@ export class PortalClient {
     assertUuid(snapshotId, 'snapshotId');
     assertUuid(expectedProjectId, 'projectId');
     const manifest = portalSnapshotSchema.parse(await this.json(`/api/v1/context/snapshots/${snapshotId}`));
+    if (manifest.id !== snapshotId) throw new Error('Portal returned a mismatched snapshot.');
     return this.materializeSnapshot(manifest, expectedProjectId);
   }
 
@@ -347,8 +348,7 @@ export class PortalClient {
   }
 
   private async json(path: string, init: RequestInit = {}): Promise<unknown> {
-    const response = await this.request(path, init);
-    const raw = await response.text();
+    const raw = await this.request(path, init);
     try {
       return JSON.parse(raw) as unknown;
     } catch {
@@ -357,10 +357,10 @@ export class PortalClient {
   }
 
   private async text(path: string): Promise<string> {
-    return (await this.request(path)).text();
+    return this.request(path);
   }
 
-  private async request(path: string, init: RequestInit = {}): Promise<Response> {
+  private async request(path: string, init: RequestInit = {}): Promise<string> {
     if (!path.startsWith('/api/v1/')) throw new Error('Portal client path must use the versioned API.');
     const method = init.method ?? 'GET';
     const retries = method === 'GET' ? (this.options.retries ?? 2) : 0;
@@ -379,9 +379,9 @@ export class PortalClient {
             ...init.headers,
           },
         });
-        if (response.ok) return response;
-        const body = (await response.text()).slice(0, 2_000);
-        const error = parseApiError(response.status, body);
+        const body = await response.text();
+        if (response.ok) return body;
+        const error = parseApiError(response.status, body.slice(0, 2_000));
         if (attempt < retries && retryableStatus(response.status)) {
           lastError = error;
           continue;

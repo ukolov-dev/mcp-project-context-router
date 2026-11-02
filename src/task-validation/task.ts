@@ -1,4 +1,6 @@
 import { assertReadyForCompletion } from '../execution/runs.js';
+import { assertExecutionPath } from '../execution/store.js';
+import { executionIdSchema } from '../execution/types.js';
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, renameSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -11,7 +13,7 @@ import { inferModulesFromSignals } from '../storage/inference.js';
 import { contextCliCommand, contextPackCommandsForModules, loadProjectConfig } from '../storage/config.js';
 
 export const confirmTaskInputSchema = z.object({
-  taskId: z.string(),
+  taskId: executionIdSchema,
   goal: z.string(),
   scope: z.array(z.string()).default([]),
   outOfScope: z.array(z.string()).default([]),
@@ -89,7 +91,13 @@ export function validateTask(query: string, mode = 'feature'): ValidateTaskResul
 export function confirmTaskContract(input: z.infer<typeof confirmTaskInputSchema>): { status: 'CONFIRMED'; path: string } {
   const paths = repoPaths();
   const parsed = confirmTaskInputSchema.parse(input);
+  const target = resolve(paths.activeDir, 'tasks', `${parsed.taskId}.md`);
+  assertExecutionPath(target);
   const sourcePath = findRecordPath(parsed.taskId) ?? resolve(paths.draftsDir, 'tasks', `${parsed.taskId}.md`);
+  assertExecutionPath(sourcePath);
+  const archivedDraft = existsSync(sourcePath) && sourcePath !== target
+    ? resolve(paths.trashDir, `${parsed.taskId}.draft.md`) : undefined;
+  if (archivedDraft) assertExecutionPath(archivedDraft);
   const id = parsed.taskId;
   const modules = parsed.modules ?? inferModulesFromSignals({
     query: `${parsed.goal} ${parsed.scope.join(' ')}`,
@@ -144,13 +152,11 @@ ${listOrNone(parsed.risks)}
 
 ${listOrNone(parsed.testExpectations)}
 `;
-  const target = resolve(paths.activeDir, 'tasks', `${id}.md`);
   if (existsSync(target) && sourcePath !== target) {
     throw new Error(`Active task already exists for ${id}; refusing to overwrite it.`);
   }
   writeMarkdown(target, frontmatter, body);
-  if (existsSync(sourcePath) && sourcePath !== target) {
-    const archivedDraft = resolve(paths.trashDir, `${id}.draft.md`);
+  if (archivedDraft) {
     mkdirSync(paths.trashDir, { recursive: true });
     renameSync(sourcePath, archivedDraft);
   }
