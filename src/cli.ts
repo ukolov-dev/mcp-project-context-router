@@ -1051,10 +1051,6 @@ archive
 
 program.command('restore').argument('<recordId>').description('Restore an archived record to active context').action((recordId) => emit(restore(recordId)));
 
-program.command('capture-commit').argument('[commit]', 'commit sha', 'HEAD').description('Best-effort post-commit context capture').action((commit) => {
-  emit({ status: 'OK', commit, message: 'capture-commit is non-blocking in MVP; index --changed should be run separately.' });
-});
-
 program
   .command('record-decision')
   .description('Create a decision draft')

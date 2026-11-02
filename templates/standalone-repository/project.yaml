@@ -36,7 +36,7 @@ modules:
     path: src
     stack: TypeScript, Node.js, MCP SDK, SQLite
     aliases: [router, context, mcp, cli, server, typescript]
-    source_globs: ["src/**/*.ts", "bin/*", "hooks/*.js"]
+    source_globs: ["src/**/*.ts", "bin/*", "hooks/*.js", "scripts/*.{mjs,ts}"]
     playbooks: [AGENTS.md, playbooks/testing.md]
   tests:
     path: test

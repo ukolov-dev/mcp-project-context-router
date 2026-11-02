@@ -17,6 +17,17 @@ const allTools = [
 ];
 
 describe('MCP tool profiles', () => {
+  it.each(['core', 'planning', 'analyst', 'developer', 'admin'] as const)('hides Portal reads without a binding in %s', (profile) => {
+    const portalReads = ['get_shared_project_snapshot', 'get_exact_shared_snapshot', 'get_assigned_work', 'get_handoff_bundle'];
+    const tools = toolsForProfile(profile, allTools, false);
+    expect(tools).toEqual(toolsForProfile(profile, allTools, true).filter(name => !portalReads.includes(name)));
+    expect(tools).toContain('get_portal_sync_status');
+  });
+
+  it('keeps unbound Portal reads in the full compatibility profile', () => {
+    expect(toolsForProfile('full', allTools, false)).toEqual(allTools);
+  });
+
   it('uses a compact core profile by default', () => {
     expect(resolveMcpToolProfile(undefined)).toBe('core');
     expect(toolsForProfile('core', allTools)).toEqual([...coreToolNames]);

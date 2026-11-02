@@ -1,12 +1,13 @@
 export type McpToolProfile = 'core' | 'planning' | 'analyst' | 'developer' | 'admin' | 'full';
 
+export const portalBoundToolNames = [
+  'get_shared_project_snapshot', 'get_exact_shared_snapshot', 'get_assigned_work', 'get_handoff_bundle',
+] as const;
+
 export const coreToolNames = [
   'get_operation_result',
   'get_project_brief',
-  'get_shared_project_snapshot',
-  'get_exact_shared_snapshot',
-  'get_assigned_work',
-  'get_handoff_bundle',
+  ...portalBoundToolNames,
   'get_portal_sync_status',
   'validate_task',
   'confirm_task_contract',
@@ -106,10 +107,11 @@ export function resolveMcpToolProfile(
   throw new Error(`Unsupported PROJECT_CONTEXT_TOOL_PROFILE: ${value}. Expected core, planning, analyst, developer, admin, or full.`);
 }
 
-export function toolEnabledForProfile(profile: McpToolProfile, toolName: string): boolean {
-  return profile === 'full' || profileTools[profile].has(toolName);
+export function toolEnabledForProfile(profile: McpToolProfile, toolName: string, portalConfigured = true): boolean {
+  return profile === 'full' || (profileTools[profile].has(toolName)
+    && (portalConfigured || !portalBoundToolNames.some(name => name === toolName)));
 }
 
-export function toolsForProfile(profile: McpToolProfile, allToolNames: Iterable<string>): string[] {
-  return [...allToolNames].filter((name) => toolEnabledForProfile(profile, name));
+export function toolsForProfile(profile: McpToolProfile, allToolNames: Iterable<string>, portalConfigured = true): string[] {
+  return [...allToolNames].filter((name) => toolEnabledForProfile(profile, name, portalConfigured));
 }

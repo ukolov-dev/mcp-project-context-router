@@ -11,9 +11,14 @@ const require = createRequire(import.meta.url);
 export type SymbolEdge = { source: string; target: string; relation: 'calls' | 'imports'; file: string; line: number };
 
 /** Only statically resolved TS/JS declarations inside the indexed source set are connected. */
-export function extractSymbolGraph(files: Array<{ filePath: string; module: string }>, existing: Capability[]) {
-  const ts: typeof import('typescript') = require('typescript');
+export function extractSymbolGraph(files: Array<{ filePath: string; module: string }>) {
   const supported = files.filter(f => /\.[cm]?[jt]sx?$/.test(f.filePath));
+  const nodes: Capability[] = [];
+  const edges: SymbolEdge[] = [];
+  const coverage = { supportedFiles: 0, unsupportedFiles: files.length - supported.length,
+    limitation: 'Static TS/JS calls and named/default imports only; dynamic dispatch, external packages and other languages are not complete.' };
+  if (!supported.length) return { nodes, edges, coverage };
+  const ts: typeof import('typescript') = require('typescript');
   const sources = new Map<string, ts.SourceFile>();
   for (const file of supported) {
     const reference = classifyFileReference(file.filePath);
@@ -37,19 +42,14 @@ export function extractSymbolGraph(files: Array<{ filePath: string; module: stri
   };
   const program = ts.createProgram([...sources.keys()], { noLib: true, allowJs: true, noEmit: true }, host);
   const checker = program.getTypeChecker();
-  const nodes: Capability[] = [];
-  const claimed = new Set<string>();
-  const existingByLocation = new Map<string, Capability[]>();
-  for (const node of existing) {
-    const key = `${node.filePath}#${node.name}:${node.lineStart}`;
-    const list = existingByLocation.get(key) ?? []; list.push(node); existingByLocation.set(key, list);
-  }
+  const ids = new Set<string>();
   const declarations = new Map<ts.Node, Capability>();
   const fileNodes = new Map<ts.SourceFile, Capability>();
   const line = (node: ts.Node) => node.getSourceFile().getLineAndCharacterOfPosition(node.getStart()).line + 1;
   for (const file of supported) {
     const source = sources.get(resolve(repoPaths().root, file.filePath));
     if (!source) continue;
+    const lines = source.text.split(/\r?\n/);
     const fileNode: Capability = { id: `source:${file.filePath}`, name: file.filePath, kind: 'file', module: file.module,
       filePath: file.filePath, lineStart: 1, lineEnd: source.getLineAndCharacterOfPosition(source.end).line + 1, exported: false };
     nodes.push(fileNode); fileNodes.set(source, fileNode);
@@ -62,11 +62,17 @@ export function extractSymbolGraph(files: Array<{ filePath: string; module: stri
         const name = ts.isConstructorDeclaration(node) ? 'constructor' : (node as ts.NamedDeclaration).name?.getText(source);
         if (name) {
           const start = line(node);
-          const prior = (existingByLocation.get(`${file.filePath}#${name}:${start}`) ?? []).find(c => !claimed.has(c.id));
-          if (prior) claimed.add(prior.id);
-          const capability: Capability = { ...prior, id: prior?.id ?? `symbol:${file.filePath}:${node.pos}`, name,
-            kind: prior?.kind ?? (ts.isClassDeclaration(node) ? 'class' : variable ? 'constant' : 'function'), module: file.module, filePath: file.filePath, lineStart: start,
-            lineEnd: source.getLineAndCharacterOfPosition(node.end).line + 1, exported: prior?.exported ?? false };
+          const kind = ts.isInterfaceDeclaration(node) || ts.isTypeAliasDeclaration(node) ? 'type'
+            : ts.isClassDeclaration(node) ? 'class' : ts.isEnumDeclaration(node) ? 'enum'
+            : variable ? /^[A-Z]/.test(name) ? 'component' : 'constant'
+            : ts.isFunctionDeclaration(node) ? name.startsWith('use') ? 'hook' : /^[A-Z]/.test(name) ? 'component' : 'function' : 'function';
+          const id = `${file.filePath}:${kind}:${name}:${start}`;
+          const statement = variable ? node.parent.parent : node;
+          const exported = ts.canHaveModifiers(statement) && Boolean(ts.getModifiers(statement)?.some(modifier => modifier.kind === ts.SyntaxKind.ExportKeyword));
+          const capability: Capability = { id: ids.has(id) ? `symbol:${file.filePath}:${node.pos}` : id, name, kind,
+            module: file.module, filePath: file.filePath, lineStart: start, signature: lines[start - 1].trim(),
+            lineEnd: source.getLineAndCharacterOfPosition(node.end).line + 1, exported };
+          ids.add(capability.id);
           declarations.set(node, capability); nodes.push(capability);
         }
       }
@@ -74,7 +80,6 @@ export function extractSymbolGraph(files: Array<{ filePath: string; module: stri
     };
     visit(source);
   }
-  const edges: SymbolEdge[] = [];
   const targetFor = (name: ts.Node) => {
     let symbol = checker.getSymbolAtLocation(name);
     if (symbol && symbol.flags & ts.SymbolFlags.Alias) symbol = checker.getAliasedSymbol(symbol);
@@ -101,6 +106,6 @@ export function extractSymbolGraph(files: Array<{ filePath: string; module: stri
     };
     visit(source, fileNode);
   }
-  return { nodes, edges, coverage: { supportedFiles: fileNodes.size, unsupportedFiles: files.length - supported.length,
-    limitation: 'Static TS/JS calls and named/default imports only; dynamic dispatch, external packages and other languages are not complete.' } };
+  coverage.supportedFiles = fileNodes.size;
+  return { nodes, edges, coverage };
 }
